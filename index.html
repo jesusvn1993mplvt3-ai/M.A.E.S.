@@ -105,13 +105,15 @@
             { id: 'm8',  name: 'MAQ 8',  type: 'SANTONI TOP2' },
         ];
 
-        // Generador de Calendario
+        // Generador de Calendario (ACTUALIZADO: Nov 2025 - Dic 2026)
         const generateCalendar = () => {
             const dates = [];
             const days = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'];
             const months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
             
-            const start = new Date(2026, 0, 1);
+            // INICIO: 1 de Noviembre 2025
+            const start = new Date(2025, 10, 1);
+            // FIN: 31 de Diciembre 2026
             const end = new Date(2026, 11, 31);
             
             let idx = 0;
@@ -122,6 +124,7 @@
                     shortDay: days[d.getDay()],
                     dateNum: d.getDate(),
                     month: months[d.getMonth()],
+                    year: d.getFullYear(), // Agregamos el año por si acaso se necesita visualmente
                     isoDate: d.toISOString().split('T')[0] 
                 });
             }
@@ -389,7 +392,7 @@
                                 <h4 className="text-xs font-bold text-blue-400 uppercase mb-2 border-b border-slate-700 pb-1">Ocultar Días</h4>
                                 <div className="flex gap-2 mb-3">
                                     <input type="date" 
-                                        min="2026-01-01" max="2026-12-31"
+                                        min="2025-11-01" max="2026-12-31"
                                         value={dateToHide} onChange={e => setDateToHide(e.target.value)}
                                         className="bg-slate-900 text-white border border-slate-600 rounded p-2 flex-1 text-sm outline-none focus:border-blue-500" />
                                     <button onClick={hideDate} className="bg-slate-700 px-3 rounded hover:bg-slate-600 text-white font-bold text-sm">Ocultar</button>
@@ -694,7 +697,10 @@
                             <div className="p-3 flex justify-between items-center">
                                 <div>
                                     <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Semana {weekOffset + 1}</h2>
-                                    <p className="font-black text-slate-100 leading-none">{selectedDay.month} {selectedDay.dateNum}</p>
+                                    <p className="font-black text-slate-100 leading-none">
+                                        {selectedDay.month} {selectedDay.dateNum} 
+                                        <span className="text-xs text-slate-500 ml-1 font-normal">{selectedDay.year}</span>
+                                    </p>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-[10px] text-slate-500 font-bold uppercase">Total Día</p>
@@ -837,6 +843,7 @@
                                                 <tr key={rowId} className="border-b border-slate-700 hover:bg-slate-700/50 transition-colors">
                                                     <td className="sticky left-0 bg-slate-800 p-2 border-r border-slate-700 text-xs font-bold text-slate-400 shadow-[2px_0_5px_rgba(0,0,0,0.3)]">
                                                         {row.shortDay} <br/> <span className="text-lg text-slate-200">{row.dateNum}</span>
+                                                        <span className="block text-[9px] mt-1 text-slate-500">{row.year}</span>
                                                     </td>
                                                     {visibleMachines.map(m => {
                                                         const mData = rowData[m.id] || {};
