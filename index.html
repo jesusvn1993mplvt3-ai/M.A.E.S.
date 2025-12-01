@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -10,20 +9,20 @@
     <meta property="og:title" content="Control de Producción M.A.E.S." />
     <meta property="og:description" content="Sistema de control de producción y planificación." />
     <meta property="og:image" content="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/social.jpg" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
     <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/social.jpg" />
     
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     
     <style>
-        /* Scrollbar Oscuro */
+        /* Estilos Base */
         .custom-scrollbar::-webkit-scrollbar { height: 4px; width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
@@ -48,9 +47,9 @@
     <script type="text/babel" data-type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getFirestore, collection, doc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, doc, setDoc, onSnapshot, addDoc, serverTimestamp, query, orderBy, limit } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect, useMemo, useRef } = React;
 
         // --- CONFIG FIREBASE ---
         const firebaseConfig = {
@@ -67,7 +66,7 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // --- ROLES Y USUARIOS ---
+        // --- CONSTANTES ---
         const ROLES = { 
             ADMIN: 'admin', 
             COMMENTATOR: 'commentator', 
@@ -85,31 +84,31 @@
         };
         
         const MACHINES = [
-            { id: 'm35', name: 'MAQ 35', type: 'SANTONI SM8', needles: 1440 },
-            { id: 'm39', name: 'MAQ 39', type: 'SANTONI SM8', needles: 1440 },
-            { id: 'm40', name: 'MAQ 40', type: 'SANTONI SM8', needles: 1440 },
-            { id: 'm36', name: 'MAQ 36', type: 'CIXING GE82', needles: 1344 },
-            { id: 'm38', name: 'MAQ 38', type: 'SANTONI SM8', needles: 1344 },
-            { id: 'm37', name: 'MAQ 37', type: 'SANTONI SM8', needles: 1344 },
-            { id: 'm29', name: 'MAQ 29', type: 'SANTONI EVO4', needles: 1296 },
-            { id: 'm28', name: 'MAQ 28', type: 'SANTONI EVO4', needles: 1296 },
-            { id: 'm27', name: 'MAQ 27', type: 'SANTONI EVO4', needles: 1248 },
-            { id: 'm33', name: 'MAQ 33', type: 'SANTONI EVO4', needles: 1344 },
-            { id: 'm1',  name: 'MAQ 1',  type: 'CIXING', needles: 1248 },
-            { id: 'm30', name: 'MAQ 30', type: 'CIXING GE82', needles: 1248 },
-            { id: 'm31', name: 'MAQ 31', type: 'CIXING GE82', needles: 1248 },
-            { id: 'm6',  name: 'MAQ 6',  type: 'CIXING GE82', needles: 1248 },
-            { id: 'm32', name: 'MAQ 32', type: 'CIXING GE82', needles: 1248 },
-            { id: 'm13', name: 'MAQ 13', type: 'SANTONI EVO4', needles: 1056 },
-            { id: 'm12', name: 'MAQ 12', type: 'SANTONI EVO4', needles: 1056 },
-            { id: 'm24', name: 'MAQ 24', type: 'SANTONI EVO4', needles: 1056 },
-            { id: 'm8',  name: 'MAQ 8',  type: 'SANTONI TOP2', needles: 1152 },
+            { id: 'm35', name: 'MAQ 35', type: 'SANTONI SM8' },
+            { id: 'm39', name: 'MAQ 39', type: 'SANTONI SM8' },
+            { id: 'm40', name: 'MAQ 40', type: 'SANTONI SM8' },
+            { id: 'm36', name: 'MAQ 36', type: 'CIXING GE82' },
+            { id: 'm38', name: 'MAQ 38', type: 'SANTONI SM8' },
+            { id: 'm37', name: 'MAQ 37', type: 'SANTONI SM8' },
+            { id: 'm29', name: 'MAQ 29', type: 'SANTONI EVO4' },
+            { id: 'm28', name: 'MAQ 28', type: 'SANTONI EVO4' },
+            { id: 'm27', name: 'MAQ 27', type: 'SANTONI EVO4' },
+            { id: 'm33', name: 'MAQ 33', type: 'SANTONI EVO4' },
+            { id: 'm1',  name: 'MAQ 1',  type: 'CIXING' },
+            { id: 'm30', name: 'MAQ 30', type: 'CIXING GE82' },
+            { id: 'm31', name: 'MAQ 31', type: 'CIXING GE82' },
+            { id: 'm6',  name: 'MAQ 6',  type: 'CIXING GE82' },
+            { id: 'm32', name: 'MAQ 32', type: 'CIXING GE82' },
+            { id: 'm13', name: 'MAQ 13', type: 'SANTONI EVO4' },
+            { id: 'm12', name: 'MAQ 12', type: 'SANTONI EVO4' },
+            { id: 'm24', name: 'MAQ 24', type: 'SANTONI EVO4' },
+            { id: 'm8',  name: 'MAQ 8',  type: 'SANTONI TOP2' },
         ];
 
+        // Generador de Calendario
         const generateCalendar = () => {
             const dates = [];
             const days = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'];
-            const fullDays = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
             const months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
             
             const start = new Date(2026, 0, 1);
@@ -119,7 +118,7 @@
             for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
                 dates.push({
                     index: idx++,
-                    id: `${fullDays[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`,
+                    id: `${['DOMINGO','LUNES','MARTES','MIERCOLES','JUEVES','VIERNES','SABADO'][d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`,
                     shortDay: days[d.getDay()],
                     dateNum: d.getDate(),
                     month: months[d.getMonth()],
@@ -139,7 +138,171 @@
             return { targetPieces, percentage: parseFloat(percentage.toFixed(1)) };
         };
 
-        // --- COMPONENTES ---
+        // --- COMPONENTES AUXILIARES ---
+
+        // 1. BLOC DE NOTAS COMPARTIDO
+        const NotesModal = ({ onClose, user }) => {
+            const [notes, setNotes] = useState([]);
+            const [newMessage, setNewMessage] = useState('');
+            const endOfMessagesRef = useRef(null);
+
+            useEffect(() => {
+                const q = query(collection(db, 'shared_notes'), orderBy('timestamp', 'asc'), limit(50));
+                const unsubscribe = onSnapshot(q, (snapshot) => {
+                    const loadedNotes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setNotes(loadedNotes);
+                    setTimeout(() => endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+                });
+                return () => unsubscribe();
+            }, []);
+
+            const handleSend = async (e) => {
+                e.preventDefault();
+                if (!newMessage.trim()) return;
+                await addDoc(collection(db, 'shared_notes'), {
+                    text: newMessage,
+                    author: user.name,
+                    area: user.area,
+                    timestamp: serverTimestamp()
+                });
+                setNewMessage('');
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in" onClick={onClose}>
+                    <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md h-[70vh] flex flex-col border border-slate-700 overflow-hidden" onClick={e=>e.stopPropagation()}>
+                        <div className="p-4 bg-slate-900 border-b border-slate-700 flex justify-between items-center">
+                            <h3 className="font-bold text-white flex items-center gap-2"><i data-lucide="sticky-note" className="w-5 h-5 text-yellow-400"></i> Notas Compartidas</h3>
+                            <button onClick={onClose}><i data-lucide="x" className="text-slate-400 w-5 h-5"></i></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-900/50 custom-scrollbar">
+                            {notes.length === 0 && <p className="text-center text-slate-500 text-sm italic">No hay notas aún.</p>}
+                            {notes.map(note => {
+                                const isMe = note.author === user.name;
+                                return (
+                                    <div key={note.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                                        <div className={`max-w-[85%] rounded-xl p-3 text-sm ${isMe ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-slate-700 text-slate-200 rounded-tl-none'}`}>
+                                            <p className="font-bold text-[10px] opacity-75 mb-1">{note.author} <span className="font-normal opacity-50">({note.area})</span></p>
+                                            <p>{note.text}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            <div ref={endOfMessagesRef}></div>
+                        </div>
+                        <form onSubmit={handleSend} className="p-3 bg-slate-800 border-t border-slate-700 flex gap-2">
+                            <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} 
+                                className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none" placeholder="Escribe una nota..." />
+                            <button type="submit" className="bg-blue-600 p-2 rounded-lg text-white hover:bg-blue-500"><i data-lucide="send" className="w-5 h-5"></i></button>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        // 2. MODAL DE ESTADÍSTICAS Y PDF
+        const StatsModal = ({ onClose, visibleMachines, currentWeekData, weekTitle }) => {
+            const canvasRef = useRef(null);
+            
+            // Preparar datos
+            const labels = visibleMachines.map(m => m.name.replace('MAQ ', 'M-'));
+            const actualData = visibleMachines.map(m => {
+                return currentWeekData.reduce((acc, row) => acc + (row.data[m.id]?.actual || 0), 0);
+            });
+            const targetData = visibleMachines.map(m => {
+                return currentWeekData.reduce((acc, row) => acc + (row.data[m.id]?.calculated_target || 0), 0);
+            });
+
+            useEffect(() => {
+                if (canvasRef.current) {
+                    const ctx = canvasRef.current.getContext('2d');
+                    const chart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                { label: 'Real', data: actualData, backgroundColor: '#3b82f6', borderRadius: 4 },
+                                { label: 'Meta (Calc)', data: targetData, backgroundColor: '#334155', borderRadius: 4, borderDash: [5, 5], borderWidth: 1, borderColor: '#94a3b8' }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: { legend: { labels: { color: '#94a3b8' } } },
+                            scales: {
+                                y: { grid: { color: '#1e293b' }, ticks: { color: '#64748b' } },
+                                x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 10 } } }
+                            }
+                        }
+                    });
+                    return () => chart.destroy();
+                }
+            }, []);
+
+            const generatePDF = () => {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                doc.setFontSize(18);
+                doc.text(`Reporte de Producción - ${weekTitle}`, 14, 20);
+                doc.setFontSize(10);
+                doc.text(`Generado el: ${new Date().toLocaleDateString()}`, 14, 28);
+
+                const tableBody = visibleMachines.map(m => {
+                    const totalActual = currentWeekData.reduce((acc, row) => acc + (row.data[m.id]?.actual || 0), 0);
+                    const totalTarget = currentWeekData.reduce((acc, row) => acc + (row.data[m.id]?.calculated_target || 0), 0);
+                    const efficiency = totalTarget > 0 ? ((totalActual/totalTarget)*100).toFixed(1) + '%' : '0%';
+                    return [m.name, m.type, totalActual.toLocaleString(), totalTarget.toLocaleString(), efficiency];
+                });
+
+                doc.autoTable({
+                    startY: 35,
+                    head: [['Máquina', 'Modelo', 'Prod. Real', 'Meta Calc.', 'Eficiencia']],
+                    body: tableBody,
+                    theme: 'grid',
+                    headStyles: { fillColor: [41, 128, 185] },
+                    styles: { fontSize: 9 }
+                });
+
+                doc.save(`Reporte_MAES_${weekTitle.replace(' ', '_')}.pdf`);
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in" onClick={onClose}>
+                    <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col border border-slate-700" onClick={e=>e.stopPropagation()}>
+                        <div className="p-4 bg-slate-900 border-b border-slate-700 flex justify-between items-center">
+                            <h3 className="font-bold text-white flex items-center gap-2"><i data-lucide="bar-chart-2" className="w-5 h-5 text-green-400"></i> Análisis de Producción</h3>
+                            <div className="flex gap-2">
+                                <button onClick={generatePDF} className="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-3 py-2 rounded flex items-center gap-2">
+                                    <i data-lucide="file-down" className="w-4 h-4"></i> PDF
+                                </button>
+                                <button onClick={onClose} className="bg-slate-700 p-2 rounded hover:bg-slate-600"><i data-lucide="x" className="text-white w-4 h-4"></i></button>
+                            </div>
+                        </div>
+                        <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
+                            <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 mb-4 h-[400px]">
+                                <canvas ref={canvasRef}></canvas>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {visibleMachines.map(m => {
+                                    const act = actualData[visibleMachines.indexOf(m)];
+                                    const tgt = targetData[visibleMachines.indexOf(m)];
+                                    const pct = tgt > 0 ? Math.round((act/tgt)*100) : 0;
+                                    return (
+                                        <div key={m.id} className="bg-slate-700/50 p-3 rounded border border-slate-600">
+                                            <p className="text-xs text-slate-400 font-bold">{m.name}</p>
+                                            <div className="flex justify-between items-end mt-1">
+                                                <span className="text-lg font-bold text-white">{act}</span>
+                                                <span className={`text-xs font-bold ${pct>=90?'text-green-400':pct<50?'text-red-400':'text-yellow-400'}`}>{pct}%</span>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
 
         const LoginScreen = ({ setAuthenticatedUser }) => {
             const [pin, setPin] = useState('');
@@ -155,7 +318,6 @@
                         <div className="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 text-white shadow-lg shadow-blue-900/50">
                             <i data-lucide="factory" className="w-8 h-8"></i>
                         </div>
-                        {/* CAMBIO 3: Nombre en Login */}
                         <h2 className="text-2xl font-black text-white mb-2">M.A.E.S. Mobile</h2>
                         <p className="text-slate-400 mb-8">Control de Producción 2026</p>
                         <form onSubmit={handleLogin} className="space-y-4">
@@ -168,7 +330,6 @@
             );
         };
 
-        // --- MODAL DE VISIBILIDAD ---
         const VisibilityModal = ({ onClose, currentHiddenMachines, currentHiddenDays, onSaveVisibility, allRows }) => {
             const [hiddenM, setHiddenM] = useState([...currentHiddenMachines]);
             const [hiddenD, setHiddenD] = useState([...currentHiddenDays]);
@@ -209,8 +370,6 @@
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-6">
-                            
-                            {/* Sección Máquinas */}
                             <div>
                                 <h4 className="text-xs font-bold text-blue-400 uppercase mb-2 border-b border-slate-700 pb-1">Ocultar Máquinas</h4>
                                 <div className="grid grid-cols-2 gap-2">
@@ -226,8 +385,6 @@
                                     })}
                                 </div>
                             </div>
-
-                            {/* Sección Días */}
                             <div>
                                 <h4 className="text-xs font-bold text-blue-400 uppercase mb-2 border-b border-slate-700 pb-1">Ocultar Días</h4>
                                 <div className="flex gap-2 mb-3">
@@ -237,7 +394,6 @@
                                         className="bg-slate-900 text-white border border-slate-600 rounded p-2 flex-1 text-sm outline-none focus:border-blue-500" />
                                     <button onClick={hideDate} className="bg-slate-700 px-3 rounded hover:bg-slate-600 text-white font-bold text-sm">Ocultar</button>
                                 </div>
-                                
                                 {hiddenD.length > 0 ? (
                                     <div className="space-y-1 bg-slate-900/50 p-2 rounded border border-slate-700">
                                         {hiddenD.map(rid => (
@@ -252,7 +408,6 @@
                                 )}
                             </div>
                         </div>
-
                         <div className="p-4 border-t border-slate-700 bg-slate-900 rounded-b-2xl">
                             <button onClick={handleSave} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-500">Guardar Cambios</button>
                         </div>
@@ -396,6 +551,10 @@
             const [selectedDayIndex, setSelectedDayIndex] = useState(0); 
             const [planModal, setPlanModal] = useState(null);
             const [showVisibilityModal, setShowVisibilityModal] = useState(false);
+            
+            // Nuevos Estados
+            const [showNotes, setShowNotes] = useState(false);
+            const [showStats, setShowStats] = useState(false);
 
             useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
 
@@ -476,11 +635,19 @@
                 const rawWeek = ALL_ROWS.slice(start, start + 7);
                 return rawWeek.filter(r => !visibilityConfig.days.includes(r.id));
             }, [weekOffset, visibilityConfig.days]);
+            
+            // Datos enriquecidos para la gráfica
+            const weekDataForStats = useMemo(() => {
+                return currentWeekRows.map(row => ({
+                    ...row,
+                    data: data[row.id] || {}
+                }));
+            }, [currentWeekRows, data]);
 
-            // Permisos más granulares
-            const canEditPlan = user && (user.role === ROLES.ADMIN || user.role === ROLES.DEVELOPMENT); // Puede crear/editar planes (modelo, minutos, horas)
-            const canEditActual = user && (user.role === ROLES.ADMIN || user.role === ROLES.DEVELOPMENT || user.role === ROLES.OPERATOR); // Puede editar la cantidad real
-            const canConfig = user && (user.role === ROLES.DEVELOPMENT); // Puede cambiar visibilidad
+            const canEditPlan = user && (user.role === ROLES.ADMIN || user.role === ROLES.DEVELOPMENT);
+            const canEditActual = user && (user.role === ROLES.ADMIN || user.role === ROLES.DEVELOPMENT || user.role === ROLES.OPERATOR);
+            const canConfig = user && (user.role === ROLES.DEVELOPMENT);
+            const canViewStats = user && (user.role === ROLES.ADMIN || user.role === ROLES.DEVELOPMENT);
 
             if (!user) return <LoginScreen setAuthenticatedUser={setUser} />;
             if (loading) return <div className="h-screen flex items-center justify-center bg-slate-900"><i data-lucide="loader-2" className="animate-spin w-12 h-12 text-blue-500"></i></div>;
@@ -499,7 +666,6 @@
                 return (
                     <div className="flex flex-col h-full bg-slate-900">
                         <div className="bg-slate-800 shadow-sm z-20 shrink-0 border-b border-slate-700">
-                            {/* Saludo Personalizado */}
                             <div className="p-3 flex justify-between items-center bg-slate-900/50"> 
                                 <div className="flex items-center gap-2">
                                     <i data-lucide="user-check" className="w-5 h-5 text-blue-400"></i>
@@ -508,11 +674,21 @@
                                         <p className="text-[10px] text-slate-500 uppercase font-medium">{user.area}</p>
                                     </div>
                                 </div>
-                                {canConfig && (
-                                    <button onClick={() => setShowVisibilityModal(true)} className="w-8 h-8 bg-slate-700 rounded-lg flex items-center justify-center text-slate-300 active:scale-95" title="Ajustar Visibilidad">
-                                        <i data-lucide="eye" className="w-4 h-4"></i>
+                                <div className="flex gap-2">
+                                    <button onClick={() => setShowNotes(true)} className="w-8 h-8 bg-slate-700 rounded-lg flex items-center justify-center text-yellow-400 active:scale-95">
+                                        <i data-lucide="sticky-note" className="w-4 h-4"></i>
                                     </button>
-                                )}
+                                    {canViewStats && (
+                                        <button onClick={() => setShowStats(true)} className="w-8 h-8 bg-slate-700 rounded-lg flex items-center justify-center text-green-400 active:scale-95">
+                                            <i data-lucide="bar-chart-2" className="w-4 h-4"></i>
+                                        </button>
+                                    )}
+                                    {canConfig && (
+                                        <button onClick={() => setShowVisibilityModal(true)} className="w-8 h-8 bg-slate-700 rounded-lg flex items-center justify-center text-slate-300 active:scale-95">
+                                            <i data-lucide="eye" className="w-4 h-4"></i>
+                                        </button>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="p-3 flex justify-between items-center">
@@ -603,15 +779,25 @@
                             <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-2 rounded-lg text-white shadow-lg shadow-blue-900/50">
                                 <i data-lucide="factory" className="w-5 h-5"></i>
                             </div>
-                            {/* CAMBIO 4: Nombre en Header Desktop */}
                             <h1 className="font-bold text-slate-200">Control M.A.E.S. 2026</h1>
-                            {/* Saludo Personalizado */}
                             <div className="ml-4 text-left p-2 bg-slate-900/50 rounded-lg border border-slate-700/50">
                                 <p className="text-sm font-bold text-blue-400">¡HOLA, {user.name.toUpperCase()}!</p>
                                 <p className="text-[10px] text-slate-500 uppercase font-medium leading-none">{user.area}</p>
                             </div>
+                            
+                            {/* BOTONES NUEVOS */}
+                            <button onClick={() => setShowNotes(true)} className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-yellow-400 ml-4 transition-colors relative group" title="Notas Compartidas">
+                                <i data-lucide="sticky-note" className="w-5 h-5"></i>
+                            </button>
+
+                            {canViewStats && (
+                                <button onClick={() => setShowStats(true)} className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-green-400 transition-colors" title="Reportes y Gráficas">
+                                    <i data-lucide="bar-chart-2" className="w-5 h-5"></i>
+                                </button>
+                            )}
+
                             {canConfig && (
-                                <button onClick={() => setShowVisibilityModal(true)} className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-slate-300 ml-4 transition-colors" title="Ajustar Visibilidad">
+                                <button onClick={() => setShowVisibilityModal(true)} className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-slate-300 transition-colors" title="Ajustar Visibilidad">
                                     <i data-lucide="eye" className="w-5 h-5"></i>
                                 </button>
                             )}
@@ -718,6 +904,15 @@
                         currentHiddenDays={visibilityConfig.days}
                         onSaveVisibility={handleSaveVisibility}
                         allRows={ALL_ROWS}
+                    />}
+
+                    {showNotes && <NotesModal onClose={() => setShowNotes(false)} user={user} />}
+                    
+                    {showStats && <StatsModal 
+                        onClose={() => setShowStats(false)} 
+                        visibleMachines={visibleMachines} 
+                        currentWeekData={weekDataForStats}
+                        weekTitle={`Semana ${weekOffset + 1}`} 
                     />}
 
                     <div className="block md:hidden h-full"><MobileView /></div>
