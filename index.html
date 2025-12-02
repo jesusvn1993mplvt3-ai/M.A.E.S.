@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
-    <title>MAES26 Control Lunes</title>
+    <title>MAES26 Control Operadores</title>
 
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,29 +15,25 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     
     <style>
         .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
-        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-        .password-mask { -webkit-text-security: disc; text-security: disc; }
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes zoomIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        .animate-zoom-in { animation: zoomIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         .slot-input {
             background: transparent; border: none; outline: none; text-align: center; width: 100%;
             font-weight: bold; padding: 0; z-index: 1; position: relative;
         }
         .slot-input:focus { background: #1e293b; color: #60a5fa; }
         .slot-input::placeholder { color: #475569; font-weight: normal; font-size: 8px; }
+        .password-mask { -webkit-text-security: disc; text-security: disc; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes zoomIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .animate-zoom-in { animation: zoomIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-200 font-sans fixed inset-0 overflow-hidden">
@@ -73,14 +69,17 @@
             OPERATOR: 'operator'
         };
 
+        // --- ACTUALIZACIÓN DE USUARIOS: ANDRÉS (0) y BALTA (1) ---
         const USERS = {
             '1111': { name: 'Marco Espinoza', role: ROLES.ADMIN, area: 'Administración' },
             '0000': { name: 'Prisciliano Espinoza', role: ROLES.COMMENTATOR, area: 'Comentarios' },
             '2222': { name: 'Susana', role: ROLES.OBSERVER, area: 'Observación' },
             '1352': { name: 'Vallejo', role: ROLES.DEVELOPMENT, area: 'Desarrollo' },
             '3333': { name: 'Tejido', role: ROLES.OPERATOR, area: 'Operadores Gral' },
-            '1392': { name: 'Andrés', role: ROLES.OPERATOR, area: 'Tejido (A)', allowedSlots: [0, 1] },
-            '7914': { name: 'Balta', role: ROLES.OPERATOR, area: 'Tejido (B)', allowedSlots: [2, 3] }
+            // Andrés asignado al slot 0 (Izquierda)
+            '1392': { name: 'Andrés', role: ROLES.OPERATOR, area: 'Tejido (A)', allowedSlots: [0] },
+            // Balta asignado al slot 1 (Derecha)
+            '7914': { name: 'Balta', role: ROLES.OPERATOR, area: 'Tejido (B)', allowedSlots: [1] }
         };
         
         const MACHINES = [
@@ -109,10 +108,8 @@
             const dates = [];
             const days = ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'];
             const months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-            
             const start = new Date(2025, 8, 29); 
             const end = new Date(2026, 11, 31);
-            
             let idx = 0;
             for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
                 dates.push({
@@ -134,21 +131,11 @@
         const getInitialState = () => {
             const todayISO = new Date().toISOString().split('T')[0];
             const foundIndex = ALL_ROWS.findIndex(r => r.isoDate === todayISO);
-            
             if (foundIndex !== -1) {
                 const row = ALL_ROWS[foundIndex];
-                return {
-                    weekOffset: Math.floor(foundIndex / 7),
-                    selectedDayIndex: foundIndex % 7,
-                    currentMonthDate: new Date(row.year, row.monthIndex, 1)
-                };
-            } else {
-                return {
-                    weekOffset: 0,
-                    selectedDayIndex: 0,
-                    currentMonthDate: new Date(2025, 9, 1)
-                };
+                return { weekOffset: Math.floor(foundIndex / 7), selectedDayIndex: foundIndex % 7, currentMonthDate: new Date(row.year, row.monthIndex, 1) };
             }
+            return { weekOffset: 0, selectedDayIndex: 0, currentMonthDate: new Date(2025, 9, 1) };
         };
 
         const INITIAL_STATE = getInitialState();
@@ -161,25 +148,20 @@
             return { targetPieces, percentage: parseFloat(percentage.toFixed(1)) };
         };
 
-        // --- PRODUCTION SLOT ---
         const ProductionSlot = ({ slotData, index, disabled, onUpdate }) => {
             const [localModel, setLocalModel] = useState(slotData?.model || '');
             const [localQty, setLocalQty] = useState(slotData?.qty || '');
             const [isDirty, setIsDirty] = useState(false);
 
             useEffect(() => {
-                if (!isDirty) {
-                    setLocalModel(slotData?.model || '');
-                    setLocalQty(slotData?.qty || '');
-                }
+                if (!isDirty) { setLocalModel(slotData?.model || ''); setLocalQty(slotData?.qty || ''); }
             }, [slotData, isDirty]);
 
             const handleSave = (e) => {
                 e && e.preventDefault(); e && e.stopPropagation();
                 if (localModel !== (slotData?.model || '')) onUpdate(index, 'model', localModel);
                 const currentQtyStr = slotData?.qty !== undefined && slotData?.qty !== null ? String(slotData.qty) : '';
-                const newQtyStr = String(localQty);
-                if (newQtyStr !== currentQtyStr) onUpdate(index, 'qty', localQty);
+                if (String(localQty) !== currentQtyStr) onUpdate(index, 'qty', localQty);
                 setIsDirty(false);
             };
 
@@ -188,9 +170,7 @@
                 setIsDirty(true);
             };
 
-            const handleKeyDown = (e) => {
-                if (e.key === 'Enter') { e.preventDefault(); handleSave(e); e.target.blur(); }
-            };
+            const handleKeyDown = (e) => { if (e.key === 'Enter') { e.preventDefault(); handleSave(e); e.target.blur(); } };
 
             return (
                 <div className={`flex flex-col border border-slate-700/50 rounded overflow-hidden h-full relative ${disabled ? 'bg-slate-900/20 opacity-40' : 'bg-slate-800'} ${isDirty ? 'border-yellow-500/50' : ''}`}>
@@ -198,230 +178,110 @@
                     <input type="number" placeholder="CANT" value={localQty} onChange={(e) => handleChange('qty', e.target.value)} onKeyDown={handleKeyDown} disabled={disabled} autoComplete="off" className="slot-input text-[10px] text-white h-1/2" />
                     {isDirty && !disabled && (
                         <div className="absolute inset-y-0 right-0 w-8 flex items-center justify-center bg-gradient-to-l from-slate-900 via-slate-900/80 to-transparent z-10 animate-zoom-in">
-                            <button onClick={handleSave} className="bg-green-600 hover:bg-green-500 text-white rounded-full p-1.5 shadow-lg shadow-green-900/50 transform hover:scale-110 active:scale-95 transition-all"><i data-lucide="check" className="w-4 h-4 md:w-3 md:h-3"></i></button>
+                            <button onClick={handleSave} className="bg-green-600 text-white rounded-full p-1 shadow-lg transform hover:scale-110"><i data-lucide="check" className="w-3 h-3"></i></button>
                         </div>
                     )}
                 </div>
             );
         };
 
-        // --- MODALES AUXILIARES ---
-        const NotesModal=({onClose,user})=>{const[notes,setNotes]=useState([]);const[newMessage,setNewMessage]=useState('');const endOfMessagesRef=useRef(null);useEffect(()=>{const q=query(collection(db,'shared_notes'),orderBy('timestamp','asc'),limit(50));const unsubscribe=onSnapshot(q,(snapshot)=>{const loadedNotes=snapshot.docs.map(doc=>({id:doc.id,...doc.data()}));setNotes(loadedNotes);setTimeout(()=>endOfMessagesRef.current?.scrollIntoView({behavior:'smooth'}),100)});return()=>unsubscribe()},[]);const handleSend=async(e)=>{e.preventDefault();if(!newMessage.trim())return;await addDoc(collection(db,'shared_notes'),{text:newMessage,author:user.name,area:user.area,timestamp:serverTimestamp()});setNewMessage('')};return(<div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in" onClick={onClose}><div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md h-[70vh] flex flex-col border border-slate-700 overflow-hidden" onClick={e=>e.stopPropagation()}><div className="p-4 bg-slate-900 border-b border-slate-700 flex justify-between items-center"><h3 className="font-bold text-white flex items-center gap-2"><i data-lucide="sticky-note" className="w-5 h-5 text-yellow-400"></i> Notas Compartidas</h3><button onClick={onClose}><i data-lucide="x" className="text-slate-400 w-5 h-5"></i></button></div><div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-900/50 custom-scrollbar">{notes.length===0&&<p className="text-center text-slate-500 text-sm italic">No hay notas aún.</p>}{notes.map(note=>{const isMe=note.author===user.name;return(<div key={note.id} className={`flex flex-col ${isMe?'items-end':'items-start'}`}><div className={`max-w-[85%] rounded-xl p-3 text-sm ${isMe?'bg-blue-600 text-white rounded-tr-none':'bg-slate-700 text-slate-200 rounded-tl-none'}`}><p className="font-bold text-[10px] opacity-75 mb-1">{note.author} <span className="font-normal opacity-50">({note.area})</span></p><p>{note.text}</p></div></div>)})} <div ref={endOfMessagesRef}></div></div><form onSubmit={handleSend} className="p-3 bg-slate-800 border-t border-slate-700 flex gap-2"><input type="text" value={newMessage} onChange={e=>setNewMessage(e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none" placeholder="Escribe una nota..." /><button type="submit" className="bg-blue-600 p-2 rounded-lg text-white hover:bg-blue-500"><i data-lucide="send" className="w-5 h-5"></i></button></form></div></div>)};
-        const HelpModal=({onClose})=>{return(<div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in" onClick={onClose}><div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm border border-slate-700 overflow-hidden" onClick={e=>e.stopPropagation()}><div className="p-4 bg-slate-900 border-b border-slate-700 flex justify-between items-center"><h3 className="font-bold text-white flex items-center gap-2"><i data-lucide="help-circle" className="w-5 h-5 text-blue-400"></i> Guía de Colores</h3><button onClick={onClose}><i data-lucide="x" className="text-slate-400 w-5 h-5"></i></button></div><div className="p-5 space-y-4"><p className="text-sm text-slate-400 mb-4">Referencia de eficiencia basada en la Meta Calculada vs Real.</p><div className="space-y-3"><div className="flex items-center gap-3 p-2 rounded bg-slate-700/50 border border-slate-600"><div className="w-4 h-4 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div><div><p className="text-xs font-bold text-green-400">EXCELENTE (≥ 100%)</p><p className="text-[10px] text-slate-500">Meta cumplida o superada.</p></div></div><div className="flex items-center gap-3 p-2 rounded bg-slate-700/50 border border-slate-600"><div className="w-4 h-4 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]"></div><div><p className="text-xs font-bold text-blue-400">BUENO (80% - 99%)</p><p className="text-[10px] text-slate-500">Producción dentro de rango normal.</p></div></div><div className="flex items-center gap-3 p-2 rounded bg-slate-700/50 border border-slate-600"><div className="w-4 h-4 rounded-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]"></div><div><p className="text-xs font-bold text-orange-400">REGULAR (50% - 79%)</p><p className="text-[10px] text-slate-500">Atención requerida. Posibles paros.</p></div></div><div className="flex items-center gap-3 p-2 rounded bg-slate-700/50 border border-slate-600"><div className="w-4 h-4 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]"></div><div><p className="text-xs font-bold text-red-400">CRÍTICO (&lt; 50%)</p><p className="text-[10px] text-slate-500">Problema grave o máquina detenida.</p></div></div></div></div></div></div>)};
+        const NotesModal=({onClose,user})=>{const[notes,setNotes]=useState([]);const[newMessage,setNewMessage]=useState('');const endOfMessagesRef=useRef(null);useEffect(()=>{const q=query(collection(db,'shared_notes'),orderBy('timestamp','asc'),limit(50));const unsubscribe=onSnapshot(q,(snapshot)=>{const loadedNotes=snapshot.docs.map(doc=>({id:doc.id,...doc.data()}));setNotes(loadedNotes);setTimeout(()=>endOfMessagesRef.current?.scrollIntoView({behavior:'smooth'}),100)});return()=>unsubscribe()},[]);const handleSend=async(e)=>{e.preventDefault();if(!newMessage.trim())return;await addDoc(collection(db,'shared_notes'),{text:newMessage,author:user.name,area:user.area,timestamp:serverTimestamp()});setNewMessage('')};return(<div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in" onClick={onClose}><div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md h-[70vh] flex flex-col border border-slate-700 overflow-hidden" onClick={e=>e.stopPropagation()}><div className="p-4 bg-slate-900 border-b border-slate-700 flex justify-between items-center"><h3 className="font-bold text-white flex items-center gap-2"><i data-lucide="sticky-note" className="w-5 h-5 text-yellow-400"></i> Notas</h3><button onClick={onClose}><i data-lucide="x" className="text-slate-400 w-5 h-5"></i></button></div><div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-900/50 custom-scrollbar">{notes.map(note=>{const isMe=note.author===user.name;return(<div key={note.id} className={`flex flex-col ${isMe?'items-end':'items-start'}`}><div className={`max-w-[85%] rounded-xl p-3 text-sm ${isMe?'bg-blue-600 text-white':'bg-slate-700 text-slate-200'}`}><p className="font-bold text-[10px] opacity-75 mb-1">{note.author}</p><p>{note.text}</p></div></div>)})} <div ref={endOfMessagesRef}></div></div><form onSubmit={handleSend} className="p-3 bg-slate-800 border-t border-slate-700 flex gap-2"><input type="text" value={newMessage} onChange={e=>setNewMessage(e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm" placeholder="Escribir..." /><button type="submit" className="bg-blue-600 p-2 rounded-lg text-white"><i data-lucide="send" className="w-5 h-5"></i></button></form></div></div>)};
         
-        const VisibilityModal = ({ onClose, currentHiddenMachines, currentHiddenDays, currentSlotConfig, onSaveVisibility, allRows, userRole }) => {
+        const VisibilityModal = ({ onClose, currentHiddenMachines, currentHiddenDays, onSaveVisibility, allRows }) => {
             const [hiddenM, setHiddenM] = useState([...currentHiddenMachines]);
             const [hiddenD, setHiddenD] = useState([...currentHiddenDays]);
-            const [slotConfig, setSlotConfig] = useState(currentSlotConfig || {});
             const [dateToHide, setDateToHide] = useState('');
-            const operators = useMemo(() => Object.entries(USERS).filter(([id, u]) => u.role === ROLES.OPERATOR).map(([id, u]) => ({ id, name: u.name })), []);
-            const getMachineConfig = (mid) => { const val = slotConfig[mid]; if (typeof val === 'number') return { count: val, permissions: {} }; return val || { count: 4, permissions: {} }; };
             const toggleMachine = (mid) => { if (hiddenM.includes(mid)) setHiddenM(prev => prev.filter(id => id !== mid)); else setHiddenM(prev => [...prev, mid]); };
-            const updateCount = (mid, count) => { setSlotConfig(prev => { const old = getMachineConfig(mid); return { ...prev, [mid]: { ...old, count: parseInt(count) } }; }); };
-            const updatePermission = (mid, slotIdx, userId) => { setSlotConfig(prev => { const old = getMachineConfig(mid); const newPerms = { ...old.permissions, [slotIdx]: userId }; if (!userId) delete newPerms[slotIdx]; return { ...prev, [mid]: { ...old, permissions: newPerms } }; }); };
-            const hideDate = () => { if (!dateToHide) return; const row = allRows.find(r => r.isoDate === dateToHide); if (row && !hiddenD.includes(row.id)) { setHiddenD(prev => [...prev, row.id]) } setDateToHide(''); };
+            const hideDate = () => { if (!dateToHide) return; const row = allRows.find(r => r.isoDate === dateToHide); if (row && !hiddenD.includes(row.id)) setHiddenD(prev => [...prev, row.id]); setDateToHide(''); };
             const unhideDate = (rowId) => { setHiddenD(prev => prev.filter(id => id !== rowId)) };
-            const handleSave = () => { onSaveVisibility(hiddenM, hiddenD, slotConfig); onClose(); };
-            const isDev = userRole === ROLES.DEVELOPMENT;
+            const handleSave = () => { onSaveVisibility(hiddenM, hiddenD); onClose(); };
+
             return (
                 <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in" onClick={onClose}>
                     <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg h-[85vh] flex flex-col border border-slate-700" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900 rounded-t-2xl"><h3 className="font-bold text-lg text-white flex items-center gap-2"><i data-lucide="settings" className="w-5 h-5 text-slate-400"></i> Configuración</h3><button onClick={onClose}><i data-lucide="x" className="text-slate-400 w-6 h-6"></i></button></div>
+                        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900 rounded-t-2xl"><h3 className="font-bold text-lg text-white">Configuración</h3><button onClick={onClose}><i data-lucide="x" className="text-slate-400 w-6 h-6"></i></button></div>
                         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-6">
-                            <div><h4 className="text-xs font-bold text-blue-400 uppercase mb-2 border-b border-slate-700 pb-1">Visibilidad Máquinas</h4><div className="grid grid-cols-2 gap-2">{MACHINES.map(m => { const isHidden = hiddenM.includes(m.id); return (<button key={m.id} onClick={() => toggleMachine(m.id)} className={`flex items-center justify-between p-2 rounded border text-sm ${isHidden ? 'bg-red-900/30 border-red-500/50 text-red-300' : 'bg-slate-900 border-slate-700 text-slate-300'}`}><span>{m.name}</span>{isHidden ? <i data-lucide="eye-off" className="w-4 h-4"></i> : <i data-lucide="eye" className="w-4 h-4 text-green-500/50"></i>}</button>) })}</div></div>
-                            {isDev && (<div><h4 className="text-xs font-bold text-yellow-400 uppercase mb-2 border-b border-slate-700 pb-1">Asignación (Dev)</h4><div className="bg-slate-900/50 p-3 rounded border border-slate-700 space-y-4">{MACHINES.map(m => { const config = getMachineConfig(m.id); const count = config.count; return (<div key={m.id} className="border-b border-slate-800 pb-3 last:border-0 last:pb-0"><div className="flex justify-between items-center mb-2"><span className="text-sm font-bold text-slate-300">{m.name}</span><div className="flex items-center gap-2"><span className="text-[10px] text-slate-500 uppercase">Slots:</span><select value={count} onChange={(e) => updateCount(m.id, e.target.value)} className="bg-slate-800 text-white border border-slate-600 rounded px-2 py-1 text-xs outline-none focus:border-blue-500"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></div></div><div className="grid grid-cols-2 gap-2">{Array.from({length: count}).map((_, idx) => { const assignedId = config.permissions[idx] || ''; return (<div key={idx} className="flex items-center gap-1 bg-slate-800 p-1 rounded border border-slate-700"><span className="text-[9px] font-bold text-blue-400 w-4 text-center">{idx + 1}</span><select value={assignedId} onChange={(e) => updatePermission(m.id, idx, e.target.value)} className="flex-1 bg-transparent text-[10px] text-slate-300 outline-none"><option value="">Cualquiera</option>{operators.map(op => (<option key={op.id} value={op.id}>{op.name}</option>))}</select></div>) })}</div></div>); })}</div></div>)}
-                            <div><h4 className="text-xs font-bold text-blue-400 uppercase mb-2 border-b border-slate-700 pb-1">Ocultar Días</h4><div className="flex gap-2 mb-3"><input type="date" min="2025-09-29" max="2026-12-31" value={dateToHide} onChange={e => setDateToHide(e.target.value)} className="bg-slate-900 text-white border border-slate-600 rounded p-2 flex-1 text-sm outline-none focus:border-blue-500" /><button onClick={hideDate} className="bg-slate-700 px-3 rounded hover:bg-slate-600 text-white font-bold text-sm">Ocultar</button></div>{hiddenD.length > 0 ? (<div className="space-y-1 bg-slate-900/50 p-2 rounded border border-slate-700">{hiddenD.map(rid => (<div key={rid} className="flex justify-between items-center text-sm p-2 bg-slate-800 rounded"><span className="text-slate-300">{rid}</span><button onClick={() => unhideDate(rid)} className="text-red-400 hover:text-red-300 text-xs font-bold uppercase">Mostrar</button></div>))}</div>) : (<p className="text-xs text-slate-500 italic">No hay días ocultos.</p>)}</div>
+                            <div><h4 className="text-xs font-bold text-blue-400 uppercase mb-2">Visibilidad Máquinas</h4><div className="grid grid-cols-2 gap-2">{MACHINES.map(m => { const isHidden = hiddenM.includes(m.id); return (<button key={m.id} onClick={() => toggleMachine(m.id)} className={`flex items-center justify-between p-2 rounded border text-sm ${isHidden ? 'bg-red-900/30 border-red-500/50 text-red-300' : 'bg-slate-900 border-slate-700 text-slate-300'}`}><span>{m.name}</span>{isHidden ? <i data-lucide="eye-off" className="w-4 h-4"></i> : <i data-lucide="eye" className="w-4 h-4 text-green-500/50"></i>}</button>) })}</div></div>
+                            <div><h4 className="text-xs font-bold text-blue-400 uppercase mb-2">Ocultar Días</h4><div className="flex gap-2 mb-3"><input type="date" value={dateToHide} onChange={e => setDateToHide(e.target.value)} className="bg-slate-900 text-white border border-slate-600 rounded p-2 flex-1 text-sm" /><button onClick={hideDate} className="bg-slate-700 px-3 rounded text-white text-sm">Ocultar</button></div>{hiddenD.map(rid => (<div key={rid} className="flex justify-between items-center text-sm p-2 bg-slate-800 rounded mb-1"><span className="text-slate-300">{rid}</span><button onClick={() => unhideDate(rid)} className="text-red-400 text-xs font-bold">Mostrar</button></div>))}</div>
                         </div>
-                        <div className="p-4 border-t border-slate-700 bg-slate-900 rounded-b-2xl"><button onClick={handleSave} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-500">Guardar Cambios</button></div>
+                        <div className="p-4 border-t border-slate-700 bg-slate-900 rounded-b-2xl"><button onClick={handleSave} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Guardar</button></div>
                     </div>
                 </div>
             )
         };
 
-        // --- STATS MODAL MEJORADO (COMPARATIVA OPERADORES) ---
-        const StatsModal = ({ onClose, visibleMachines, dataRows, title }) => {
+        // --- ACTUALIZACIÓN STATS MODAL: Comparativa Andrés vs Balta ---
+        const StatsModal = ({ onClose, visibleMachines, currentWeekData, weekTitle }) => {
             const canvasRef = useRef(null);
-            const [isAdvanced, setIsAdvanced] = useState(false);
-            const chartInstance = useRef(null);
+            
+            // Calculamos datos para Andrés (Slot 0) y Balta (Slot 1)
+            const labels = visibleMachines.map(m => m.name.replace('MAQ ', 'M-'));
+            
+            const andresData = visibleMachines.map(m => {
+                return currentWeekData.reduce((acc, row) => {
+                    const slots = row.data[m.id]?.slots || [];
+                    return acc + (Number(slots[0]?.qty) || 0); // Slot 0 = Andrés
+                }, 0);
+            });
 
-            // Calcular datos por Operador
-            const machineStats = useMemo(() => {
-                return visibleMachines.map(m => {
-                    let andresTotal = 0;
-                    let baltaTotal = 0;
-                    let machineTargetTotal = 0;
-
-                    dataRows.forEach(row => {
-                        const mData = row.data[m.id] || {};
-                        const slots = mData.slots || [];
-                        const target = mData.calculated_target || 0;
-                        machineTargetTotal += target;
-
-                        // Andrés: Slots 0 y 1
-                        andresTotal += (Number(slots[0]?.qty) || 0) + (Number(slots[1]?.qty) || 0);
-                        // Balta: Slots 2 y 3
-                        baltaTotal += (Number(slots[2]?.qty) || 0) + (Number(slots[3]?.qty) || 0);
-                    });
-
-                    // Eficiencia (Asumiendo 50% de la meta global para cada uno para ser justos en la comparativa)
-                    // Si target es 0, eficiencia 0.
-                    const halfTarget = machineTargetTotal / 2;
-                    const andresEff = halfTarget > 0 ? (andresTotal / halfTarget) * 100 : 0;
-                    const baltaEff = halfTarget > 0 ? (baltaTotal / halfTarget) * 100 : 0;
-
-                    return {
-                        name: m.name.replace('MAQ ', 'M-'),
-                        fullName: m.name,
-                        andresQty: andresTotal,
-                        baltaQty: baltaTotal,
-                        andresEff: parseFloat(andresEff.toFixed(1)),
-                        baltaEff: parseFloat(baltaEff.toFixed(1)),
-                        targetTotal: machineTargetTotal
-                    };
-                });
-            }, [visibleMachines, dataRows]);
+            const baltaData = visibleMachines.map(m => {
+                return currentWeekData.reduce((acc, row) => {
+                    const slots = row.data[m.id]?.slots || [];
+                    return acc + (Number(slots[1]?.qty) || 0); // Slot 1 = Balta
+                }, 0);
+            });
 
             useEffect(() => {
                 if (canvasRef.current) {
-                    if (chartInstance.current) chartInstance.current.destroy();
-
                     const ctx = canvasRef.current.getContext('2d');
-                    
-                    const labels = machineStats.map(s => s.name);
-                    const datasetAndres = isAdvanced 
-                        ? { label: 'Eficiencia Andrés (%)', data: machineStats.map(s => s.andresEff), backgroundColor: '#818cf8' }
-                        : { label: 'Prod. Andrés (Pzas)', data: machineStats.map(s => s.andresQty), backgroundColor: '#3b82f6' };
-                    
-                    const datasetBalta = isAdvanced
-                        ? { label: 'Eficiencia Balta (%)', data: machineStats.map(s => s.baltaEff), backgroundColor: '#f472b6' }
-                        : { label: 'Prod. Balta (Pzas)', data: machineStats.map(s => s.baltaQty), backgroundColor: '#ec4899' };
-
-                    chartInstance.current = new Chart(ctx, {
+                    const chart = new Chart(ctx, {
                         type: 'bar',
                         data: {
                             labels: labels,
-                            datasets: [datasetAndres, datasetBalta]
+                            datasets: [
+                                { label: 'Andrés', data: andresData, backgroundColor: '#3b82f6', borderRadius: 4 }, // Azul
+                                { label: 'Balta', data: baltaData, backgroundColor: '#f97316', borderRadius: 4 }   // Naranja
+                            ]
                         },
                         options: {
                             responsive: true,
-                            plugins: {
-                                legend: { labels: { color: '#94a3b8' } },
-                                title: { display: true, text: isAdvanced ? 'Rendimiento / Eficiencia (Meta Compartida)' : 'Producción Total (Piezas)', color: '#cbd5e1' }
-                            },
+                            maintainAspectRatio: false,
+                            plugins: { legend: { labels: { color: '#94a3b8' } } },
                             scales: {
                                 y: { grid: { color: '#1e293b' }, ticks: { color: '#64748b' }, beginAtZero: true },
-                                x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                                x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 10 } } }
                             }
                         }
                     });
+                    return () => chart.destroy();
                 }
-                return () => { if (chartInstance.current) chartInstance.current.destroy(); };
-            }, [machineStats, isAdvanced]);
-
-            const generatePDF = () => {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                doc.setFontSize(16);
-                doc.text(`Reporte Comparativo - ${title}`, 14, 20);
-                doc.setFontSize(10);
-                doc.text(`Modo: ${isAdvanced ? 'Avanzado (Eficiencia)' : 'Básico (Producción)'}`, 14, 28);
-                doc.text(`Generado: ${new Date().toLocaleDateString()}`, 14, 34);
-
-                const head = [['Máquina', 'Andrés (Pzas)', 'Andrés (%)', 'Balta (Pzas)', 'Balta (%)', 'Meta Global']];
-                const body = machineStats.map(s => [
-                    s.fullName,
-                    s.andresQty.toLocaleString(),
-                    s.andresEff + '%',
-                    s.baltaQty.toLocaleString(),
-                    s.baltaEff + '%',
-                    s.targetTotal.toLocaleString()
-                ]);
-
-                doc.autoTable({
-                    startY: 40,
-                    head: head,
-                    body: body,
-                    theme: 'grid',
-                    headStyles: { fillColor: [30, 41, 59] },
-                    styles: { fontSize: 9 }
-                });
-                doc.save(`MAES26_Comparativo_${title}.pdf`);
-            };
-
-            const generateExcel = () => {
-                const wsData = [
-                    ['Reporte de Producción', title],
-                    ['Generado', new Date().toLocaleString()],
-                    [],
-                    ['Máquina', 'Andrés (Pzas)', 'Andrés (Eficiencia %)', 'Balta (Pzas)', 'Balta (Eficiencia %)', 'Meta Total Máquina']
-                ];
-
-                machineStats.forEach(s => {
-                    wsData.push([
-                        s.fullName,
-                        s.andresQty,
-                        s.andresEff / 100, // Formato decimal para porcentaje
-                        s.baltaQty,
-                        s.baltaEff / 100,
-                        s.targetTotal
-                    ]);
-                });
-
-                const wb = XLSX.utils.book_new();
-                const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-                // Formato simple (si la librería soporta renderizado básico, sino solo datos)
-                XLSX.utils.book_append_sheet(wb, ws, "Reporte");
-                XLSX.writeFile(wb, `MAES26_Reporte_${title.replace(' ', '_')}.xlsx`);
-            };
+            }, []);
 
             return (
                 <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in" onClick={onClose}>
-                    <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col border border-slate-700" onClick={e => e.stopPropagation()}>
+                    <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col border border-slate-700" onClick={e => e.stopPropagation()}>
                         <div className="p-4 bg-slate-900 border-b border-slate-700 flex justify-between items-center">
-                            <div>
-                                <h3 className="font-bold text-white flex items-center gap-2"><i data-lucide="bar-chart-2" className="w-5 h-5 text-indigo-400"></i> Comparativa Operadores</h3>
-                                <p className="text-xs text-slate-500 uppercase font-bold">{title}</p>
-                            </div>
-                            <div className="flex gap-2">
-                                <button onClick={() => setIsAdvanced(!isAdvanced)} className={`px-3 py-2 rounded text-xs font-bold transition-colors ${isAdvanced ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-                                    {isAdvanced ? 'Modo Avanzado' : 'Modo Básico'}
-                                </button>
-                                <div className="h-8 w-px bg-slate-700 mx-1"></div>
-                                <button onClick={generatePDF} className="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-3 py-2 rounded flex items-center gap-2"><i data-lucide="file-down" className="w-4 h-4"></i> PDF</button>
-                                <button onClick={generateExcel} className="bg-green-600 hover:bg-green-500 text-white text-xs font-bold px-3 py-2 rounded flex items-center gap-2"><i data-lucide="table" className="w-4 h-4"></i> Excel</button>
-                                <button onClick={onClose} className="bg-slate-700 p-2 rounded hover:bg-slate-600 ml-2"><i data-lucide="x" className="text-white w-4 h-4"></i></button>
-                            </div>
+                            <h3 className="font-bold text-white flex items-center gap-2"><i data-lucide="bar-chart-2" className="w-5 h-5 text-green-400"></i> Comparativa Operadores</h3>
+                            <button onClick={onClose} className="bg-slate-700 p-2 rounded hover:bg-slate-600"><i data-lucide="x" className="text-white w-4 h-4"></i></button>
                         </div>
                         <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
-                            <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 mb-6 h-[400px]">
+                            <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 mb-4 h-[400px]">
                                 <canvas ref={canvasRef}></canvas>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {machineStats.map(s => (
-                                    <div key={s.name} className="bg-slate-700/30 p-3 rounded border border-slate-700 hover:bg-slate-700/50 transition-colors">
-                                        <p className="text-xs font-bold text-slate-300 mb-2 border-b border-slate-600 pb-1">{s.fullName}</p>
-                                        <div className="flex justify-between items-center text-sm mb-1">
-                                            <span className="text-blue-400 font-bold">Andrés:</span>
-                                            <span className="text-slate-200">{s.andresQty} <span className="text-[10px] text-slate-500">pzas</span></span>
-                                        </div>
-                                        <div className="flex justify-between items-center text-sm">
-                                            <span className="text-pink-400 font-bold">Balta:</span>
-                                            <span className="text-slate-200">{s.baltaQty} <span className="text-[10px] text-slate-500">pzas</span></span>
-                                        </div>
-                                        {isAdvanced && (
-                                            <div className="mt-2 pt-2 border-t border-slate-600/50 flex gap-2 text-[10px] justify-end">
-                                                <span className={`${s.andresEff >= 90 ? 'text-green-400' : 'text-yellow-400'}`}>Ef. A: {s.andresEff}%</span>
-                                                <span className={`${s.baltaEff >= 90 ? 'text-green-400' : 'text-yellow-400'}`}>Ef. B: {s.baltaEff}%</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-slate-800 p-4 rounded border border-blue-900/50 text-center">
+                                    <h4 className="text-blue-400 font-bold uppercase text-sm">Total Andrés</h4>
+                                    <p className="text-2xl font-black text-white">{andresData.reduce((a,b)=>a+b,0).toLocaleString()} pzas</p>
+                                </div>
+                                <div className="bg-slate-800 p-4 rounded border border-orange-900/50 text-center">
+                                    <h4 className="text-orange-400 font-bold uppercase text-sm">Total Balta</h4>
+                                    <p className="text-2xl font-black text-white">{baltaData.reduce((a,b)=>a+b,0).toLocaleString()} pzas</p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            );
+            )
         };
         
         const LoginScreen = ({ setAuthenticatedUser, installPrompt, onInstall }) => {
@@ -435,20 +295,14 @@
             return (
                 <div className="flex items-center justify-center h-full bg-slate-900 p-4">
                     <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center border border-slate-700 relative">
-                        <div className="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 text-white shadow-lg shadow-blue-900/50">
-                            <i data-lucide="grid" className="w-8 h-8"></i>
-                        </div>
-                        <h2 className="text-2xl font-black text-white mb-2">M.A.E.S. 26</h2>
-                        <p className="text-slate-400 mb-8">Control Lunes - Domingo</p>
+                        <div className="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 text-white shadow-lg"><i data-lucide="grid" className="w-8 h-8"></i></div>
+                        <h2 className="text-2xl font-black text-white mb-2">MAES - TEJIDO</h2>
+                        <p className="text-slate-400 mb-8">Control Andrés & Balta</p>
                         <form onSubmit={handleLogin} className="space-y-4" autoComplete="off">
-                            <input type="tel" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="• • • •" className="w-full text-center text-4xl p-4 bg-slate-900 border-2 border-slate-700 rounded-xl tracking-[0.2em] focus:border-blue-500 outline-none font-bold text-white placeholder-slate-600 password-mask" autoFocus />
-                            <button type="submit" className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-500 active:scale-95 transition-all shadow-lg shadow-blue-900/20">INGRESAR</button>
+                            <input type="tel" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="• • • •" className="w-full text-center text-4xl p-4 bg-slate-900 border-2 border-slate-700 rounded-xl tracking-[0.2em] focus:border-blue-500 outline-none font-bold text-white password-mask" autoFocus />
+                            <button type="submit" className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-500 shadow-lg">INGRESAR</button>
                         </form>
-                        {installPrompt && (
-                            <div className="mt-8 pt-6 border-t border-slate-700">
-                                <button onClick={onInstall} className="flex items-center justify-center gap-2 w-full bg-slate-700 hover:bg-slate-600 text-slate-200 py-3 rounded-lg font-bold text-sm transition-all border border-slate-600"><i data-lucide="download" className="w-4 h-4"></i>Instalar Aplicación</button>
-                            </div>
-                        )}
+                        {installPrompt && (<div className="mt-8 pt-6 border-t border-slate-700"><button onClick={onInstall} className="flex items-center justify-center gap-2 w-full bg-slate-700 text-slate-200 py-3 rounded-lg font-bold text-sm border border-slate-600"><i data-lucide="download" className="w-4 h-4"></i>Instalar App</button></div>)}
                     </div>
                 </div>
             );
@@ -459,27 +313,8 @@
             const [targetQty, setTargetQty] = useState(currentData?.plan_target_qty || '');
             const [timeMin, setTimeMin] = useState(currentData?.plan_time_min || '');
             const [hours, setHours] = useState(currentData?.plan_hours || 12);
-            const [link, setLink] = useState(currentData?.plan_link || '');
-            const [isReplicating, setIsReplicating] = useState(false);
-            const [endDateIndex, setEndDateIndex] = useState(allRows.findIndex(r => r.id === rowId));
-            const [selectedMachines, setSelectedMachines] = useState([machine.id]);
-
-            const currentRowIndex = allRows.findIndex(r => r.id === rowId);
-            const futureRows = allRows.slice(currentRowIndex, currentRowIndex + 30);
             const { targetPieces } = calculateProduction(Number(targetQty), Number(timeMin), Number(hours), 0);
-
-            const handleSave = () => {
-                const planData = { plan_model: model || null, plan_target_qty: Number(targetQty) || null, plan_time_min: Number(timeMin) || null, plan_hours: Number(hours) || null, plan_link: link || null };
-                if (!isReplicating) onSave([rowId], [machine.id], planData);
-                else {
-                    const targetRowIds = [];
-                    for(let i = currentRowIndex; i <= endDateIndex; i++) targetRowIds.push(allRows[i].id);
-                    onSave(targetRowIds, selectedMachines, planData);
-                }
-                onClose();
-            };
-            const toggleMachine = (mid) => { if (selectedMachines.includes(mid)) { if (selectedMachines.length > 1) setSelectedMachines(prev => prev.filter(id => id !== mid)); } else setSelectedMachines(prev => [...prev, mid]); };
-            const toggleAllMachines = () => { if (selectedMachines.length === MACHINES.length) setSelectedMachines([machine.id]); else setSelectedMachines(MACHINES.map(m => m.id)); };
+            const handleSave = () => { onSave([rowId], [machine.id], { plan_model: model || null, plan_target_qty: Number(targetQty) || null, plan_time_min: Number(timeMin) || null, plan_hours: Number(hours) || null }); onClose(); };
 
             return (
                 <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in" onClick={onClose}>
@@ -488,12 +323,9 @@
                         <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto custom-scrollbar">
                             <div><label className="text-xs font-bold text-slate-400 uppercase">Modelo Principal</label><input type="text" value={model} onChange={e => setModel(e.target.value)} className="w-full p-3 bg-slate-900 border border-slate-700 text-white rounded-lg font-bold text-lg uppercase focus:border-blue-500 outline-none" placeholder="Ej: B001" /></div>
                             <div className="grid grid-cols-2 gap-4"><div><label className="text-xs font-bold text-slate-400 uppercase">Pedido Total</label><input type="number" value={targetQty} onChange={e => setTargetQty(e.target.value)} className="w-full p-3 bg-slate-900 border border-slate-700 text-white rounded-lg focus:border-blue-500 outline-none" /></div><div><label className="text-xs font-bold text-slate-400 uppercase">Min/Pieza</label><input type="number" value={timeMin} onChange={e => setTimeMin(e.target.value)} className="w-full p-3 bg-slate-900 border border-slate-700 text-white rounded-lg focus:border-blue-500 outline-none" /></div></div>
-                            <div><label className="text-xs font-bold text-slate-400 uppercase">Turno Base</label><select value={hours} onChange={e => setHours(e.target.value)} className="w-full p-3 bg-slate-900 border border-slate-700 text-white rounded-lg focus:border-blue-500 outline-none"><option value={12}>12 Horas</option><option value={24}>24 Horas</option></select></div>
-                             <div><label className="text-xs font-bold text-slate-400 uppercase">Enlace Ficha (URL)</label><input type="url" value={link} onChange={e => setLink(e.target.value)} className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-sm text-blue-400 focus:border-blue-500 outline-none" placeholder="https://..." /></div>
                             <div className="bg-slate-900/50 p-4 rounded-xl text-center border border-slate-700"><span className="block text-xs text-blue-400 font-bold uppercase mb-1">Meta Calculada</span><span className="text-3xl font-black text-blue-500">{targetPieces}</span><span className="text-sm text-slate-500 font-medium"> pzas</span></div>
-                            <div className="border-t border-slate-700 pt-4"><button onClick={() => setIsReplicating(!isReplicating)} className="flex items-center gap-2 text-sm font-bold text-slate-300 mb-3 hover:text-white"><i data-lucide={isReplicating ? "check-square" : "square"} className={`w-4 h-4 ${isReplicating ? 'text-blue-500' : 'text-slate-500'}`}></i> Replicar / Copiar Plan</button>{isReplicating && (<div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700 space-y-4 animate-fadeIn"><div><label className="text-xs font-bold text-slate-400 uppercase mb-2 block">Hasta la fecha:</label><select value={endDateIndex} onChange={e => setEndDateIndex(Number(e.target.value))} className="w-full p-2 bg-slate-800 border border-slate-600 text-white rounded text-sm">{futureRows.map(r => (<option key={r.index} value={r.index}>{r.shortDay} {r.dateNum} {r.month}</option>))}</select></div><div><div className="flex justify-between items-center mb-2"><label className="text-xs font-bold text-slate-400 uppercase">Aplicar a máquinas:</label><button onClick={toggleAllMachines} className="text-[10px] text-blue-400 hover:text-blue-300 font-bold">{selectedMachines.length === MACHINES.length ? 'Deseleccionar' : 'Todas'}</button></div><div className="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto custom-scrollbar">{MACHINES.map(m => (<button key={m.id} onClick={() => toggleMachine(m.id)} className={`text-[10px] p-2 rounded border transition-colors ${selectedMachines.includes(m.id) ? 'bg-blue-600 border-blue-500 text-white font-bold' : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700'}`}>{m.name.replace('MAQ ', 'M-')}</button>))}</div></div></div>)}</div>
                         </div>
-                        <div className="p-4 bg-slate-900 border-t border-slate-700"><button onClick={handleSave} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold text-lg hover:bg-blue-500 shadow-lg shadow-blue-900/20 active:scale-95 transition-all">{isReplicating ? 'Guardar Cambios Masivos' : 'Guardar Plan'}</button></div>
+                        <div className="p-4 bg-slate-900 border-t border-slate-700"><button onClick={handleSave} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold text-lg hover:bg-blue-500 shadow-lg">Guardar Plan</button></div>
                     </div>
                 </div>
             );
@@ -502,63 +334,35 @@
         const App = () => {
             const [user, setUser] = useState(null);
             const [data, setData] = useState({});
-            const [visibilityConfig, setVisibilityConfig] = useState({ machines: [], days: [], slots: {} });
+            const [visibilityConfig, setVisibilityConfig] = useState({ machines: [], days: [] });
             const [loading, setLoading] = useState(true);
-            
             const [weekOffset, setWeekOffset] = useState(INITIAL_STATE.weekOffset);
             const [currentMonthDate, setCurrentMonthDate] = useState(INITIAL_STATE.currentMonthDate);
             const [selectedDayIndex, setSelectedDayIndex] = useState(INITIAL_STATE.selectedDayIndex); 
-
             const [planModal, setPlanModal] = useState(null);
             const [showVisibilityModal, setShowVisibilityModal] = useState(false);
             const [showNotes, setShowNotes] = useState(false);
             const [showStats, setShowStats] = useState(false);
-            const [showHelp, setShowHelp] = useState(false);
             const [machineSearch, setMachineSearch] = useState('');
             const [zoomLevel, setZoomLevel] = useState(1.0);
             const [showZoomOverlay, setShowZoomOverlay] = useState(false);
             const [deferredPrompt, setDeferredPrompt] = useState(null);
 
             useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
-            
-            useEffect(() => {
-                const handler = (e) => { e.preventDefault(); setDeferredPrompt(e); };
-                window.addEventListener('beforeinstallprompt', handler);
-                return () => window.removeEventListener('beforeinstallprompt', handler);
-            }, []);
-
-            const handleInstallClick = () => {
-                if (!deferredPrompt) return;
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => { if (choiceResult.outcome === 'accepted') setDeferredPrompt(null); });
-            };
+            useEffect(() => { const handler = (e) => { e.preventDefault(); setDeferredPrompt(e); }; window.addEventListener('beforeinstallprompt', handler); return () => window.removeEventListener('beforeinstallprompt', handler); }, []);
+            const handleInstallClick = () => { if (!deferredPrompt) return; deferredPrompt.prompt(); deferredPrompt.userChoice.then((choiceResult) => { if (choiceResult.outcome === 'accepted') setDeferredPrompt(null); }); };
 
             useEffect(() => {
                 const unsubAuth = onAuthStateChanged(auth, (u) => {
                     if (u) {
-                        const unsubDb = onSnapshot(collection(db, 'produccion_2026'), (snap) => {
-                            const d = {};
-                            snap.forEach(doc => d[doc.id] = doc.data());
-                            setData(d);
-                            setLoading(false);
-                        });
-                        const unsubSettings = onSnapshot(doc(db, 'settings', 'visibility'), (docSnap) => {
-                            if (docSnap.exists()) {
-                                const sData = docSnap.data();
-                                setVisibilityConfig({ 
-                                    machines: sData.machines || [], 
-                                    days: sData.days || [],
-                                    slots: sData.slots || {} 
-                                });
-                            }
-                        });
+                        const unsubDb = onSnapshot(collection(db, 'produccion_2026'), (snap) => { const d = {}; snap.forEach(doc => d[doc.id] = doc.data()); setData(d); setLoading(false); });
+                        const unsubSettings = onSnapshot(doc(db, 'settings', 'visibility'), (docSnap) => { if (docSnap.exists()) setVisibilityConfig(docSnap.data()); });
                         return () => { unsubDb(); unsubSettings(); };
                     } else signInAnonymously(auth);
                 });
                 return () => unsubAuth();
             }, []);
 
-            // --- MANEJO DE SLOTS ---
             const handleUpdateSlot = async (rowId, machineId, slotIndex, field, value) => {
                 const currentMachineData = data[rowId]?.[machineId] || {};
                 const currentSlots = currentMachineData.slots || [{}, {}, {}, {}];
@@ -589,66 +393,28 @@
                 await Promise.all(promises);
             };
 
-            const handleSaveVisibility = async (hiddenMachines, hiddenDays, slotConfig) => { 
-                await setDoc(doc(db, 'settings', 'visibility'), { 
-                    machines: hiddenMachines, 
-                    days: hiddenDays,
-                    slots: slotConfig 
-                }, { merge: true }); 
-            };
+            const handleSaveVisibility = async (hiddenMachines, hiddenDays) => { await setDoc(doc(db, 'settings', 'visibility'), { machines: hiddenMachines, days: hiddenDays }, { merge: true }); };
 
-            const visibleMachines = useMemo(() => MACHINES.filter(m => !visibilityConfig.machines.includes(m.id)), [visibilityConfig.machines]);
-            const filteredVisibleMachines = useMemo(() => {
-                if (!machineSearch) return visibleMachines;
-                return visibleMachines.filter(m => m.name.toLowerCase().includes(machineSearch.toLowerCase()) || m.type.toLowerCase().includes(machineSearch.toLowerCase()));
-            }, [visibleMachines, machineSearch]);
-
-            const currentWeekRows = useMemo(() => {
-                const start = weekOffset * 7;
-                return ALL_ROWS.slice(start, start + 7).filter(r => !visibilityConfig.days.includes(r.id));
-            }, [weekOffset, visibilityConfig.days]);
-
-            const currentMonthRows = useMemo(() => {
-                return ALL_ROWS.filter(r => 
-                    r.monthIndex === currentMonthDate.getMonth() && 
-                    r.year === currentMonthDate.getFullYear()
-                ).filter(r => !visibilityConfig.days.includes(r.id));
-            }, [currentMonthDate, visibilityConfig.days]);
-
-            const changeMonth = (delta) => {
-                const newDate = new Date(currentMonthDate);
-                newDate.setMonth(newDate.getMonth() + delta);
-                setCurrentMonthDate(newDate);
-            };
-            
-            // PREPARAR DATOS MES PARA STATS
-            const monthDataForStats = useMemo(() => currentMonthRows.map(row => ({ ...row, data: data[row.id] || {} })), [currentMonthRows, data]);
-
+            const visibleMachines = useMemo(() => MACHINES.filter(m => !visibilityConfig.machines?.includes(m.id)), [visibilityConfig.machines]);
+            const filteredVisibleMachines = useMemo(() => { if (!machineSearch) return visibleMachines; return visibleMachines.filter(m => m.name.toLowerCase().includes(machineSearch.toLowerCase()) || m.type.toLowerCase().includes(machineSearch.toLowerCase())); }, [visibleMachines, machineSearch]);
+            const currentWeekRows = useMemo(() => { const start = weekOffset * 7; return ALL_ROWS.slice(start, start + 7).filter(r => !visibilityConfig.days?.includes(r.id)); }, [weekOffset, visibilityConfig.days]);
+            const currentMonthRows = useMemo(() => ALL_ROWS.filter(r => r.monthIndex === currentMonthDate.getMonth() && r.year === currentMonthDate.getFullYear()).filter(r => !visibilityConfig.days?.includes(r.id)), [currentMonthDate, visibilityConfig.days]);
+            const weekDataForStats = useMemo(() => currentWeekRows.map(row => ({ ...row, data: data[row.id] || {} })), [currentWeekRows, data]);
             const canEditPlan = user && (user.role === ROLES.ADMIN || user.role === ROLES.DEVELOPMENT);
             const canConfig = user && (user.role === ROLES.DEVELOPMENT); 
             const canViewStats = user && (user.role === ROLES.ADMIN || user.role === ROLES.DEVELOPMENT);
             
+            // --- Lógica de Permisos Actualizada ---
             const canEditSlot = (machineId, slotIndex) => {
                 if (!user) return false;
                 if (user.role === ROLES.ADMIN || user.role === ROLES.DEVELOPMENT) return true;
-                const mConfig = visibilityConfig.slots[machineId];
-                if (mConfig && typeof mConfig === 'object' && mConfig.permissions) {
-                    const assignedUser = mConfig.permissions[slotIndex];
-                    if (assignedUser) return user.id === assignedUser; 
-                }
+                // Si el usuario tiene slots permitidos (Andrés [0], Balta [1]), solo puede editar esos.
                 if (user.allowedSlots) return user.allowedSlots.includes(slotIndex);
                 return true; 
             };
 
-            const getVisibleSlots = (machineId) => {
-                const conf = visibilityConfig.slots[machineId];
-                let count = 4;
-                if (typeof conf === 'number') count = conf;
-                else if (conf && conf.count) count = conf.count;
-                return Array.from({ length: count }, (_, i) => i);
-            };
-
-            const MONTH_NAMES_ES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+            // --- FORZAR 2 SLOTS SIEMPRE ---
+            const getVisibleSlots = (machineId) => [0, 1]; 
 
             if (!user) return <LoginScreen setAuthenticatedUser={setUser} installPrompt={deferredPrompt} onInstall={handleInstallClick} />;
             if (loading) return <div className="h-screen flex items-center justify-center bg-slate-900"><i data-lucide="loader-2" className="animate-spin w-12 h-12 text-blue-500"></i></div>;
@@ -659,7 +425,6 @@
                 if (!selectedDay) return <div className="p-10 text-center text-slate-500">Semana sin días visibles</div>;
                 const rowId = selectedDay.id;
                 const dayData = data[rowId] || {};
-                const dayTotal = filteredVisibleMachines.reduce((acc, m) => acc + (dayData[m.id]?.actual || 0), 0);
 
                 return (
                     <div className="flex flex-col h-full bg-slate-900">
@@ -667,50 +432,43 @@
                              <div className="p-3 flex justify-between items-center bg-slate-900/50"> 
                                 <div className="flex items-center gap-2"><i data-lucide="user-check" className="w-5 h-5 text-blue-400"></i><div><p className="text-sm font-bold text-slate-100">{user.name.split(' ')[0]}</p><p className="text-[10px] text-slate-500 uppercase font-medium">{user.area}</p></div></div>
                                 <div className="flex gap-2">
-                                    {deferredPrompt && <button onClick={handleInstallClick} className="w-8 h-8 bg-blue-900/50 border border-blue-500 rounded-lg flex items-center justify-center text-blue-400 active:scale-95 animate-pulse"><i data-lucide="download" className="w-4 h-4"></i></button>}
                                     <button onClick={() => setShowNotes(true)} className="w-8 h-8 bg-slate-700 rounded-lg flex items-center justify-center text-yellow-400"><i data-lucide="sticky-note" className="w-4 h-4"></i></button>
-                                    {/* Stats oculto en móvil como se pidió que solo sea escritorio */}
+                                    {canViewStats && <button onClick={() => setShowStats(true)} className="w-8 h-8 bg-slate-700 rounded-lg flex items-center justify-center text-green-400"><i data-lucide="bar-chart-2" className="w-4 h-4"></i></button>}
                                     {canConfig && <button onClick={() => setShowVisibilityModal(true)} className="w-8 h-8 bg-slate-700 rounded-lg flex items-center justify-center text-slate-300"><i data-lucide="settings" className="w-4 h-4"></i></button>}
                                 </div>
                             </div>
-                            <div className="p-3 flex justify-between items-center"><div><h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Semana {weekOffset + 1}</h2><p className="font-black text-slate-100 leading-none">{selectedDay.month} {selectedDay.dateNum} <span className="text-xs text-slate-500 ml-1 font-normal">{selectedDay.year}</span></p></div><div className="text-right"><p className="text-[10px] text-slate-500 font-bold uppercase">Total Día</p><p className="text-xl font-black text-blue-500 leading-none">{dayTotal.toLocaleString()}</p></div></div>
                             <div className="flex overflow-x-auto custom-scrollbar pb-1 px-1 gap-1 bg-slate-900/50">{currentWeekRows.map((day, idx) => (<button key={day.id} onClick={() => setSelectedDayIndex(idx)} className={`flex-shrink-0 flex flex-col items-center justify-center p-2 min-w-[60px] rounded-lg my-2 transition-all ${idx === safeIndex ? 'bg-slate-700 shadow border-b-4 border-blue-500 scale-105' : 'text-slate-500 hover:bg-slate-800'}`}><span className="text-[10px] font-bold uppercase mb-0.5 text-blue-400">{day.shortDay}</span><span className={`text-lg font-black leading-none ${idx === safeIndex ? 'text-white' : 'text-slate-600'}`}>{day.dateNum}</span></button>))}</div>
                         </div>
                         <div className="flex-1 overflow-y-auto p-3 pb-24 custom-scrollbar">
-                             <div className="mb-4 sticky top-0 z-10"><div className="relative"><i data-lucide="search" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i><input type="text" placeholder="Buscar..." value={machineSearch} onChange={(e) => setMachineSearch(e.target.value)} className="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-xl pl-9 pr-4 py-3 shadow-lg focus:border-blue-500 outline-none" />{machineSearch && <button onClick={() => setMachineSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"><i data-lucide="x-circle" className="w-4 h-4"></i></button>}</div></div>
                             {filteredVisibleMachines.map(m => { 
                                 const mData = dayData[m.id] || {};
                                 const pct = mData.percentage || 0;
-                                const target = mData.calculated_target || 0;
                                 const slots = mData.slots || [{}, {}, {}, {}];
                                 const hasPlan = !!mData.plan_model;
-                                const progressColor = pct >= 100 ? 'bg-green-500' : pct > 80 ? 'bg-blue-500' : pct > 50 ? 'bg-orange-500' : 'bg-red-500';
                                 const visibleSlotIndices = getVisibleSlots(m.id);
-                                const gridCols = visibleSlotIndices.length === 1 ? 'grid-cols-1' : 'grid-cols-2';
 
                                 return (
                                     <div key={m.id} className="bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-700 relative overflow-hidden mb-3">
-                                        {hasPlan && <div className={`absolute bottom-0 left-0 h-1 ${progressColor} opacity-50`} style={{ width: `${Math.min(pct, 100)}%` }}></div>}
                                         <div className="flex justify-between items-start mb-2">
                                             <div className="flex items-center gap-2">
                                                 <div className="w-8 h-8 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center overflow-hidden"><i data-lucide="cpu" className="w-5 h-5 opacity-50"></i></div>
                                                 <div><h3 className="font-black text-slate-200 text-sm">{m.name.replace('MAQ ','M-')}</h3><p className="text-[10px] text-slate-500 font-medium">{m.type}</p></div>
                                             </div>
                                             {hasPlan ? (
-                                                <div className="flex flex-col items-end"><span className={`text-xs font-black px-2 py-0.5 rounded-full ${pct>=100?'bg-green-900/50 text-green-400': pct>70?'bg-blue-900/50 text-blue-400':'bg-red-900/50 text-red-400'}`}>{pct}%</span><span className="text-[10px] text-slate-500 mt-0.5 font-medium">Meta: {target}</span></div>
+                                                <div className="flex flex-col items-end"><span className={`text-xs font-black px-2 py-0.5 rounded-full ${pct>=100?'bg-green-900/50 text-green-400': pct>70?'bg-blue-900/50 text-blue-400':'bg-red-900/50 text-red-400'}`}>{pct}%</span></div>
                                             ) : (canEditPlan && <button onClick={() => setPlanModal({ machineId: m.id, rowId })} className="text-[10px] bg-slate-700 text-slate-400 px-2 py-1 rounded hover:bg-slate-600">+ Plan</button>)}
                                         </div>
                                         <div className="bg-slate-900/50 rounded-lg p-2 border border-slate-700/50">
                                             {hasPlan && <div className="text-[10px] text-yellow-500 font-bold uppercase mb-2 flex justify-between"><span>Plan: {mData.plan_model}</span> {canEditPlan && <button onClick={() => setPlanModal({ machineId: m.id, rowId })}><i data-lucide="edit-2" className="w-3 h-3 text-blue-500"></i></button>}</div>}
-                                            <div className={`grid ${gridCols} gap-2`}>
+                                            {/* ENCABEZADOS DE COLUMNA (Andrés / Balta) */}
+                                            <div className="grid grid-cols-2 gap-2 mb-1">
+                                                <div className="text-[9px] text-center font-bold text-blue-400 uppercase tracking-widest border-b border-blue-900 pb-1">Andrés</div>
+                                                <div className="text-[9px] text-center font-bold text-orange-400 uppercase tracking-widest border-b border-orange-900 pb-1">Balta</div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
                                                 {visibleSlotIndices.map(idx => (
                                                     <div key={idx} className="h-16">
-                                                        <ProductionSlot 
-                                                            slotData={slots[idx]} 
-                                                            index={idx}
-                                                            disabled={!canEditSlot(m.id, idx)}
-                                                            onUpdate={(idx, field, val) => handleUpdateSlot(rowId, m.id, idx, field, val)}
-                                                        />
+                                                        <ProductionSlot slotData={slots[idx]} index={idx} disabled={!canEditSlot(m.id, idx)} onUpdate={(idx, field, val) => handleUpdateSlot(rowId, m.id, idx, field, val)} />
                                                     </div>
                                                 ))}
                                             </div>
@@ -729,21 +487,13 @@
             const DesktopView = () => (
                 <div className="h-full flex flex-col bg-slate-900 overflow-hidden relative">
                     <header className="bg-slate-800 shadow-sm border-b border-slate-700 p-3 flex justify-between items-center z-20 shrink-0">
-                        <div className="flex items-center gap-4"><div className="bg-gradient-to-br from-blue-600 to-blue-800 p-2 rounded-lg text-white shadow-lg shadow-blue-900/50"><i data-lucide="factory" className="w-5 h-5"></i></div><h1 className="font-bold text-slate-200">Control M.A.E.S. 2026</h1><div className="ml-4 text-left p-2 bg-slate-900/50 rounded-lg border border-slate-700/50"><p className="text-sm font-bold text-blue-400">¡HOLA, {user.name.toUpperCase()}!</p><p className="text-[10px] text-slate-500 uppercase font-medium leading-none">{user.area}</p></div>
+                        <div className="flex items-center gap-4"><div className="bg-gradient-to-br from-blue-600 to-blue-800 p-2 rounded-lg text-white shadow-lg"><i data-lucide="factory" className="w-5 h-5"></i></div><h1 className="font-bold text-slate-200">Control MAES - Tejido</h1><div className="ml-4 text-left p-2 bg-slate-900/50 rounded-lg border border-slate-700/50"><p className="text-sm font-bold text-blue-400">{user.name.toUpperCase()}</p><p className="text-[10px] text-slate-500 uppercase font-medium leading-none">{user.area}</p></div>
                         <div className="flex gap-2 ml-4">
                             <button onClick={() => setShowNotes(true)} className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-yellow-400"><i data-lucide="sticky-note" className="w-5 h-5"></i></button>
-                            <button onClick={() => setShowHelp(true)} className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-blue-400"><i data-lucide="help-circle" className="w-5 h-5"></i></button>
-                            {/* Stats Visible en escritorio */}
                             {canViewStats && <button onClick={() => setShowStats(true)} className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-green-400"><i data-lucide="bar-chart-2" className="w-5 h-5"></i></button>}
                             {canConfig && <button onClick={() => setShowVisibilityModal(true)} className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-slate-300"><i data-lucide="settings" className="w-5 h-5"></i></button>}
                         </div></div>
                         <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2 bg-slate-900/50 p-1 rounded-lg border border-slate-700">
-                                <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-slate-700 text-slate-400 rounded"><i data-lucide="chevron-left" className="w-5 h-5"></i></button>
-                                <span className="text-sm font-black text-slate-200 uppercase px-2 w-32 text-center">{MONTH_NAMES_ES[currentMonthDate.getMonth()]} <span className="text-slate-500 text-xs">{currentMonthDate.getFullYear()}</span></span>
-                                <button onClick={() => changeMonth(1)} className="p-2 hover:bg-slate-700 text-slate-400 rounded"><i data-lucide="chevron-right" className="w-5 h-5"></i></button>
-                            </div>
-                            <div className="h-6 w-px bg-slate-700"></div>
                             <button onClick={() => setUser(null)} className="p-2 text-red-400 hover:bg-red-900/20 rounded"><i data-lucide="log-out" className="w-5 h-5"></i></button>
                         </div>
                     </header>
@@ -752,14 +502,12 @@
                             <div className="overflow-auto custom-scrollbar h-full relative">
                                 <table className="w-full border-collapse">
                                     <thead className="sticky top-0 z-20 bg-slate-900 shadow-sm border-b border-slate-700">
-                                        <tr><th className="sticky left-0 z-30 bg-slate-900 p-3 min-w-[120px] text-left border-r border-slate-700 text-xs font-bold text-slate-500">FECHA</th>{filteredVisibleMachines.map(m => (<th key={m.id} className="min-w-[120px] border-r border-slate-700 p-2"><div className="flex flex-col items-center"><span className="text-xs font-bold text-blue-400">{m.name.replace('MAQ ','')}</span><span className="text-[9px] text-slate-500">{m.type}</span></div></th>))}<th className="sticky right-0 z-20 bg-slate-900 border-l border-slate-700 p-2 min-w-[80px] text-xs font-bold text-slate-500">TOTAL</th></tr>
+                                        <tr><th className="sticky left-0 z-30 bg-slate-900 p-3 min-w-[120px] text-left border-r border-slate-700 text-xs font-bold text-slate-500">FECHA</th>{filteredVisibleMachines.map(m => (<th key={m.id} className="min-w-[160px] border-r border-slate-700 p-2"><div className="flex flex-col items-center"><span className="text-xs font-bold text-blue-400">{m.name.replace('MAQ ','')}</span><span className="text-[9px] text-slate-500">{m.type}</span></div></th>))}</tr>
                                     </thead>
                                     <tbody>
-                                        {currentMonthRows.length === 0 && <tr><td colSpan={filteredVisibleMachines.length + 2} className="p-10 text-center text-slate-500 italic">No hay registros para este mes o están ocultos.</td></tr>}
                                         {currentMonthRows.map(row => {
                                             const rowId = row.id;
                                             const rowData = data[rowId] || {};
-                                            const total = filteredVisibleMachines.reduce((acc, m) => acc + (rowData[m.id]?.actual || 0), 0);
                                             return (
                                                 <tr key={rowId} className="border-b border-slate-700 hover:bg-slate-700/50 transition-colors">
                                                     <td className="sticky left-0 bg-slate-800 p-2 border-r border-slate-700 text-xs font-bold text-slate-400 shadow-[2px_0_5px_rgba(0,0,0,0.3)]">{row.shortDay} <br/> <span className="text-lg text-slate-200">{row.dateNum}</span></td>
@@ -768,23 +516,19 @@
                                                         const pct = mData.percentage || 0;
                                                         const slots = mData.slots || [{}, {}, {}, {}];
                                                         const visibleSlotIndices = getVisibleSlots(m.id);
-                                                        const gridCols = visibleSlotIndices.length === 1 ? 'grid-cols-1' : 'grid-cols-2';
-
                                                         return (
                                                             <td key={m.id} className="p-1 border-r border-slate-700 relative h-[80px]">
                                                                 <div className="flex flex-col h-full">
-                                                                    {/* Header Operadores en la celda */}
-                                                                    <div className="flex border-b border-slate-700/50 mb-1 opacity-70">
-                                                                        <div className="w-1/2 text-center text-[7px] font-black text-indigo-400 border-r border-slate-700/50 tracking-wider">ANDRÉS</div>
-                                                                        <div className="w-1/2 text-center text-[7px] font-black text-pink-400 tracking-wider">BALTA</div>
-                                                                    </div>
-
                                                                     <div className="flex justify-between items-center px-1 mb-1">
                                                                         <span className="text-[9px] font-bold text-yellow-500 uppercase">{mData.plan_model || '-'}</span>
                                                                         {canEditPlan && !mData.plan_model && <button onClick={() => setPlanModal({machineId: m.id, rowId})}><i data-lucide="edit-2" className="w-3 h-3 text-blue-500"></i></button>}
                                                                         <span className={`text-[9px] font-black ${pct>=100?'text-green-400':pct<50?'text-red-400':'text-orange-400'}`}>{pct}%</span>
                                                                     </div>
-                                                                    <div className={`grid ${gridCols} gap-1 flex-1`}>
+                                                                    <div className="grid grid-cols-2 gap-1 mb-0.5">
+                                                                        <div className="text-[8px] text-center text-blue-400 font-bold bg-slate-900/50 rounded">ANDRÉS</div>
+                                                                        <div className="text-[8px] text-center text-orange-400 font-bold bg-slate-900/50 rounded">BALTA</div>
+                                                                    </div>
+                                                                    <div className="grid grid-cols-2 gap-1 flex-1">
                                                                         {visibleSlotIndices.map(idx => (
                                                                             <ProductionSlot key={idx} slotData={slots[idx]} index={idx} disabled={!canEditSlot(m.id, idx)} onUpdate={(idx, field, val) => handleUpdateSlot(rowId, m.id, idx, field, val)} />
                                                                         ))}
@@ -793,7 +537,6 @@
                                                             </td>
                                                         );
                                                     })}
-                                                    <td className="sticky right-0 bg-slate-800 border-l border-slate-700 p-2 text-center font-black text-blue-500 shadow-[-2px_0_5px_rgba(0,0,0,0.3)]">{total.toLocaleString()}</td>
                                                 </tr>
                                             );
                                         })}
@@ -802,28 +545,17 @@
                             </div>
                         </div>
                     </main>
-                    <button onClick={() => setShowZoomOverlay(true)} className="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-500 text-white w-14 h-14 rounded-full shadow-lg shadow-blue-900/50 flex items-center justify-center z-40 transition-transform active:scale-95"><i data-lucide="search" className="w-6 h-6"></i></button>
-                    {showZoomOverlay && (
-                        <div className="fixed inset-0 z-[60] bg-slate-900/90 backdrop-blur-sm flex items-center justify-center fade-in">
-                            <div className="flex items-center gap-12">
-                                <button onClick={() => setZoomLevel(z => Math.max(0.5, z - 0.1))} className="w-32 h-32 rounded-full bg-slate-800 border-4 border-slate-600 text-white flex items-center justify-center hover:bg-slate-700 active:scale-95 transition-all"><i data-lucide="minus" className="w-16 h-16"></i></button>
-                                <button onClick={() => setShowZoomOverlay(false)} className="w-24 h-24 rounded-full bg-blue-600 border-4 border-blue-400 text-white flex items-center justify-center hover:bg-blue-500 active:scale-95 transition-all shadow-[0_0_30px_rgba(37,99,235,0.5)]"><i data-lucide="check" className="w-12 h-12"></i></button>
-                                <button onClick={() => setZoomLevel(z => Math.min(2.0, z + 0.1))} className="w-32 h-32 rounded-full bg-slate-800 border-4 border-slate-600 text-white flex items-center justify-center hover:bg-slate-700 active:scale-95 transition-all"><i data-lucide="plus" className="w-16 h-16"></i></button>
-                            </div>
-                            <div className="absolute bottom-20 text-slate-400 font-bold text-xl uppercase tracking-widest">Zoom: {Math.round(zoomLevel * 100)}%</div>
-                        </div>
-                    )}
+                    <button onClick={() => setShowZoomOverlay(true)} className="fixed bottom-6 right-6 bg-blue-600 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center z-40"><i data-lucide="search" className="w-6 h-6"></i></button>
+                    {showZoomOverlay && (<div className="fixed inset-0 z-[60] bg-slate-900/90 backdrop-blur-sm flex items-center justify-center fade-in"><div className="flex items-center gap-12"><button onClick={() => setZoomLevel(z => Math.max(0.5, z - 0.1))} className="w-32 h-32 rounded-full bg-slate-800 border-4 border-slate-600 text-white flex items-center justify-center"><i data-lucide="minus" className="w-16 h-16"></i></button><button onClick={() => setShowZoomOverlay(false)} className="w-24 h-24 rounded-full bg-blue-600 border-4 border-blue-400 text-white flex items-center justify-center"><i data-lucide="check" className="w-12 h-12"></i></button><button onClick={() => setZoomLevel(z => Math.min(2.0, z + 0.1))} className="w-32 h-32 rounded-full bg-slate-800 border-4 border-slate-600 text-white flex items-center justify-center"><i data-lucide="plus" className="w-16 h-16"></i></button></div></div>)}
                 </div>
             );
 
             return (
                 <div className="h-full relative">
                     {planModal && <PlanningModal machine={MACHINES.find(m => m.id === planModal.machineId)} rowId={planModal.rowId} currentData={data[planModal.rowId]?.[planModal.machineId]} onClose={() => setPlanModal(null)} onSave={handleSavePlan} allRows={ALL_ROWS} />}
-                    {showVisibilityModal && <VisibilityModal onClose={() => setShowVisibilityModal(false)} currentHiddenMachines={visibilityConfig.machines} currentHiddenDays={visibilityConfig.days} currentSlotConfig={visibilityConfig.slots} onSaveVisibility={handleSaveVisibility} allRows={ALL_ROWS} userRole={user.role} />}
+                    {showVisibilityModal && <VisibilityModal onClose={() => setShowVisibilityModal(false)} currentHiddenMachines={visibilityConfig.machines} currentHiddenDays={visibilityConfig.days} onSaveVisibility={handleSaveVisibility} allRows={ALL_ROWS} />}
                     {showNotes && <NotesModal onClose={() => setShowNotes(false)} user={user} />}
-                    {/* STATS AHORA RECIBE EL MES ENTERO */}
-                    {showStats && <StatsModal onClose={() => setShowStats(false)} visibleMachines={visibleMachines} dataRows={monthDataForStats} title={`${MONTH_NAMES_ES[currentMonthDate.getMonth()]} ${currentMonthDate.getFullYear()}`} />}
-                    {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+                    {showStats && <StatsModal onClose={() => setShowStats(false)} visibleMachines={visibleMachines} currentWeekData={weekDataForStats} weekTitle={`Semana ${weekOffset + 1}`} />}
                     <div className="block md:hidden h-full"><MobileView /></div>
                     <div className="hidden md:block h-full"><DesktopView /></div>
                 </div>
