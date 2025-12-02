@@ -16,8 +16,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     
     <style>
         .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
@@ -69,16 +67,13 @@
             OPERATOR: 'operator'
         };
 
-        // --- ACTUALIZACIÓN DE USUARIOS: ANDRÉS (0) y BALTA (1) ---
         const USERS = {
             '1111': { name: 'Marco Espinoza', role: ROLES.ADMIN, area: 'Administración' },
             '0000': { name: 'Prisciliano Espinoza', role: ROLES.COMMENTATOR, area: 'Comentarios' },
             '2222': { name: 'Susana', role: ROLES.OBSERVER, area: 'Observación' },
             '1352': { name: 'Vallejo', role: ROLES.DEVELOPMENT, area: 'Desarrollo' },
             '3333': { name: 'Tejido', role: ROLES.OPERATOR, area: 'Operadores Gral' },
-            // Andrés asignado al slot 0 (Izquierda)
             '1392': { name: 'Andrés', role: ROLES.OPERATOR, area: 'Tejido (A)', allowedSlots: [0] },
-            // Balta asignado al slot 1 (Derecha)
             '7914': { name: 'Balta', role: ROLES.OPERATOR, area: 'Tejido (B)', allowedSlots: [1] }
         };
         
@@ -150,11 +145,16 @@
 
         const ProductionSlot = ({ slotData, index, disabled, onUpdate }) => {
             const [localModel, setLocalModel] = useState(slotData?.model || '');
-            const [localQty, setLocalQty] = useState(slotData?.qty || '');
+            const [localQty, setLocalQty] = useState('');
             const [isDirty, setIsDirty] = useState(false);
 
             useEffect(() => {
-                if (!isDirty) { setLocalModel(slotData?.model || ''); setLocalQty(slotData?.qty || ''); }
+                if (!isDirty) { 
+                    setLocalModel(slotData?.model || ''); 
+                    // CORRECCIÓN: Respetar el valor 0. Si es null o undefined, usa string vacío.
+                    const qtyVal = slotData?.qty;
+                    setLocalQty(qtyVal !== null && qtyVal !== undefined ? qtyVal : ''); 
+                }
             }, [slotData, isDirty]);
 
             const handleSave = (e) => {
@@ -210,20 +210,16 @@
             )
         };
 
-        // --- ACTUALIZACIÓN STATS MODAL: Comparativa Andrés vs Balta ---
         const StatsModal = ({ onClose, visibleMachines, currentWeekData, weekTitle }) => {
             const canvasRef = useRef(null);
             
-            // Calculamos datos para Andrés (Slot 0) y Balta (Slot 1)
             const labels = visibleMachines.map(m => m.name.replace('MAQ ', 'M-'));
-            
             const andresData = visibleMachines.map(m => {
                 return currentWeekData.reduce((acc, row) => {
                     const slots = row.data[m.id]?.slots || [];
                     return acc + (Number(slots[0]?.qty) || 0); // Slot 0 = Andrés
                 }, 0);
             });
-
             const baltaData = visibleMachines.map(m => {
                 return currentWeekData.reduce((acc, row) => {
                     const slots = row.data[m.id]?.slots || [];
@@ -232,15 +228,16 @@
             });
 
             useEffect(() => {
+                let chart = null;
                 if (canvasRef.current) {
                     const ctx = canvasRef.current.getContext('2d');
-                    const chart = new Chart(ctx, {
+                    chart = new Chart(ctx, {
                         type: 'bar',
                         data: {
                             labels: labels,
                             datasets: [
-                                { label: 'Andrés', data: andresData, backgroundColor: '#3b82f6', borderRadius: 4 }, // Azul
-                                { label: 'Balta', data: baltaData, backgroundColor: '#f97316', borderRadius: 4 }   // Naranja
+                                { label: 'Andrés', data: andresData, backgroundColor: '#3b82f6', borderRadius: 4 }, 
+                                { label: 'Balta', data: baltaData, backgroundColor: '#f97316', borderRadius: 4 }
                             ]
                         },
                         options: {
@@ -253,8 +250,8 @@
                             }
                         }
                     });
-                    return () => chart.destroy();
                 }
+                return () => { if (chart) chart.destroy(); };
             }, []);
 
             return (
@@ -265,7 +262,7 @@
                             <button onClick={onClose} className="bg-slate-700 p-2 rounded hover:bg-slate-600"><i data-lucide="x" className="text-white w-4 h-4"></i></button>
                         </div>
                         <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
-                            <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 mb-4 h-[400px]">
+                            <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 mb-4 h-[400px] relative">
                                 <canvas ref={canvasRef}></canvas>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
@@ -404,16 +401,15 @@
             const canConfig = user && (user.role === ROLES.DEVELOPMENT); 
             const canViewStats = user && (user.role === ROLES.ADMIN || user.role === ROLES.DEVELOPMENT);
             
-            // --- Lógica de Permisos Actualizada ---
+            // CORRECCIÓN PERMISOS: Default false para seguridad (Observadores/Comentarios no editan)
             const canEditSlot = (machineId, slotIndex) => {
                 if (!user) return false;
                 if (user.role === ROLES.ADMIN || user.role === ROLES.DEVELOPMENT) return true;
-                // Si el usuario tiene slots permitidos (Andrés [0], Balta [1]), solo puede editar esos.
                 if (user.allowedSlots) return user.allowedSlots.includes(slotIndex);
-                return true; 
+                // Si no es admin y no tiene slots explícitos, no puede editar (ej. Susana, Prisciliano)
+                return false; 
             };
 
-            // --- FORZAR 2 SLOTS SIEMPRE ---
             const getVisibleSlots = (machineId) => [0, 1]; 
 
             if (!user) return <LoginScreen setAuthenticatedUser={setUser} installPrompt={deferredPrompt} onInstall={handleInstallClick} />;
@@ -460,7 +456,6 @@
                                         </div>
                                         <div className="bg-slate-900/50 rounded-lg p-2 border border-slate-700/50">
                                             {hasPlan && <div className="text-[10px] text-yellow-500 font-bold uppercase mb-2 flex justify-between"><span>Plan: {mData.plan_model}</span> {canEditPlan && <button onClick={() => setPlanModal({ machineId: m.id, rowId })}><i data-lucide="edit-2" className="w-3 h-3 text-blue-500"></i></button>}</div>}
-                                            {/* ENCABEZADOS DE COLUMNA (Andrés / Balta) */}
                                             <div className="grid grid-cols-2 gap-2 mb-1">
                                                 <div className="text-[9px] text-center font-bold text-blue-400 uppercase tracking-widest border-b border-blue-900 pb-1">Andrés</div>
                                                 <div className="text-[9px] text-center font-bold text-orange-400 uppercase tracking-widest border-b border-orange-900 pb-1">Balta</div>
@@ -487,13 +482,11 @@
             const DesktopView = () => (
                 <div className="h-full flex flex-col bg-slate-900 overflow-hidden relative">
                     <header className="bg-slate-800 shadow-sm border-b border-slate-700 p-3 flex justify-between items-center z-20 shrink-0">
-                        <div className="flex items-center gap-4"><div className="bg-gradient-to-br from-blue-600 to-blue-800 p-2 rounded-lg text-white shadow-lg"><i data-lucide="factory" className="w-5 h-5"></i></div><h1 className="font-bold text-slate-200">Control MAES - Tejido</h1><div className="ml-4 text-left p-2 bg-slate-900/50 rounded-lg border border-slate-700/50"><p className="text-sm font-bold text-blue-400">{user.name.toUpperCase()}</p><p className="text-[10px] text-slate-500 uppercase font-medium leading-none">{user.area}</p></div>
+                        <div className="flex items-center gap-4"><div className="bg-gradient-to-br from-blue-600 to-blue-800 p-2 rounded-lg text-white shadow-lg"><i data-lucide="factory" className="w-5 h-5"></i></div><h1 className="font-bold text-slate-200">Control MAES - Tejido</h1><div className="ml-4 text-left p-2 bg-slate-900/50 rounded-lg border border-slate-700/50"><p className="text-sm font-bold text-blue-400">{user.name.toUpperCase()}</p><p className="text-[10px] text-slate-500 uppercase font-medium leading-none">{user.area}</p></div></div>
                         <div className="flex gap-2 ml-4">
                             <button onClick={() => setShowNotes(true)} className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-yellow-400"><i data-lucide="sticky-note" className="w-5 h-5"></i></button>
                             {canViewStats && <button onClick={() => setShowStats(true)} className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-green-400"><i data-lucide="bar-chart-2" className="w-5 h-5"></i></button>}
                             {canConfig && <button onClick={() => setShowVisibilityModal(true)} className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-slate-300"><i data-lucide="settings" className="w-5 h-5"></i></button>}
-                        </div></div>
-                        <div className="flex items-center gap-4">
                             <button onClick={() => setUser(null)} className="p-2 text-red-400 hover:bg-red-900/20 rounded"><i data-lucide="log-out" className="w-5 h-5"></i></button>
                         </div>
                     </header>
