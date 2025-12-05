@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Textil v5.0 - Enhebrado y Tiempos</title>
+    <title>Sistema Textil v6.0 - Enhebrado Detallado</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -34,6 +34,9 @@
             /* Fuente condensada para la tabla de enhebrado */
             .threading-table-print { font-size: 8pt; width: 100%; }
             .threading-table-print th { background-color: #ddd !important; }
+
+             /* Altura de renglón en tabla de producción */
+            .production-row-h { height: 21px; }
         }
         .print-only { display: none; }
     </style>
@@ -87,16 +90,19 @@
             return <img src={imgSrc} alt={codigo} className={className} onError={handleError} />;
         };
 
-        // --- COMPONENTE EDITOR DE ENHEBRADO ---
+        // --- COMPONENTE EDITOR DE ENHEBRADO (AHORA CON %) ---
         const ThreadingEditor = ({ data, onChange }) => {
-            const addRow = () => onChange([...data, { id: Date.now(), guia: '', material: '', tension: '' }]);
+            const addRow = () => onChange([...data, { id: Date.now(), guia: '', material: '', tension: '', porcentaje: '' }]);
             const updateRow = (id, field, val) => onChange(data.map(r => r.id === id ? { ...r, [field]: val } : r));
             const removeRow = (id) => onChange(data.filter(r => r.id !== id));
+
+            // Calcular suma de porcentajes
+            const totalPercent = data.reduce((sum, row) => sum + (Number(row.porcentaje) || 0), 0);
 
             return (
                 <div className="border rounded bg-white overflow-hidden">
                     <div className="bg-slate-200 p-2 text-xs font-bold flex justify-between items-center">
-                        <span>TABLA DE ENHEBRADO</span>
+                        <span>TABLA DE ENHEBRADO (Composición de Hilos)</span>
                         <button onClick={addRow} className="text-indigo-600 flex items-center gap-1 hover:underline"><Icon name="plus" size={14}/> Agregar Hilo</button>
                     </div>
                     {data.length === 0 ? (
@@ -107,7 +113,8 @@
                                 <tr>
                                     <th className="p-2 w-16">Guía/#</th>
                                     <th className="p-2">Material / Color</th>
-                                    <th className="p-2 w-20">Tensión</th>
+                                    <th className="p-2 w-16 text-center">Tensión</th>
+                                    <th className="p-2 w-16 text-center">Porcentaje %</th>
                                     <th className="p-2 w-8"></th>
                                 </tr>
                             </thead>
@@ -116,11 +123,26 @@
                                     <tr key={row.id}>
                                         <td className="p-1"><input className="w-full border rounded p-1" placeholder="#" value={row.guia} onChange={e=>updateRow(row.id,'guia',e.target.value)} /></td>
                                         <td className="p-1"><input className="w-full border rounded p-1" placeholder="Ej: Algodón Negro" value={row.material} onChange={e=>updateRow(row.id,'material',e.target.value)} /></td>
-                                        <td className="p-1"><input className="w-full border rounded p-1" placeholder="Ej: 5.0" value={row.tension} onChange={e=>updateRow(row.id,'tension',e.target.value)} /></td>
+                                        <td className="p-1 relative">
+                                            <input className="w-full border rounded p-1 text-center" placeholder="5.0" value={row.tension} onChange={e=>updateRow(row.id,'tension',e.target.value)} />
+                                        </td>
+                                        <td className="p-1 relative">
+                                            <input type="number" className="w-full border rounded p-1 text-center" placeholder="30" value={row.porcentaje} onChange={e=>updateRow(row.id,'porcentaje',e.target.value)} />
+                                            <span className="absolute right-2 top-2 text-[10px] text-slate-400 no-print">%</span>
+                                        </td>
                                         <td className="p-1 text-center"><button onClick={()=>removeRow(row.id)} className="text-red-400 hover:text-red-600"><Icon name="x" size={14}/></button></td>
                                     </tr>
                                 ))}
                             </tbody>
+                            <tfoot className="bg-slate-100">
+                                <tr>
+                                    <td colSpan="3" className="p-2 text-right font-bold">Total Composición:</td>
+                                    <td className={`p-2 text-center font-bold ${totalPercent !== 100 ? 'text-red-500' : 'text-green-600'}`}>
+                                        {totalPercent}%
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
                         </table>
                     )}
                 </div>
@@ -134,21 +156,21 @@
                 fechaInicio: new Date().toISOString().split('T')[0], fechaEntrega: ''
             });
             
-            // Estado para la tabla de enhebrado (Común para el lote)
             const [threadingData, setThreadingData] = useState([]);
 
+            // Estado de pieza sin 'porcentaje', agregado 'tecnica'
             const [pieces, setPieces] = useState([
-                { id: 1, pieza: 'Blusa', talla: 'Unitalla', totalPedido: '', peso: '', tiempo: '', porcentaje: '' }
+                { id: 1, pieza: 'Blusa', talla: 'Unitalla', totalPedido: '', peso: '', tiempo: '', tecnica: '' }
             ]);
 
-            const addPiece = () => setPieces([...pieces, { id: Date.now(), pieza: '', talla: 'Unitalla', totalPedido: '', peso: '', tiempo: '', porcentaje: '' }]);
+            const addPiece = () => setPieces([...pieces, { id: Date.now(), pieza: '', talla: 'Unitalla', totalPedido: '', peso: '', tiempo: '', tecnica: '' }]);
             const updatePiece = (id, f, v) => setPieces(pieces.map(p => p.id === id ? { ...p, [f]: v } : p));
             const removePiece = (id) => pieces.length > 1 && setPieces(pieces.filter(p => p.id !== id));
 
             const handleSubmit = () => {
                 if(!header.codigo || !header.cliente || !header.maquina) return alert("Falta Código, Cliente o Máquina");
 
-                const shouldMerge = pieces.length > 1 && confirm(`¿Quieres JUNTAR estas ${pieces.length} piezas en una sola orden?`);
+                const shouldMerge = pieces.length > 1 && confirm(`¿Quieres JUNTAR estas ${pieces.length} piezas en una sola orden (Recomendado si van en la misma máquina)?`);
                 let finalOrders = [];
 
                 const commonData = {
@@ -156,21 +178,24 @@
                     fechaInicio: header.fechaInicio, fechaFin: header.fechaEntrega,
                     batchSequence: config.sequenceCounter,
                     status: 'En Proceso', progreso: [],
-                    threading: threadingData // Guardamos la tabla
+                    threading: threadingData 
                 };
 
                 if (shouldMerge) {
+                    const subPieces = pieces.map(p => p.pieza); // Lista de piezas para la selección de producción
+
                     finalOrders.push({
                         ...commonData,
                         id: Date.now(),
                         displayId: generateID(header.cliente, config.sequenceCounter, "Set"),
-                        pieza: `Juego: ${pieces.map(p => p.pieza).join(' + ')}`,
+                        pieza: `Juego: ${subPieces.join(' + ')}`,
+                        subPieces: subPieces, // Almacenar sub-piezas para el control de producción
                         talla: pieces[0].talla,
                         totalPedido: pieces[0].totalPedido,
-                        // Concatenamos datos técnicos para la vista combinada
+                        // Concatenamos datos técnicos
                         peso: pieces.reduce((a,b)=> a + (Number(b.peso)||0), 0),
                         tiempo: pieces.reduce((a,b)=> a + (Number(b.tiempo)||0), 0),
-                        porcentaje: pieces[0].porcentaje, // Tomamos el primero o promedio
+                        tecnica: pieces.map(p => `${p.pieza}: ${p.tecnica || 'N/A'}`).join(' | '),
                         isMerged: true
                     });
                 } else {
@@ -179,7 +204,7 @@
                         id: Date.now() + index,
                         displayId: generateID(header.cliente, config.sequenceCounter, p.pieza),
                         pieza: p.pieza, talla: p.talla, totalPedido: p.totalPedido,
-                        peso: p.peso, tiempo: p.tiempo, porcentaje: p.porcentaje
+                        peso: p.peso, tiempo: p.tiempo, tecnica: p.tecnica
                     }));
                 }
                 onSave(finalOrders);
@@ -215,28 +240,27 @@
                                 {pieces.map((p, idx) => (
                                     <div key={p.id} className="bg-slate-50 p-3 rounded border relative">
                                         <div className="flex gap-2 mb-2">
-                                            <input list="parts" value={p.pieza} onChange={e => updatePiece(p.id, 'pieza', e.target.value)} className="flex-1 p-1 border rounded text-sm font-bold" placeholder="Nombre Pieza" />
+                                            <input list="parts" value={p.pieza} onChange={e => updatePiece(p.id, 'pieza', e.target.value)} className="flex-1 p-1 border rounded text-sm font-bold" placeholder="Nombre Pieza (Ej: Blusa)" />
                                             <input value={p.talla} onChange={e => updatePiece(p.id, 'talla', e.target.value)} className="w-20 p-1 border rounded text-sm" placeholder="Talla" />
                                             <input type="number" value={p.totalPedido} onChange={e => updatePiece(p.id, 'totalPedido', e.target.value)} className="w-20 p-1 border rounded text-sm font-bold" placeholder="Cant." />
                                         </div>
-                                        <div className="flex gap-2">
+                                        <div className="flex gap-2 mb-2">
                                             <div className="flex-1 relative">
-                                                <span className="absolute right-2 top-1.5 text-[10px] text-slate-400">g</span>
+                                                <span className="absolute right-2 top-1.5 text-[10px] text-slate-400">g/kg</span>
                                                 <input type="number" value={p.peso} onChange={e => updatePiece(p.id, 'peso', e.target.value)} className="w-full p-1 border rounded text-xs" placeholder="Peso" />
                                             </div>
                                             <div className="flex-1 relative">
                                                 <span className="absolute right-2 top-1.5 text-[10px] text-slate-400">min</span>
                                                 <input type="number" value={p.tiempo} onChange={e => updatePiece(p.id, 'tiempo', e.target.value)} className="w-full p-1 border rounded text-xs" placeholder="Tiempo" />
                                             </div>
-                                            <div className="flex-1 relative">
-                                                <span className="absolute right-2 top-1.5 text-[10px] text-slate-400">%</span>
-                                                <input type="number" value={p.porcentaje} onChange={e => updatePiece(p.id, 'porcentaje', e.target.value)} className="w-full p-1 border rounded text-xs" placeholder="%" />
-                                            </div>
+                                        </div>
+                                        <div className="relative">
+                                            <input value={p.tecnica} onChange={e => updatePiece(p.id, 'tecnica', e.target.value)} className="w-full p-1 border rounded text-xs" placeholder="Técnica / Mimbre (Ej: Trenzado 3/1)" />
                                         </div>
                                         {pieces.length > 1 && <button onClick={() => removePiece(p.id)} className="absolute -top-2 -right-2 bg-red-100 text-red-500 rounded-full p-1 border hover:bg-red-200"><Icon name="x" size={12} /></button>}
                                     </div>
                                 ))}
-                                <datalist id="parts"><option value="Blusa"/><option value="Manga"/><option value="Cuello"/></datalist>
+                                <datalist id="parts"><option value="Frente"/><option value="Espalda"/><option value="Manga Larga"/><option value="Manga Corta"/><option value="Cuello"/></datalist>
                                 <button onClick={addPiece} className="w-full py-2 border-2 border-dashed text-slate-500 text-xs font-bold rounded hover:bg-slate-50">+ Agregar Otra Pieza</button>
                             </div>
                         </div>
@@ -258,17 +282,40 @@
 
         // --- VISTA DETALLE / IMPRESIÓN ---
         const OrderView = ({ order, config, onBack, onUpdate }) => {
-            const [entry, setEntry] = useState({ fecha: new Date().toISOString().split('T')[0], tejedor: '', produccion: '' });
+            const [entry, setEntry] = useState({ fecha: new Date().toISOString().split('T')[0], tejedor: '', produccion: '', subPieza: '' });
             
+            useEffect(() => {
+                if (order.isMerged && order.subPieces && !entry.subPieza) {
+                    setEntry(prev => ({ ...prev, subPieza: order.subPieces[0] || '' }));
+                }
+            }, [order.isMerged, order.subPieces]);
+
             const addProgress = () => {
-                if(!entry.produccion) return;
-                const newP = [...(order.progreso||[]), { ...entry, id: Date.now(), produccion: Number(entry.produccion) }];
+                if(!entry.produccion) return alert("Debe ingresar la cantidad producida.");
+                if(order.isMerged && !entry.subPieza) return alert("Esta es una orden compuesta. Debe especificar qué PIEZA produjo.");
+
+                const newP = [...(order.progreso||[]), { 
+                    ...entry, 
+                    id: Date.now(), 
+                    produccion: Number(entry.produccion),
+                    // Solo guarda subPieza si es una orden fusionada
+                    subPieza: order.isMerged ? entry.subPieza : undefined 
+                }];
+                
                 onUpdate(order.id, 'progreso', newP);
-                setEntry({...entry, produccion: ''});
+                setEntry(prev => ({ 
+                    ...prev, 
+                    produccion: '', 
+                    // Mantenemos fecha/tejedor/subPieza para captura rápida
+                }));
             };
 
             const totalProd = order.progreso?.reduce((a,b)=>a+b.produccion,0) || 0;
             const pct = order.totalPedido ? Math.round((totalProd/order.totalPedido)*100) : 0;
+            
+            // Preparar el string de técnica, mostrando 'N/A' si está vacío
+            const tecnicaDisplay = order.tecnica || 'N/A';
+            const isMerged = order.isMerged;
 
             return (
                 <div className="bg-white min-h-screen">
@@ -296,7 +343,7 @@
                             {/* Cuerpo de Datos */}
                             <div className="flex gap-3 flex-grow overflow-hidden">
                                 {/* Columna Izquierda: Datos Técnicos y Tabla */}
-                                <div className="w-1/2 flex flex-col gap-2">
+                                <div className="w-1/2 flex flex-col gap-1">
                                     <div className="flex border border-black text-center divide-x divide-black bg-slate-100 print:bg-transparent">
                                         <div className="flex-1 p-1">
                                             <div className="text-[9px] font-bold uppercase">Código</div>
@@ -311,34 +358,38 @@
                                             <div className="text-xl font-black">{order.totalPedido}</div>
                                         </div>
                                     </div>
-
-                                    {/* Nuevos Campos: Peso, Tiempo, % */}
-                                    <div className="flex border border-black text-center divide-x divide-black">
-                                        <div className="flex-1 p-1">
-                                            <div className="text-[9px] font-bold uppercase text-slate-500">Peso</div>
-                                            <div className="font-bold">{order.peso || '-'} <span className="text-[9px]">g</span></div>
+                                    
+                                    {/* Peso, Tiempo, Técnica/Mimbre */}
+                                    <div className="border border-black p-1">
+                                        <div className="flex divide-x divide-black mb-1">
+                                            <div className="flex-1 text-center p-0.5">
+                                                <div className="text-[8px] font-bold uppercase text-slate-500 leading-none">Peso</div>
+                                                <div className="text-sm font-bold leading-none">{order.peso || '-'} <span className="text-[8px]">g/kg</span></div>
+                                            </div>
+                                            <div className="flex-1 text-center p-0.5">
+                                                <div className="text-[8px] font-bold uppercase text-slate-500 leading-none">Tiempo</div>
+                                                <div className="text-sm font-bold leading-none">{order.tiempo || '-'} <span className="text-[8px]">min</span></div>
+                                            </div>
                                         </div>
-                                        <div className="flex-1 p-1">
-                                            <div className="text-[9px] font-bold uppercase text-slate-500">Tiempo</div>
-                                            <div className="font-bold">{order.tiempo || '-'} <span className="text-[9px]">min</span></div>
-                                        </div>
-                                        <div className="flex-1 p-1">
-                                            <div className="text-[9px] font-bold uppercase text-slate-500">%</div>
-                                            <div className="font-bold">{order.porcentaje || '-'}</div>
+                                        <div className="border-t border-black pt-1">
+                                            <div className="text-[8px] font-bold uppercase text-slate-500 leading-none">Técnica / Mimbre</div>
+                                            <div className="text-xs font-mono font-bold leading-tight">{tecnicaDisplay}</div>
                                         </div>
                                     </div>
 
+
                                     {/* Tabla de Enhebrado Impresa */}
                                     <div className="flex-grow border border-black relative overflow-hidden flex flex-col">
-                                        <div className="bg-black text-white text-[9px] font-bold px-1 text-center uppercase">Tabla de Enhebrado</div>
+                                        <div className="bg-black text-white text-[8px] font-bold px-1 text-center uppercase">Tabla de Enhebrado (Composición)</div>
                                         {order.threading && order.threading.length > 0 ? (
                                             <div className="flex-grow overflow-hidden">
-                                                <table className="threading-table-print text-[9px] w-full text-left">
+                                                <table className="threading-table-print text-[8px] w-full text-left">
                                                     <thead>
                                                         <tr className="bg-gray-200 border-b border-black">
-                                                            <th className="p-1 w-8 border-r border-black">Pos.</th>
-                                                            <th className="p-1 border-r border-black">Material</th>
-                                                            <th className="p-1 w-10 text-center">Tens.</th>
+                                                            <th className="p-0.5 w-8 border-r border-black">Pos.</th>
+                                                            <th className="p-0.5 border-r border-black">Material / Color</th>
+                                                            <th className="p-0.5 w-10 text-center border-r border-black">Tens.</th>
+                                                            <th className="p-0.5 w-10 text-center">%</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -346,7 +397,8 @@
                                                             <tr key={i} className="border-b border-black h-4">
                                                                 <td className="pl-1 border-r border-black font-bold">{row.guia}</td>
                                                                 <td className="pl-1 border-r border-black truncate">{row.material}</td>
-                                                                <td className="text-center">{row.tension}</td>
+                                                                <td className="text-center border-r border-black">{row.tension}</td>
+                                                                <td className="text-center font-bold">{row.porcentaje}</td>
                                                             </tr>
                                                         ))}
                                                     </tbody>
@@ -372,19 +424,22 @@
                             <table className="w-full text-xs border border-black">
                                 <thead>
                                     <tr className="bg-gray-200">
-                                        <th className="border border-black p-1 w-16">Fecha</th>
-                                        <th className="border border-black p-1 w-12">Turno</th>
-                                        <th className="border border-black p-1">Tejedor</th>
-                                        <th className="border border-black p-1 w-16">Prod.</th>
-                                        <th className="border border-black p-1">Obs/Defectos</th>
+                                        <th className="border border-black p-1 w-12">Fecha</th>
+                                        <th className="border border-black p-1 w-10">Turno</th>
+                                        <th className="border border-black p-1 w-20">Tejedor</th>
+                                        {/* Columna de Pieza visible si es una orden compuesta */}
+                                        <th className="border border-black p-1 w-20">{isMerged ? 'Pieza' : 'Obs.'}</th> 
+                                        <th className="border border-black p-1 w-12">Prod.</th>
+                                        <th className="border border-black p-1">Firma / Obs.</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {[...Array(18)].map((_, i) => (
-                                        <tr key={i} className="h-6">
+                                    {[...Array(20)].map((_, i) => (
+                                        <tr key={i} className="production-row-h">
                                             <td className="border border-black"></td>
                                             <td className="border border-black"></td>
                                             <td className="border border-black"></td>
+                                            <td className="border border-black"></td> {/* Pieza / Obs */}
                                             <td className="border border-black"></td>
                                             <td className="border border-black"></td>
                                         </tr>
@@ -396,24 +451,45 @@
                         {/* --- VISTA DIGITAL (PANTALLA) --- */}
                         <div className="no-print mt-6 bg-slate-50 p-4 rounded border">
                             <h3 className="font-bold mb-4">Captura Digital</h3>
-                            <div className="flex gap-2 items-end mb-4">
-                                <input type="date" value={entry.fecha} onChange={e=>setEntry({...entry,fecha:e.target.value})} className="border p-2 rounded text-sm"/>
-                                <input placeholder="Tejedor" value={entry.tejedor} onChange={e=>setEntry({...entry,tejedor:e.target.value})} className="border p-2 rounded text-sm flex-1"/>
+                            <div className="flex flex-wrap gap-2 items-end mb-4">
+                                <input type="date" value={entry.fecha} onChange={e=>setEntry({...entry,fecha:e.target.value})} className="border p-2 rounded text-sm w-32"/>
+                                <input placeholder="Tejedor" value={entry.tejedor} onChange={e=>setEntry({...entry,tejedor:e.target.value})} className="border p-2 rounded text-sm flex-1 min-w-[100px]"/>
+
+                                {/* Selector de Pieza si es Compuesta */}
+                                {order.isMerged && order.subPieces && (
+                                    <select value={entry.subPieza} onChange={e=>setEntry({...entry,subPieza:e.target.value})} className="border p-2 rounded text-sm w-32 font-bold bg-white">
+                                        <option value="">-- Pieza --</option>
+                                        {order.subPieces.map(p => <option key={p} value={p}>{p}</option>)}
+                                    </select>
+                                )}
+
                                 <input placeholder="Cant." type="number" value={entry.produccion} onChange={e=>setEntry({...entry,produccion:e.target.value})} className="border p-2 rounded text-sm w-20"/>
                                 <button onClick={addProgress} className="bg-indigo-600 text-white p-2 rounded"><Icon name="plus"/></button>
                             </div>
-                            {/* Renderizar tabla de enhebrado en pantalla también para referencia */}
-                            {order.threading && order.threading.length > 0 && (
-                                <div className="mb-4 bg-white p-2 border rounded">
-                                    <h4 className="text-xs font-bold text-slate-500 mb-2">Tabla de Enhebrado</h4>
-                                    <table className="w-full text-xs">
-                                        <thead className="bg-slate-100"><tr><th className="text-left p-1">Pos</th><th className="text-left p-1">Material</th><th className="text-left p-1">Tensión</th></tr></thead>
-                                        <tbody>
-                                            {order.threading.map((r,i)=><tr key={i} className="border-b"><td className="p-1 font-bold">{r.guia}</td><td className="p-1">{r.material}</td><td className="p-1">{r.tension}</td></tr>)}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
+                            
+                            {/* Historial de Captura */}
+                            <div className="max-h-60 overflow-y-auto border bg-white rounded">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-100 sticky top-0">
+                                        <tr>
+                                            <th className="text-left p-2 w-20">Fecha</th>
+                                            {order.isMerged && <th className="text-left p-2 w-20">Pieza</th>}
+                                            <th className="text-left p-2">Tejedor</th>
+                                            <th className="text-right p-2 w-16">Cant.</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {order.progreso?.slice().reverse().map(p => (
+                                            <tr key={p.id} className="border-t hover:bg-slate-50">
+                                                <td className="p-2">{p.fecha}</td>
+                                                {order.isMerged && <td className="p-2 font-bold text-xs">{p.subPieza}</td>}
+                                                <td className="p-2 text-sm">{p.tejedor}</td>
+                                                <td className="p-2 text-right font-bold">{p.produccion}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -427,7 +503,7 @@
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                     <div className="bg-white p-6 rounded w-96">
                         <h2 className="font-bold mb-4">Configuración</h2>
-                        <input className="w-full border p-2 mb-2 text-sm" placeholder="URL GitHub" value={local.repoUrl} onChange={e=>setLocal({...local,repoUrl:e.target.value})}/>
+                        <input className="w-full border p-2 mb-2 text-sm" placeholder="URL GitHub (Carpeta de Fotos)" value={local.repoUrl} onChange={e=>setLocal({...local,repoUrl:e.target.value})}/>
                         <input className="w-full border p-2 mb-4 text-sm" type="number" placeholder="Consecutivo" value={local.sequenceCounter} onChange={e=>setLocal({...local,sequenceCounter:parseInt(e.target.value)||1})}/>
                         <div className="flex justify-end gap-2"><button onClick={onClose}>Cancelar</button><button onClick={()=>onSave(local)} className="bg-indigo-600 text-white px-3 py-1 rounded">Guardar</button></div>
                     </div>
@@ -436,16 +512,17 @@
         };
 
         const App = () => {
+            // Cambiado 'v5' a 'v6' para no perder datos viejos si los hubiera
             const [view, setView] = useState('list');
-            const [orders, setOrders] = useState(() => JSON.parse(localStorage.getItem('v5_orders')) || []);
-            const [config, setConfig] = useState(() => JSON.parse(localStorage.getItem('v5_config')) || { repoUrl: '', sequenceCounter: 1 });
+            const [orders, setOrders] = useState(() => JSON.parse(localStorage.getItem('v6_orders')) || []);
+            const [config, setConfig] = useState(() => JSON.parse(localStorage.getItem('v6_config')) || { repoUrl: '', sequenceCounter: 1 });
             const [selectedOrder, setSelectedOrder] = useState(null);
             const [showSettings, setShowSettings] = useState(false);
             const [filterClient, setFilterClient] = useState('ALL');
 
             useEffect(() => {
-                localStorage.setItem('v5_orders', JSON.stringify(orders));
-                localStorage.setItem('v5_config', JSON.stringify(config));
+                localStorage.setItem('v6_orders', JSON.stringify(orders));
+                localStorage.setItem('v6_config', JSON.stringify(config));
                 lucide.createIcons();
             }, [orders, config, view]);
 
@@ -458,16 +535,18 @@
             const updateOrder = (id, f, v) => {
                 const updated = orders.map(o => o.id === id ? { ...o, [f]: v } : o);
                 setOrders(updated);
-                if(selectedOrder?.id === id) setSelectedOrder({...selectedOrder, [f]: v});
+                // Si la orden seleccionada fue actualizada, actualizar el estado de la vista de detalle
+                if(selectedOrder?.id === id) setSelectedOrder(updated.find(o => o.id === id));
             };
 
             const clients = [...new Set(orders.map(o => o.cliente))].sort();
+            // Filtrar las órdenes no archivadas
             const filtered = orders.filter(o => (filterClient === 'ALL' || o.cliente === filterClient) && o.status !== 'Archivado');
 
             return (
                 <div className="min-h-screen bg-slate-100 pb-10">
                     <nav className="bg-slate-900 text-white p-3 flex justify-between no-print">
-                        <div className="font-bold flex gap-2"><Icon name="box"/> Producción v5.0</div>
+                        <div className="font-bold flex gap-2"><Icon name="box"/> Producción v6.0</div>
                         <button onClick={()=>setShowSettings(true)}><Icon name="settings"/></button>
                     </nav>
 
@@ -482,7 +561,8 @@
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 {filtered.map(o => {
-                                    const pct = o.totalPedido ? Math.round(((o.progreso?.reduce((a,b)=>a+b.produccion,0)||0)/o.totalPedido)*100) : 0;
+                                    const total = o.progreso?.reduce((a,b)=>a+b.produccion,0)||0;
+                                    const pct = o.totalPedido ? Math.min(100, Math.round((total/o.totalPedido)*100)) : 0;
                                     return (
                                         <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className="bg-white p-4 rounded shadow border cursor-pointer hover:shadow-lg">
                                             <div className="flex justify-between mb-2"><span className="font-mono text-xs text-slate-400 font-bold">{o.displayId}</span><span className="bg-slate-100 text-xs px-2 rounded font-bold">MQ-{o.maquina}</span></div>
