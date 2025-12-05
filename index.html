@@ -3,29 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
-    <title>MAES26 Control Total</title>
+    <title>MAES26 - Monitor Remoto</title>
 
     <link rel="icon" href="https://raw.githubusercontent.com/sweaters-liliana/MAES26/d41232c1301add433daea006546e2c6eb8dd23e6/icon%20maes.svg">
-    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/sweaters-liliana/MAES26/d41232c1301add433daea006546e2c6eb8dd23e6/icon%20maes.svg">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#0f172a">
-    
-    <link rel="manifest" href='data:application/manifest+json,{
-        "name": "MAES26 Control",
-        "short_name": "MAES26",
-        "start_url": ".",
-        "display": "standalone",
-        "background_color": "#0f172a",
-        "theme_color": "#0f172a",
-        "icons": [{
-            "src": "https://raw.githubusercontent.com/sweaters-liliana/MAES26/d41232c1301add433daea006546e2c6eb8dd23e6/icon%20maes.svg",
-            "sizes": "192x192 512x512",
-            "type": "image/svg+xml"
-        }]
-    }' />
-
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -33,58 +13,44 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <style>
-        @media print {
-            .no-print { display: none !important; }
-            body { background: white !important; color: black !important; }
-            .report-page { 
-                margin: 0; 
-                padding: 10mm;
-                color: black !important;
-                background: white !important;
-                min-height: 297mm; /* A4 height */
-            }
+        body { background-color: #020617; color: #e2e8f0; overflow: hidden; }
+        
+        /* Ocultar scrollbars pero permitir scroll */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Animación de Alerta Crítica (Parpadeo Rojo Intenso) */
+        @keyframes critical-blink {
+            0%, 100% { background-color: rgba(127, 29, 29, 0.4); box-shadow: inset 0 0 20px rgba(220, 38, 38, 0.5); }
+            50% { background-color: rgba(185, 28, 28, 0.9); box-shadow: inset 0 0 50px rgba(239, 68, 68, 0.8); }
+        }
+        .animate-critical {
+            animation: critical-blink 1s infinite ease-in-out;
+            color: #ffffff;
+            font-weight: 900;
+            border: 2px solid #ef4444;
         }
 
-        .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-        .slot-input {
-            background: transparent; border: none; outline: none; text-align: center; width: 100%;
-            font-weight: bold; padding: 0; z-index: 1; position: relative;
-        }
-        .slot-input:focus { background: #1e293b; color: #60a5fa; }
-        .slot-input::placeholder { color: #475569; font-weight: normal; font-size: 8px; }
-        .password-mask { -webkit-text-security: disc; text-security: disc; }
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes zoomIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        .animate-zoom-in { animation: zoomIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        .planning-info { color: #facc15; background-color: rgba(120, 53, 15, 0.1); border-radius: 4px; padding: 1px 3px; font-weight: bold; font-size: 8px; }
-        
-        /* Report Modal Styles */
-        .report-page { background-color: #f8fafc; color: #1e293b; padding: 30px; font-family: sans-serif; }
-        .report-header h1 { font-size: 24px; font-weight: bold; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-bottom: 10px; }
-        .report-section { margin-bottom: 20px; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; }
-        .report-section h2 { font-size: 18px; font-weight: bold; color: #1e40af; margin-bottom: 10px; }
-        .report-data div { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dotted #cbd5e1; font-size: 14px; }
-        .report-label { font-weight: 500; color: #475569; }
-        .report-value { font-weight: 700; }
-        .report-material-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        .report-material-table th, .report-material-table td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; font-size: 13px; }
-        .report-material-table th { background-color: #f1f5f9; color: #1e293b; }
+        /* Animación suave de entrada */
+        .fade-in { animation: fadeIn 1s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Estilo para textos grandes en monitor */
+        .kiosk-text { text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-200 font-sans fixed inset-0 overflow-hidden">
+<body>
 
-    <div id="root" class="h-full"></div>
+    <div id="root" class="h-screen w-screen"></div>
 
     <script type="text/babel" data-type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getFirestore, collection, doc, setDoc, addDoc, deleteDoc, onSnapshot, serverTimestamp, updateDoc, query, orderBy, limit, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, collection, doc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         const { useState, useEffect, useMemo, useRef } = React;
 
+        // --- CONFIGURACIÓN FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyBqHgV4vDat1-VmZfKbiPg7nuiX-ROcexw",
             authDomain: "cirineo-cec21.firebaseapp.com",
@@ -99,37 +65,18 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        const ROLES = { 
-            ADMIN: 'admin', 
-            COMMENTATOR: 'commentator', 
-            OBSERVER: 'observer', 
-            DEVELOPMENT: 'development',
-            OPERATOR: 'operator',
-            PRE_COUNT: 'pre_count'
-        };
-        
-        const DEFAULT_USERS = {
-            '1111': { name: 'Marco Espinoza', role: ROLES.ADMIN, area: 'Administración', canManageOrders: true },
-            '0000': { name: 'Prisciliano Espinoza', role: ROLES.COMMENTATOR, area: 'Comentarios' },
-            '2222': { name: 'Susana', role: ROLES.OBSERVER, area: 'Observación', canManageOrders: true, canViewGraph: true }, 
-            '1352': { name: 'Vallejo', role: ROLES.DEVELOPMENT, area: 'Desarrollo', canManageOrders: true, canViewGraph: true, canManageUsers: true }, 
-            '3333': { name: 'Tejido', role: ROLES.OPERATOR, area: 'Operadores Gral' },
-            '1392': { name: 'Andrés', role: ROLES.OPERATOR, area: 'Tejido (A)', allowedSlots: [0] },
-            '7914': { name: 'Balta', role: ROLES.OPERATOR, area: 'Tejido (B)', allowedSlots: [1] },
-            '5555': { name: 'IPAD PRE', role: ROLES.PRE_COUNT, area: 'Conteo Físico', canCount: true }
-        };
-
+        // --- DATOS ESTÁTICOS ---
         const MACHINES = [
-            { id: 'm35', name: 'MAQ 35', type: 'SANTONI SM8' }, { id: 'm39', name: 'MAQ 39', type: 'SANTONI SM8' },
-            { id: 'm40', name: 'MAQ 40', type: 'SANTONI SM8' }, { id: 'm36', name: 'MAQ 36', type: 'CIXING GE82' },
-            { id: 'm38', name: 'MAQ 38', type: 'SANTONI SM8' }, { id: 'm37', name: 'MAQ 37', type: 'SANTONI SM8' },
-            { id: 'm29', name: 'MAQ 29', type: 'SANTONI EVO4' }, { id: 'm28', name: 'MAQ 28', type: 'SANTONI EVO4' },
-            { id: 'm27', name: 'MAQ 27', type: 'SANTONI EVO4' }, { id: 'm33', name: 'MAQ 33', type: 'SANTONI EVO4' },
-            { id: 'm1',  name: 'MAQ 1',  type: 'CIXING' }, { id: 'm30', name: 'MAQ 30', type: 'CIXING GE82' },
-            { id: 'm31', name: 'MAQ 31', type: 'CIXING GE82' }, { id: 'm6',  name: 'MAQ 6',  type: 'CIXING GE82' },
-            { id: 'm32', name: 'MAQ 32', type: 'CIXING GE82' }, { id: 'm13', name: 'MAQ 13', type: 'SANTONI EVO4' },
-            { id: 'm12', name: 'MAQ 12', type: 'SANTONI EVO4' }, { id: 'm24', name: 'MAQ 24', type: 'SANTONI EVO4' },
-            { id: 'm8',  name: 'MAQ 8',  type: 'SANTONI TOP2' },
+            { id: 'm35', name: 'MAQ 35', type: 'SANTONI' }, { id: 'm39', name: 'MAQ 39', type: 'SANTONI' },
+            { id: 'm40', name: 'MAQ 40', type: 'SANTONI' }, { id: 'm36', name: 'MAQ 36', type: 'CIXING' },
+            { id: 'm38', name: 'MAQ 38', type: 'SANTONI' }, { id: 'm37', name: 'MAQ 37', type: 'SANTONI' },
+            { id: 'm29', name: 'MAQ 29', type: 'EVO4' },    { id: 'm28', name: 'MAQ 28', type: 'EVO4' },
+            { id: 'm27', name: 'MAQ 27', type: 'EVO4' },    { id: 'm33', name: 'MAQ 33', type: 'EVO4' },
+            { id: 'm1',  name: 'MAQ 1',  type: 'CIXING' }, { id: 'm30', name: 'MAQ 30', type: 'CIXING' },
+            { id: 'm31', name: 'MAQ 31', type: 'CIXING' }, { id: 'm6',  name: 'MAQ 6',  type: 'CIXING' },
+            { id: 'm32', name: 'MAQ 32', type: 'CIXING' }, { id: 'm13', name: 'MAQ 13', type: 'EVO4' },
+            { id: 'm12', name: 'MAQ 12', type: 'EVO4' },    { id: 'm24', name: 'MAQ 24', type: 'EVO4' },
+            { id: 'm8',  name: 'MAQ 8',  type: 'TOP2' },
         ];
 
         const generateCalendar = () => {
@@ -145,7 +92,6 @@
                     shortDay: ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'][d.getDay()],
                     dateNum: d.getDate(),
                     month: months[d.getMonth()],
-                    monthIndex: d.getMonth(),
                     year: d.getFullYear(), 
                     isoDate: d.toISOString().split('T')[0] 
                 });
@@ -154,1407 +100,263 @@
         };
 
         const ALL_ROWS = generateCalendar();
-        const INITIAL_STATE = (() => {
+        
+        // Calcular semana actual al inicio (Base)
+        const INITIAL_WEEK = (() => {
             const todayISO = new Date().toISOString().split('T')[0];
             const foundIndex = ALL_ROWS.findIndex(r => r.isoDate === todayISO);
-            const safeIndex = foundIndex !== -1 ? foundIndex : 0;
-            return { weekOffset: Math.floor(safeIndex / 7), selectedDayIndex: safeIndex % 7 };
+            return foundIndex !== -1 ? Math.floor(foundIndex / 7) : 0;
         })();
 
-        const getWeekLabel = (weekRows) => {
-            if (!weekRows || weekRows.length === 0) return '';
-            const f = weekRows[0], l = weekRows[weekRows.length - 1];
-            return f.month === l.month ? `${f.month} ${f.year}` : `${f.month} - ${l.month} ${l.year}`;
-        };
-
-        const calculateOrderMetrics = (machineId, order, allProductionData, allRows, globalHiddenDays) => {
-            const metrics = { 
-                isPlanned: false, finishDate: null, totalNeeded: 0, progress: 0, produced: 0, 
-                dailyCapacity: 0, plannedToDate: 0, deviation: 0, status: 'OK',
-                activePart: null, partsStatus: [], totalYarnConsumedGrams: 0, verifiedCountTotal: 0
-            };
-            if (!order || !order.startDate) return metrics;
-            const verifiedCounts = order.verifiedCounts || [];
-            const dailyHours = order.operators && Array.isArray(order.operators) ? order.operators.length * 12 : Number(order.dailyHours || 12);
-            const dailyMinutesCapacity = dailyHours * 60;
-            const disabledDates = order.disabledDates || [];
-            metrics.dailyCapacity = dailyMinutesCapacity; 
-            metrics.isPlanned = true;
-            const isComposite = order.parts && order.parts.length > 0;
-            let totalMinutesNeeded = 0;
-            if (isComposite) {
-                order.parts.forEach(p => { totalMinutesNeeded += Number(p.qty) * Number(p.time); });
-            } else {
-                totalMinutesNeeded = Number(order.totalQty) * Number(order.timePerPieceMin);
-            }
-            let totalMinutesProduced = 0;
-            let totalItemsProduced = 0;
-            let totalYarnConsumedGrams = 0;
-            let partsTracker = isComposite ? order.parts.map(p => ({...p, produced: 0})) : [];
-            verifiedCounts.forEach(vc => {
-                const qty = Number(vc.qty || 0);
-                if (isComposite) {
-                    const partIdx = partsTracker.findIndex(p => p.name.toUpperCase() === (vc.partName || '').toUpperCase());
-                    if (partIdx !== -1) {
-                        partsTracker[partIdx].produced += qty;
-                        totalMinutesProduced += (qty * Number(partsTracker[partIdx].time));
-                        totalItemsProduced += qty; 
-                        totalYarnConsumedGrams += (qty * Number(partsTracker[partIdx].weight));
-                    } else {
-                        totalItemsProduced += qty;
-                    }
-                } else {
-                    totalMinutesProduced += (qty * Number(order.timePerPieceMin));
-                    totalItemsProduced += qty;
-                    totalYarnConsumedGrams += (qty * Number(order.pieceWeightGrams));
-                }
-            });
-            const wasteMult = 1 + (Number(order.wastePercentage || 0) / 100);
-            metrics.produced = totalItemsProduced; 
-            metrics.progress = totalMinutesNeeded > 0 ? Math.min(100, (totalMinutesProduced / totalMinutesNeeded) * 100) : 0;
-            metrics.partsStatus = partsTracker;
-            metrics.totalYarnConsumedGrams = totalYarnConsumedGrams * wasteMult; 
-            if (isComposite) {
-                metrics.activePart = partsTracker.find(p => p.produced < p.qty) || null;
-            }
-            const todayISO = new Date().toISOString().split('T')[0];
-            const startIndex = allRows.findIndex(r => r.isoDate === order.startDate);
-            const todayIndex = allRows.findIndex(r => r.isoDate === todayISO);
-            let plannedMinutesToDate = 0;
-            if (startIndex !== -1) {
-                for (let i = startIndex; i < todayIndex; i++) { 
-                     const row = allRows[i];
-                     if (!globalHiddenDays.includes(row.id) && !disabledDates.includes(row.isoDate)) {
-                         plannedMinutesToDate += dailyMinutesCapacity;
-                     }
-                }
-            }
-            const minutesDeviation = totalMinutesProduced - plannedMinutesToDate;
-            metrics.deviation = isComposite ? Math.round(minutesDeviation / 60) : (totalItemsProduced - (plannedMinutesToDate / Number(order.timePerPieceMin))); 
-            metrics.plannedToDate = isComposite ? Math.round(plannedMinutesToDate / 60) + ' hrs' : Math.floor(plannedMinutesToDate / Number(order.timePerPieceMin));
-            const criticalDelayMinutes = dailyMinutesCapacity * 1.5; 
-            if (minutesDeviation < -criticalDelayMinutes) metrics.status = 'ATRASO CRÍTICO';
-            else if (minutesDeviation < 0) metrics.status = 'ATRASO LEVE';
-            const remainingMinutes = Math.max(0, totalMinutesNeeded - totalMinutesProduced);
-            if (remainingMinutes <= 0) {
-                metrics.finishDate = todayISO;
-                metrics.status = 'COMPLETADO';
-                metrics.progress = 100;
-                metrics.totalNeeded = 0;
-                return metrics;
-            }
-            metrics.totalNeeded = isComposite ? 0 : (Number(order.totalQty) - totalItemsProduced);
-            let projMinutes = remainingMinutes;
-            let currentIdx = startIndex !== -1 ? startIndex : 0;
-            if (todayIndex > currentIdx) currentIdx = todayIndex;
-            for (let i = currentIdx; i < allRows.length; i++) {
-                const row = allRows[i];
-                if (globalHiddenDays.includes(row.id) || disabledDates.includes(row.isoDate)) continue;
-                projMinutes -= dailyMinutesCapacity;
-                if (projMinutes <= 0) {
-                    metrics.finishDate = row.isoDate;
-                    return metrics;
-                }
-            }
-            metrics.finishDate = null; 
-            return metrics;
-        };
-
-        const calculateDetailedConsumption = (order, totalYarnConsumedGrams) => {
-             const materials = order.materials || [];
-             const totalKilos = totalYarnConsumedGrams / 1000;
-             return materials.map(m => {
-                 const pct = Number(m.percentage) / 100;
-                 return { name: m.name, percentage: m.percentage, kilosConsumed: totalKilos * pct };
-             });
-        };
-
-        // --- COMPONENTE DE CONFIRMACIÓN DE ARCHIVADO ---
-        const ArchiveModal = ({ onClose, onConfirm, machineName, orderModel }) => {
-            return (
-                <div className="fixed inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center z-[70] p-4 fade-in" onClick={onClose}>
-                    <div className="bg-slate-800 rounded-xl shadow-2xl w-full max-w-sm border border-slate-600 p-6 text-center animate-zoom-in" onClick={e => e.stopPropagation()}>
-                        <div className="bg-green-600/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-500">
-                            <i data-lucide="archive" className="w-8 h-8 text-green-400"></i>
-                        </div>
-                        <h3 className="text-xl font-bold text-white mb-2">¿Confirmar Archivado?</h3>
-                        <p className="text-slate-400 text-sm mb-6">
-                            Estás a punto de finalizar el pedido <b>{orderModel}</b> en la <b>{machineName}</b>.
-                            <br/><br/>
-                            <span className="text-yellow-400 font-bold block bg-yellow-900/20 p-2 rounded border border-yellow-600/30">
-                                ⚠️ Los datos se moverán al historial y la máquina quedará libre para un nuevo pedido.
-                            </span>
-                        </p>
-                        <div className="flex gap-3">
-                            <button onClick={onClose} className="flex-1 py-3 bg-slate-700 rounded-lg text-white font-bold hover:bg-slate-600">Cancelar</button>
-                            <button onClick={onConfirm} className="flex-1 py-3 bg-green-600 rounded-lg text-white font-bold hover:bg-green-500 shadow-lg shadow-green-900/50">CONFIRMAR</button>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        // --- NUEVO COMPONENTE: GRÁFICAS DE ESTADÍSTICAS ---
-        const StatsModal = ({ onClose, dailyTotals, machineTotals }) => {
-            const maxDaily = Math.max(...dailyTotals.map(d => d.sum), 1);
-            const maxMachine = Math.max(...machineTotals.map(m => m.sum), 1);
-
-            return (
-                <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in" onClick={onClose}>
-                    <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col border border-slate-700 overflow-hidden" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900">
-                            <h3 className="font-bold text-white uppercase tracking-wider text-sm flex items-center gap-2"><i data-lucide="bar-chart-2" className="w-5 h-5 text-purple-400"></i> Estadísticas de Producción (Semanal)</h3>
-                            <button onClick={onClose}><i data-lucide="x" className="text-slate-400 w-5 h-5"></i></button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-8">
-                            
-                            {/* Gráfica por Día */}
-                            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
-                                <h4 className="text-blue-400 font-bold mb-4 uppercase text-xs">Producción por Día</h4>
-                                <div className="flex items-end gap-2 h-48 border-b border-slate-600 pb-2">
-                                    {dailyTotals.map((d, i) => (
-                                        <div key={i} className="flex-1 flex flex-col items-center group">
-                                            <div className="text-[10px] font-bold text-white mb-1 opacity-0 group-hover:opacity-100 transition-opacity">{d.sum}</div>
-                                            <div className="w-full bg-blue-600 rounded-t hover:bg-blue-500 transition-all relative" style={{height: `${(d.sum / maxDaily) * 100}%`}}></div>
-                                            <div className="text-[10px] text-slate-400 mt-2 font-bold uppercase">{d.date}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Gráfica por Máquina */}
-                            <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
-                                <h4 className="text-purple-400 font-bold mb-4 uppercase text-xs">Producción por Máquina</h4>
-                                <div className="space-y-2">
-                                    {machineTotals.sort((a,b) => b.sum - a.sum).map((m, i) => (
-                                        <div key={i} className="flex items-center gap-2">
-                                            <div className="w-12 text-[10px] font-bold text-slate-400 text-right shrink-0">{m.name}</div>
-                                            <div className="flex-1 h-6 bg-slate-800 rounded-full overflow-hidden relative">
-                                                <div className="h-full bg-purple-600" style={{width: `${(m.sum / maxMachine) * 100}%`}}></div>
-                                                <span className="absolute inset-0 flex items-center pl-2 text-[10px] font-bold text-white shadow-black drop-shadow-md">{m.sum} pzas</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        // --- COMPONENTE DE INSTALACIÓN GUIADA MEJORADO ---
-        const InstallModal = ({ onClose, deferredPrompt, setViewPreference }) => {
-            const [step, setStep] = useState(0); // 0: Main, 1: Apple, 2: iPad, 3: Android Manual
-
-            const handleAndroid = () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    deferredPrompt.userChoice.then(choice => {
-                        if (choice.outcome === 'accepted') {
-                            onClose();
-                        }
-                    });
-                } else {
-                    // Si no hay prompt automático, vamos al paso de instrucciones manuales
-                    setStep(3);
-                }
-            };
-
-            const handleWindows = () => {
-                alert('Para instalar en Windows (Chrome/Edge): \n1. Busca el icono de instalación (+) en la barra de direcciones \n2. O ve al Menú > Aplicaciones > Instalar este sitio como aplicación');
-            };
-
-            const handleApple = () => setStep(1);
-
-            const handleIphone = () => {
-                // Instrucciones visuales simuladas con un alert por ahora, o podrías crear un paso 4
-                alert('Para instalar en iPhone: \n1. Toca el botón Compartir (cuadrado con flecha) \n2. Desliza hacia abajo y toca "Agregar a Inicio"');
-                onClose();
-            };
-
-            const handleIpad = () => setStep(2);
-
-            const selectIpadView = (mode) => {
-                localStorage.setItem('maes26_view_preference', mode);
-                setViewPreference(mode);
-                alert(`Vista ${mode === 'desktop' ? 'Escritorio' : 'Móvil'} seleccionada. \n\nAhora para finalizar: \n1. Toca el botón Compartir \n2. Toca "Agregar a Inicio"`);
-                onClose();
-            };
-
-            return (
-                <div className="fixed inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center z-[80] p-4 fade-in" onClick={onClose}>
-                    <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm border border-slate-600 p-6 text-center animate-zoom-in relative" onClick={e => e.stopPropagation()}>
-                        <button onClick={onClose} className="absolute top-2 right-2 text-slate-400 p-2 hover:text-white"><i data-lucide="x" className="w-6 h-6"></i></button>
-                        
-                        <div className="flex justify-center mb-4">
-                            <img src="https://raw.githubusercontent.com/sweaters-liliana/MAES26/d41232c1301add433daea006546e2c6eb8dd23e6/icon%20maes.svg" className="w-20 h-20 rounded-xl shadow-lg bg-slate-900 p-2" />
-                        </div>
-                        <h3 className="text-xl font-bold text-white mb-2">Instalar MAES26</h3>
-                        
-                        {step === 0 && (
-                            <>
-                                <p className="text-slate-400 text-sm mb-6">Elige tu dispositivo para obtener la mejor experiencia.</p>
-                                <div className="space-y-3">
-                                    <button onClick={handleAndroid} className="w-full py-3 bg-green-600 rounded-xl text-white font-bold flex items-center justify-center gap-3 hover:bg-green-500 transition-colors shadow-lg shadow-green-900/20">
-                                        <i data-lucide="smartphone" className="w-5 h-5"></i> Android
-                                    </button>
-                                    <button onClick={handleApple} className="w-full py-3 bg-white text-black rounded-xl font-bold flex items-center justify-center gap-3 hover:bg-slate-200 transition-colors shadow-lg">
-                                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.21-1.98 1.07-3.11-1.04.05-2.29.69-3.02 1.55-.65.75-1.21 1.95-1.06 3.04 1.15.09 2.3-.64 3.01-1.48z"/></svg>
-                                        Apple (iOS)
-                                    </button>
-                                    <button onClick={handleWindows} className="w-full py-3 bg-blue-600 rounded-xl text-white font-bold flex items-center justify-center gap-3 hover:bg-blue-500 transition-colors shadow-lg shadow-blue-900/20">
-                                        <i data-lucide="monitor" className="w-5 h-5"></i> Windows (PC)
-                                    </button>
-                                </div>
-                            </>
-                        )}
-
-                        {step === 1 && (
-                            <div className="space-y-3 animate-zoom-in">
-                                <h4 className="text-white font-bold mb-4">¿Qué dispositivo Apple usas?</h4>
-                                <button onClick={handleIphone} className="w-full py-3 bg-slate-700 rounded-xl text-white font-bold flex items-center justify-center gap-3 hover:bg-slate-600 border border-slate-600">
-                                    <i data-lucide="smartphone" className="w-5 h-5"></i> iPhone
-                                </button>
-                                <button onClick={handleIpad} className="w-full py-3 bg-slate-700 rounded-xl text-white font-bold flex items-center justify-center gap-3 hover:bg-slate-600 border border-slate-600">
-                                    <i data-lucide="tablet" className="w-5 h-5"></i> iPad
-                                </button>
-                                <button onClick={() => setStep(0)} className="text-slate-500 text-sm mt-4 hover:text-white underline">Volver</button>
-                            </div>
-                        )}
-
-                        {step === 2 && (
-                            <div className="space-y-3 animate-zoom-in">
-                                <h4 className="text-white font-bold mb-4">Elige tu vista preferida en iPad</h4>
-                                <button onClick={() => selectIpadView('desktop')} className="w-full py-3 bg-blue-600 rounded-xl text-white font-bold flex items-center justify-center gap-3 hover:bg-blue-500 shadow-lg">
-                                    <i data-lucide="monitor" className="w-5 h-5"></i> Vista Escritorio (PC)
-                                </button>
-                                <button onClick={() => selectIpadView('mobile')} className="w-full py-3 bg-slate-700 rounded-xl text-white font-bold flex items-center justify-center gap-3 hover:bg-slate-600 border border-slate-600">
-                                    <i data-lucide="smartphone" className="w-5 h-5"></i> Vista Móvil (App)
-                                </button>
-                                <button onClick={() => setStep(1)} className="text-slate-500 text-sm mt-4 hover:text-white underline">Volver</button>
-                            </div>
-                        )}
-
-                        {step === 3 && (
-                            <div className="space-y-4 animate-zoom-in text-left">
-                                <h4 className="text-white font-bold text-center mb-2">Instalación Manual Android</h4>
-                                <div className="bg-slate-900 p-4 rounded-lg border border-slate-700 text-sm space-y-3">
-                                    <div className="flex items-start gap-3">
-                                        <div className="bg-slate-700 w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">1</div>
-                                        <p className="text-slate-300">Toca los <strong>tres puntos</strong> en la esquina superior derecha de tu navegador.</p>
-                                    </div>
-                                    <div className="flex items-start gap-3">
-                                        <div className="bg-slate-700 w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">2</div>
-                                        <p className="text-slate-300">Busca y selecciona <strong>"Instalar aplicación"</strong> o "Agregar a la pantalla principal".</p>
-                                    </div>
-                                    <div className="flex items-start gap-3">
-                                        <div className="bg-slate-700 w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">3</div>
-                                        <p className="text-slate-300">Confirma pulsando <strong>Instalar</strong>.</p>
-                                    </div>
-                                </div>
-                                <button onClick={() => setStep(0)} className="w-full text-slate-500 text-sm hover:text-white underline text-center">Volver</button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            );
-        };
-
-        const ProductionSlot = ({ slotData, index, disabled, onUpdate }) => {
-            const [localModel, setLocalModel] = useState(slotData?.model || '');
-            const [localQty, setLocalQty] = useState('');
-            const [isDirty, setIsDirty] = useState(false);
-
-            useEffect(() => {
-                if (!isDirty) { 
-                    setLocalModel(slotData?.model || ''); 
-                    setLocalQty(slotData?.qty ?? ''); 
-                }
-            }, [slotData, isDirty]);
-
-            const handleSave = (e) => {
-                e?.preventDefault();
-                if (localModel !== (slotData?.model || '')) onUpdate(index, 'model', localModel);
-                if (String(localQty) !== String(slotData?.qty ?? '')) onUpdate(index, 'qty', localQty);
-                setIsDirty(false);
-            };
-
-            const handleChange = (f, v) => { if (f==='model') setLocalModel(v); else setLocalQty(v); setIsDirty(true); };
-            const handleKeyDown = (e) => { if (e.key === 'Enter') { e.preventDefault(); handleSave(); e.target.blur(); } };
-
-            return (
-                <div className={`flex flex-col border border-slate-700/50 rounded overflow-hidden h-full relative ${disabled ? 'bg-slate-900/20 opacity-40' : 'bg-slate-800'} ${isDirty ? 'border-yellow-500/50' : ''}`}>
-                    <input type="text" placeholder="MOD" value={localModel} onChange={(e) => handleChange('model', e.target.value)} onKeyDown={handleKeyDown} disabled={disabled} className="slot-input text-[8px] text-yellow-500 uppercase border-b border-slate-700/50 h-1/2" />
-                    <input type="number" placeholder="CANT" value={localQty} onChange={(e) => handleChange('qty', e.target.value)} onKeyDown={handleKeyDown} disabled={disabled} className="slot-input text-[10px] text-white h-1/2" />
-                    {isDirty && !disabled && (<div className="absolute inset-y-0 right-0 w-8 flex items-center justify-center bg-gradient-to-l from-slate-900 via-slate-900/80 to-transparent z-10 animate-zoom-in"><button onClick={handleSave} className="bg-green-600 text-white rounded-full p-1 shadow-lg hover:scale-110"><i data-lucide="check" className="w-3 h-3"></i></button></div>)}
-                </div>
-            );
-        };
-
-        const ConteoModal = ({ onClose, machineId, order, onSaveConteo }) => {
-            const isComposite = order.parts && order.parts.length > 0;
-            const [step, setStep] = useState(isComposite ? 0 : 1); 
-            const [selectedPart, setSelectedPart] = useState(isComposite ? '' : (order.model || 'General'));
-            const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-            const [operator, setOperator] = useState('');
-            const [qty, setQty] = useState('');
-            const qtyInputRef = useRef(null);
-            const operators = order.operators || ['Andrés', 'Balta'];
-
-            const handleNext = () => {
-                if (step === 0 && selectedPart) setStep(1);
-                else if (step === 1 && date) setStep(2);
-                else if (step === 2 && operator) {
-                     setStep(3);
-                     setTimeout(() => qtyInputRef.current?.focus(), 100);
-                }
-            };
-
-            const handleSave = () => {
-                if (!qty) return alert('Ingresa cantidad');
-                onSaveConteo(machineId, { date, operator, qty: Number(qty), partName: isComposite ? selectedPart : null });
-                onClose();
-            };
-
-            const handleKeyDown = (e) => {
-                 if (e.key === 'Enter') {
-                     if (step < 3) handleNext();
-                     else handleSave();
-                 }
-            };
-
-            return (
-                <div className="fixed inset-0 bg-black/95 backdrop-blur-md flex items-center justify-center z-[60] p-4 fade-in" onClick={onClose}>
-                    <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md border border-slate-700 overflow-hidden" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 bg-purple-900 flex justify-between items-center">
-                            <h3 className="text-white font-bold uppercase flex items-center gap-2"><i data-lucide="clipboard-check"></i> Conteo Físico</h3>
-                            <button onClick={onClose}><i data-lucide="x" className="text-white w-6 h-6"></i></button>
-                        </div>
-                        <div className="p-6 text-center">
-                            {step === 0 && isComposite && (
-                                <div className="space-y-4 animate-zoom-in">
-                                    <p className="text-slate-400 uppercase text-xs font-bold mb-4">Paso 1: ¿Qué pieza estamos contando?</p>
-                                    <div className="grid grid-cols-1 gap-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
-                                        {order.parts.map((p, i) => (
-                                            <button key={i} onClick={() => { setSelectedPart(p.name); setTimeout(()=>handleNext(), 50); }} className="p-4 bg-slate-700 hover:bg-blue-600 rounded-xl text-white font-bold text-lg uppercase border border-slate-600 hover:border-blue-400 transition-all">{p.name}</button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                            {step === 1 && (
-                                <div className="space-y-4 animate-zoom-in">
-                                    <div className="bg-purple-900/30 text-purple-200 p-2 rounded mb-4 font-bold uppercase text-sm border border-purple-500/30">{selectedPart}</div>
-                                    <p className="text-slate-400 uppercase text-xs font-bold">Fecha de Producción</p>
-                                    <input type="date" value={date} onChange={e => setDate(e.target.value)} onKeyDown={handleKeyDown} className="w-full bg-slate-900 text-white text-2xl p-4 rounded-xl border border-slate-600 text-center" autoFocus />
-                                    <button onClick={handleNext} className="w-full bg-blue-600 py-3 rounded-xl text-white font-bold text-lg mt-4">Siguiente</button>
-                                </div>
-                            )}
-                            {step === 2 && (
-                                <div className="space-y-4 animate-zoom-in">
-                                    <div className="bg-purple-900/30 text-purple-200 p-2 rounded mb-4 font-bold uppercase text-sm border border-purple-500/30">{selectedPart} <span className="text-slate-500 mx-2">|</span> {date}</div>
-                                    <p className="text-slate-400 uppercase text-xs font-bold">Operador</p>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {operators.map(op => (
-                                            <button key={op} onClick={() => { setOperator(op); setTimeout(()=>handleNext(), 50); }} className={`p-6 rounded-xl border-2 font-bold text-lg transition-all ${operator === op ? 'bg-blue-600 border-blue-400 text-white' : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'}`}>{op}</button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                            {step === 3 && (
-                                <div className="space-y-4 animate-zoom-in">
-                                    <div className="bg-purple-900/30 text-purple-200 p-2 rounded mb-4 font-bold uppercase text-sm border border-purple-500/30">{selectedPart} <span className="text-slate-500 mx-2">|</span> {operator}</div>
-                                    <p className="text-slate-400 uppercase text-xs font-bold">Cantidad Final (Piezas)</p>
-                                    <input ref={qtyInputRef} type="number" value={qty} onChange={e => setQty(e.target.value)} onKeyDown={handleKeyDown} placeholder="0" className="w-full bg-slate-900 text-white text-5xl p-6 rounded-xl border border-slate-600 text-center font-bold" />
-                                    <button onClick={handleSave} className="w-full bg-green-600 py-4 rounded-xl text-white font-bold text-lg mt-4 shadow-lg hover:scale-105 transition-transform">GUARDAR CONTEO</button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        const ReportModal = ({ onClose, machineId, order, metrics }) => {
-            if (!order || !machineId) return null;
-            const machine = MACHINES.find(m => m.id === machineId) || {name: machineId};
-            const isComposite = order.parts && order.parts.length > 0;
-            const detailedConsumption = calculateDetailedConsumption(order, metrics.totalYarnConsumedGrams);
-            const verifiedCounts = order.verifiedCounts || [];
-            const hasVerifiedData = verifiedCounts.length > 0;
-
-            const handleDownloadWord = () => {
-                const reportContent = document.querySelector('.report-page').outerHTML;
-                const htmlContent = `<html><head><meta charset="UTF-8"></head><body>${reportContent}</body></html>`;
-                const blob = new Blob([htmlContent], { type: 'application/msword;charset=utf-8' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = `Reporte_${machine.name}_${order.model}.doc`;
-                document.body.appendChild(link); link.click(); document.body.removeChild(link);
-            };
-
-            return (
-                <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in no-print" onClick={onClose}>
-                    <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl h-[95vh] flex flex-col border border-slate-700 overflow-hidden" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900 no-print">
-                            <h3 className="font-bold text-white uppercase tracking-wider text-sm">Reporte: {machine.name} - {order.model}</h3>
-                            <div className="flex gap-2"><button onClick={() => window.print()} className="px-3 bg-red-600 rounded text-white font-bold">PDF</button><button onClick={handleDownloadWord} className="px-3 bg-blue-600 rounded text-white font-bold">DOC</button><button onClick={onClose}><i data-lucide="x" className="text-slate-400 w-5 h-5"></i></button></div>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-0 custom-scrollbar report-page">
-                            <div className="report-header"><h1>REPORTE - {order.model} {isComposite ? '(COMPUESTO)' : ''}</h1></div>
-                            
-                            <div className="report-section">
-                                <h2>📋 Datos Generales</h2>
-                                <div className="report-data">
-                                    <div><span className="report-label">Máquina:</span><span className="report-value">{machine.name}</span></div>
-                                    <div><span className="report-label">Modelo:</span><span className="report-value text-blue-700">{order.model}</span></div>
-                                    <div><span className="report-label">Inicio:</span><span className="report-value">{order.startDate}</span></div>
-                                    {order.finalStatus === 'COMPLETED' && <div><span className="report-label">Estado:</span><span className="report-value text-green-700 font-bold">FINALIZADO</span></div>}
-                                </div>
-                            </div>
-
-                            {hasVerifiedData && (
-                                <div className="report-section" style={{borderColor: '#22c55e', backgroundColor: '#f0fdf4'}}>
-                                    <h2 style={{color: '#15803d'}}>✅ Registro de Conteo (Producción Real)</h2>
-                                    <div className="report-data">
-                                        <div style={{borderBottom: 'none', padding: '10px 0'}}>
-                                            <table className="report-material-table">
-                                                <thead><tr><th>Fecha</th><th>Pieza/Parte</th><th>Operador</th><th className="text-right">Cantidad</th></tr></thead>
-                                                <tbody>
-                                                    {verifiedCounts.map((vc, idx) => (
-                                                        <tr key={idx}><td>{vc.date}</td><td>{vc.partName || '-'}</td><td>{vc.operator}</td><td className="text-right font-bold">{vc.qty}</td></tr>
-                                                    ))}
-                                                    <tr style={{backgroundColor: '#dcfce7', fontWeight: 'bold'}}><td colSpan="3" className="text-right">TOTAL PRODUCIDO:</td><td className="text-right text-lg">{metrics.produced}</td></tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {isComposite && (
-                                <div className="report-section">
-                                    <h2>🧩 Desglose de Partes</h2>
-                                    <table className="report-material-table">
-                                        <thead><tr><th>Parte</th><th>Total Req.</th><th>Producido (Conteo)</th><th>Faltante</th></tr></thead>
-                                        <tbody>
-                                            {metrics.partsStatus.map((p, i) => (
-                                                <tr key={i}><td>{p.name}</td><td>{p.qty}</td><td className={p.produced >= p.qty ? 'text-green-600 font-bold' : ''}>{p.produced}</td><td>{Math.max(0, p.qty - p.produced)}</td></tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-
-                            <div className="report-section">
-                                <h2>📈 Métricas de Avance</h2>
-                                <div className="report-data">
-                                    <div><span className="report-label">Progreso Global:</span><span className="report-value text-blue-700">{metrics.progress.toFixed(1)}%</span></div>
-                                    <div><span className="report-label">Desviación:</span><span className={metrics.deviation < 0 ? 'text-red-700' : 'text-green-700'}>{metrics.deviation} {isComposite ? 'Horas aprox' : 'Piezas'}</span></div>
-                                </div>
-                            </div>
-
-                            <div className="report-section">
-                                <h2>🧵 Consumo de Materiales (Desglosado)</h2>
-                                <p style={{fontSize:'11px', color:'#666', marginBottom:'5px'}}>Calculado sobre producción real verificada + {order.wastePercentage}% merma.</p>
-                                <table className="report-material-table">
-                                    <thead><tr><th>Material</th><th>% Mezcla</th><th className="text-right">Total Consumido (KG)</th></tr></thead>
-                                    <tbody>
-                                        {detailedConsumption.map((mat, idx) => (
-                                            <tr key={idx}><td>{mat.name}</td><td>{mat.percentage}%</td><td className="text-right font-bold">{mat.kilosConsumed.toFixed(3)} kg</td></tr>
-                                        ))}
-                                        <tr style={{backgroundColor:'#f1f5f9', fontWeight:'bold'}}><td colSpan="2" className="text-right">TOTAL GENERAL:</td><td className="text-right">{(metrics.totalYarnConsumedGrams / 1000).toFixed(3)} kg</td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        const OrderManager = React.forwardRef(({ onClose, onSaveOrders, onDeleteOrder, ordersData, allProductionData, allRows, hiddenDays, user, onSaveConteo, onRequestArchive }, ref) => {
-            const [step, setStep] = useState(1);
-            const [viewMode, setViewMode] = useState('list'); 
-            const [historyOrders, setHistoryOrders] = useState([]);
-            const [modelName, setModelName] = useState('');
-            const [selectedMachines, setSelectedMachines] = useState([]);
-            const [isEditing, setIsEditing] = useState(false);
-            const [showReportModal, setShowReportModal] = useState(false);
-            const [showConteoModal, setShowConteoModal] = useState(false);
-            const [activeOrderForAction, setActiveOrderForAction] = useState(null);
-            
-            const [isComposite, setIsComposite] = useState(false);
-            const [parts, setParts] = useState([]); 
-
-            const initialConfig = useMemo(() => ({
-                totalQty: '', timePerPiece: '', startDate: new Date().toISOString().split('T')[0],
-                operators: ['Andrés', 'Balta'], disabledDates: [], pieceWeightGrams: '',
-                materials: [{name: 'LYCRA', percentage: ''}, {name: 'NYLON', percentage: ''}],
-                wastePercentage: 0
-            }), []);
-
-            const [config, setConfig] = useState(initialConfig);
-
-            // Fetch history only when viewing history
-            useEffect(() => {
-                if (viewMode === 'history') {
-                    const q = query(collection(db, 'completed_orders'), orderBy('archivedAt', 'desc'), limit(50));
-                    getDocs(q).then(snap => {
-                        const h = [];
-                        snap.forEach(d => h.push({id: d.id, ...d.data()}));
-                        setHistoryOrders(h);
-                    });
-                }
-            }, [viewMode]);
-
-            const addPart = () => setParts([...parts, { name: '', qty: '', time: '', weight: '' }]);
-            const removePart = (idx) => setParts(parts.filter((_, i) => i !== idx));
-            const updatePart = (idx, field, val) => {
-                const newParts = [...parts];
-                newParts[idx][field] = val;
-                setParts(newParts);
-            };
-
-            const toggleMachine = (id) => { setSelectedMachines(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]); };
-            const toggleOperator = (op) => {
-                setConfig(prev => {
-                    const current = prev.operators;
-                    if (current.includes(op)) { if (current.length === 1) return prev; return { ...prev, operators: current.filter(o => o !== op) }; }
-                    return { ...prev, operators: [...current, op] };
-                });
-            };
-            
-            const handleStartCreate = () => {
-                setIsEditing(false); setModelName(''); setSelectedMachines([]); setConfig(initialConfig);
-                setStep(1); setViewMode('create'); setIsComposite(false); setParts([]);
-            };
-
-            const handleStartEdit = (machineId, orderData) => {
-                setIsEditing(true);
-                setModelName(orderData.model);
-                setSelectedMachines([machineId]); 
-                const isComp = !!(orderData.parts && orderData.parts.length > 0);
-                setIsComposite(isComp);
-                setParts(orderData.parts || []);
-
-                setConfig({
-                    totalQty: orderData.totalQty,
-                    timePerPiece: orderData.timePerPieceMin,
-                    startDate: orderData.startDate,
-                    operators: orderData.operators || ['Andrés'],
-                    disabledDates: orderData.disabledDates || [],
-                    pieceWeightGrams: orderData.pieceWeightGrams || '',
-                    materials: orderData.materials || [],
-                    wastePercentage: orderData.wastePercentage || 0,
-                });
-                setStep(1); setViewMode('create');
-            };
-
-            const handleFinalSave = () => {
-                if (selectedMachines.length === 0) return;
-                selectedMachines.forEach(mid => {
-                    let finalTotalYarnKilos = 0;
-                    const waste = 1 + (config.wastePercentage / 100);
-                    if (isComposite) {
-                        let totalMass = 0;
-                        parts.forEach(p => totalMass += (Number(p.qty) * Number(p.weight)));
-                        finalTotalYarnKilos = (totalMass * waste) / 1000;
-                    } else {
-                         finalTotalYarnKilos = (Number(config.totalQty) * Number(config.pieceWeightGrams) * waste) / 1000;
-                    }
-
-                    const orderPayload = {
-                        model: modelName,
-                        startDate: config.startDate,
-                        operators: config.operators, 
-                        dailyHours: config.operators.length * 12, 
-                        disabledDates: config.disabledDates,
-                        materials: config.materials,
-                        wastePercentage: config.wastePercentage,
-                        totalYarnKilos: finalTotalYarnKilos,
-                        parts: isComposite ? parts : [],
-                        totalQty: isComposite ? parts.reduce((a,b)=>a+Number(b.qty),0) : Number(config.totalQty),
-                        timePerPieceMin: isComposite ? 0 : Number(config.timePerPiece),
-                        pieceWeightGrams: isComposite ? 0 : Number(config.pieceWeightGrams),
-                    };
-                    onSaveOrders(mid, orderPayload);
-                });
-                setViewMode('list');
-            };
-            
-            const validateStep = (s) => {
-                if (s === 1 && !modelName) return false;
-                if (s === 2 && selectedMachines.length === 0) return false;
-                if (s === 3) {
-                    if (isComposite) {
-                        return parts.length > 0 && parts.every(p => p.name && p.qty && p.time && p.weight);
-                    }
-                    return config.totalQty && config.timePerPiece && config.pieceWeightGrams;
-                }
-                return true;
-            }
-
-            const canDoConteo = user.role === ROLES.DEVELOPMENT || user.role === ROLES.PRE_COUNT;
-            const canViewHistory = user.role === ROLES.ADMIN || user.role === ROLES.DEVELOPMENT;
-
-            // Renderizado
-            const renderPartsConfig = () => (
-                <div className="space-y-4 fade-in">
-                    <h3 className="text-lg font-bold text-white text-center mb-4">Configuración de Partes</h3>
-                    <div className="bg-blue-900/20 p-3 rounded-lg text-xs text-blue-200 mb-4 border border-blue-800"><i data-lucide="info" className="inline w-4 h-4 mr-1"></i>Define cada parte (Ej: Cuerpo, Manga).</div>
-                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                        {parts.map((p, i) => (
-                            <div key={i} className="bg-slate-800 p-3 rounded border border-slate-700 flex flex-col gap-2 relative">
-                                <button onClick={() => removePart(i)} className="absolute top-2 right-2 text-red-400"><i data-lucide="x" className="w-4 h-4"></i></button>
-                                <div><label className="text-[10px] text-slate-400">Nombre Parte</label><input type="text" value={p.name} onChange={e => updatePart(i, 'name', e.target.value.toUpperCase())} placeholder="EJ: CUERPO" className="w-full bg-slate-900 border border-slate-600 rounded p-1 text-white uppercase text-sm"/></div>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <div><label className="text-[10px] text-slate-400">Cant.</label><input type="number" value={p.qty} onChange={e => updatePart(i, 'qty', e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded p-1 text-white text-sm"/></div>
-                                    <div><label className="text-[10px] text-slate-400">Min/Pza</label><input type="number" value={p.time} onChange={e => updatePart(i, 'time', e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded p-1 text-white text-sm"/></div>
-                                    <div><label className="text-[10px] text-slate-400">Gr/Pza</label><input type="number" value={p.weight} onChange={e => updatePart(i, 'weight', e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded p-1 text-white text-sm"/></div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <button onClick={addPart} className="w-full py-2 bg-slate-700 rounded text-sm font-bold text-white hover:bg-slate-600">+ Agregar Parte</button>
-                    <div><label className="text-xs text-slate-400 uppercase">Fecha Inicio</label><input type="date" value={config.startDate} onChange={e => setConfig({...config, startDate: e.target.value})} className="w-full bg-slate-900 border border-slate-600 p-3 rounded text-white" /></div>
-                </div>
-            );
-
-            const renderSimpleConfig = () => (
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
-                        <label className="text-xs text-slate-400 uppercase mb-2 block">Operadores</label>
-                        <div className="flex gap-2">
-                            {['Andrés', 'Balta'].map(op => {
-                                const active = config.operators.includes(op);
-                                return <button key={op} onClick={() => toggleOperator(op)} className={`flex-1 py-3 rounded-lg border font-bold text-sm ${active ? 'bg-blue-600 border-blue-400' : 'bg-slate-800'}`}>{op}</button>
-                            })}
-                        </div>
-                    </div>
-                    <div><label className="text-xs text-slate-400 uppercase">Cantidad Total</label><input type="number" value={config.totalQty} onChange={e => setConfig({...config, totalQty: e.target.value})} className="w-full bg-slate-900 border border-slate-600 p-3 rounded text-white" /></div>
-                    <div><label className="text-xs text-slate-400 uppercase">Minutos/Pieza</label><input type="number" value={config.timePerPiece} onChange={e => setConfig({...config, timePerPiece: e.target.value})} className="w-full bg-slate-900 border border-slate-600 p-3 rounded text-white" /></div>
-                    <div><label className="text-xs text-slate-400 uppercase">Peso/Pieza (g)</label><input type="number" value={config.pieceWeightGrams} onChange={e => setConfig({...config, pieceWeightGrams: e.target.value})} className="w-full bg-slate-900 border border-slate-600 p-3 rounded text-white" /></div>
-                    <div><label className="text-xs text-slate-400 uppercase">Fecha Inicio</label><input type="date" value={config.startDate} onChange={e => setConfig({...config, startDate: e.target.value})} className="w-full bg-slate-900 border border-slate-600 p-3 rounded text-white" /></div>
-                </div>
-            );
-
-            return (
-                <div className="fixed inset-0 bg-black/95 backdrop-blur-md flex items-center justify-center z-50 p-4 fade-in" onClick={onClose}>
-                    <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl h-[90vh] flex flex-col border border-slate-700 overflow-hidden" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900">
-                            <span className="font-bold text-white uppercase">{viewMode === 'history' ? 'Historial Terminados' : 'Gestión de Producción'}</span>
-                            <div className="flex gap-2">
-                                {canViewHistory && viewMode === 'list' && <button onClick={() => setViewMode('history')} className="text-xs bg-slate-700 px-2 py-1 rounded text-slate-300">Ver Historial</button>}
-                                {viewMode === 'history' && <button onClick={() => setViewMode('list')} className="text-xs bg-blue-600 px-2 py-1 rounded text-white">Ver Activos</button>}
-                                <button onClick={onClose}><i data-lucide="x" className="text-slate-400 w-6 h-6"></i></button>
-                            </div>
-                        </div>
-                        <div className="flex-1 p-6 overflow-hidden">
-                            {viewMode === 'history' ? (
-                                <div className="h-full overflow-y-auto custom-scrollbar">
-                                    <div className="space-y-2">
-                                        {historyOrders.map(ho => (
-                                            <div key={ho.id} className="bg-slate-900 p-3 rounded border border-slate-700/50 flex justify-between items-center opacity-70 hover:opacity-100 transition-opacity">
-                                                <div>
-                                                    <h4 className="font-bold text-white">{ho.model}</h4>
-                                                    <p className="text-xs text-slate-500">Terminado: {new Date(ho.archivedAt?.seconds * 1000).toLocaleDateString()}</p>
-                                                </div>
-                                                <button onClick={() => { setActiveOrderForAction({ machineId: ho.machineId, order: ho, metrics: calculateOrderMetrics(ho.machineId, ho, allProductionData, allRows, hiddenDays) }); setShowReportModal(true); }} className="text-blue-400 hover:bg-slate-800 p-2 rounded"><i data-lucide="file-text" className="w-4 h-4"></i></button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    {historyOrders.length === 0 && <p className="text-center text-slate-500 mt-10">No hay pedidos terminados.</p>}
-                                    {showReportModal && activeOrderForAction && <ReportModal onClose={() => setShowReportModal(false)} machineId={activeOrderForAction.machineId} order={activeOrderForAction.order} metrics={activeOrderForAction.metrics} />}
-                                </div>
-                            ) : viewMode === 'list' ? (
-                                <div className="h-full flex flex-col">
-                                    <div className="flex justify-between mb-4"><h2>Pedidos Activos</h2><button onClick={handleStartCreate} className="bg-blue-600 px-4 py-2 rounded text-white font-bold">Nuevo</button></div>
-                                    <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar">
-                                        {MACHINES.filter(m => ordersData[m.id]?.totalQty > 0 || (ordersData[m.id]?.parts?.length > 0)).map(m => {
-                                            const order = ordersData[m.id];
-                                            const metrics = calculateOrderMetrics(m.id, order, allProductionData, allRows, hiddenDays);
-                                            const isComp = !!order.parts?.length;
-                                            const isComplete = metrics.progress >= 100;
-                                            return (
-                                                <div key={m.id} className={`p-4 rounded border transition-all ${isComplete ? 'bg-green-900/20 border-green-500/50' : 'bg-slate-900 border-slate-700'}`}>
-                                                    <div className="flex justify-between">
-                                                        <div>
-                                                            <span className="text-blue-400 font-bold">{m.name}</span>
-                                                            <h4 className="text-lg font-black text-yellow-400">{order.model} {isComp && <span className="text-[10px] bg-slate-700 text-white px-1 rounded ml-2">MULTIEX</span>}</h4>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <span className="block text-xs font-bold text-slate-400">Avance</span>
-                                                            <span className={`text-lg font-bold ${isComplete ? 'text-green-400' : 'text-white'}`}>{metrics.progress.toFixed(0)}%</span>
-                                                        </div>
-                                                    </div>
-                                                    {isComp && metrics.activePart && <div className="mt-2 text-xs text-green-400 font-bold">Trabajando: {metrics.activePart.name}</div>}
-                                                    
-                                                    {isComplete && (
-                                                        <div className="mt-2 mb-2 p-2 bg-green-600/20 border border-green-500 rounded text-center">
-                                                            <p className="text-xs text-green-300 font-bold mb-1">¡PEDIDO AL 100%!</p>
-                                                            <button onClick={() => onRequestArchive(m.id, order)} className="bg-green-600 hover:bg-green-500 text-white text-xs font-bold py-2 px-4 rounded w-full flex items-center justify-center gap-2">
-                                                                <i data-lucide="archive" className="w-3 h-3"></i> FINALIZAR Y ARCHIVAR
-                                                            </button>
-                                                        </div>
-                                                    )}
-
-                                                    <div className="flex gap-2 mt-3 justify-end">
-                                                        {canDoConteo && (
-                                                            <button onClick={() => { setActiveOrderForAction({ machineId: m.id, order }); setShowConteoModal(true); }} className="p-2 bg-slate-800 text-purple-400 rounded hover:bg-slate-700 font-bold flex items-center gap-1 border border-purple-500/30">
-                                                                <i data-lucide="clipboard-check" className="w-4 h-4"></i> <span className="text-[10px]">CONTEO</span>
-                                                            </button>
-                                                        )}
-                                                        <button onClick={() => { setActiveOrderForAction({ machineId: m.id, order, metrics }); setShowReportModal(true); }} className="p-2 bg-slate-800 text-green-400 rounded hover:bg-slate-700"><i data-lucide="file-text" className="w-4 h-4"></i></button>
-                                                        <button onClick={() => handleStartEdit(m.id, order)} className="p-2 bg-slate-800 text-blue-400 rounded hover:bg-slate-700"><i data-lucide="pencil" className="w-4 h-4"></i></button>
-                                                        <button onClick={() => handleDeleteOrder(m.id)} className="p-2 bg-slate-800 text-red-400 rounded hover:bg-slate-700"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
-                                                    </div>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                    {showReportModal && activeOrderForAction && <ReportModal onClose={() => setShowReportModal(false)} machineId={activeOrderForAction.machineId} order={activeOrderForAction.order} metrics={activeOrderForAction.metrics} />}
-                                    {showConteoModal && activeOrderForAction && <ConteoModal onClose={() => setShowConteoModal(false)} machineId={activeOrderForAction.machineId} order={activeOrderForAction.order} onSaveConteo={onSaveConteo} />}
-                                </div>
-                            ) : (
-                                <div className="flex flex-col h-full">
-                                    <div className="flex justify-between mb-6 px-2">
-                                        {[1,2,3,4,5,6].map(s => <div key={s} className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${step >= s ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-500'}`}>{s}</div>)}
-                                    </div>
-                                    <div className="flex-1 overflow-y-auto custom-scrollbar px-2">
-                                        {step === 1 && (
-                                            <div className="space-y-4">
-                                                <h3 className="text-xl font-bold text-white text-center mb-6">Modelo</h3>
-                                                <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                                                    <label className="block text-blue-400 font-bold uppercase text-xs mb-2">Nombre del Modelo</label>
-                                                    <input type="text" value={modelName} onChange={e => setModelName(e.target.value.toUpperCase())} className="w-full bg-slate-900 text-2xl font-black text-white p-4 rounded-lg outline-none text-center uppercase" autoFocus />
-                                                </div>
-                                            </div>
-                                        )}
-                                        {step === 2 && (
-                                            <div className="grid grid-cols-4 gap-4">
-                                                {MACHINES.map(m => (
-                                                    <button key={m.id} onClick={() => toggleMachine(m.id)} className={`w-14 h-14 rounded-full flex flex-col items-center justify-center border-2 ${selectedMachines.includes(m.id) ? 'bg-green-600 border-green-400' : 'bg-slate-800 border-slate-600'}`}>
-                                                        <span className="text-[10px] font-black text-white">{m.name.replace('MAQ ','')}</span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {step === 3 && (
-                                            <div>
-                                                <div className="flex justify-center mb-6">
-                                                    <div className="bg-slate-700 p-1 rounded-lg flex">
-                                                        <button onClick={() => setIsComposite(false)} className={`px-4 py-2 rounded-md text-xs font-bold ${!isComposite ? 'bg-blue-600 text-white shadow' : 'text-slate-300'}`}>Simple</button>
-                                                        <button onClick={() => setIsComposite(true)} className={`px-4 py-2 rounded-md text-xs font-bold ${isComposite ? 'bg-blue-600 text-white shadow' : 'text-slate-300'}`}>Compuesto</button>
-                                                    </div>
-                                                </div>
-                                                {isComposite ? renderPartsConfig() : renderSimpleConfig()}
-                                            </div>
-                                        )}
-                                        {step === 4 && <div className="text-center text-slate-400 mt-10">Planeación Automática (Vista previa no disponible en edición rápida)</div>}
-                                        {step === 5 && (
-                                            <div className="space-y-4">
-                                                 <h3 className="text-xl font-bold text-white text-center">Materiales (Englobado)</h3>
-                                                 {config.materials.map((m, i) => (
-                                                     <div key={i} className="flex gap-2">
-                                                         <input value={m.name} onChange={e => {const n=[...config.materials]; n[i].name=e.target.value.toUpperCase(); setConfig({...config, materials:n})}} className="bg-slate-900 text-white p-2 rounded flex-1 uppercase" placeholder="Material" />
-                                                         <input type="number" value={m.percentage} onChange={e => {const n=[...config.materials]; n[i].percentage=e.target.value; setConfig({...config, materials:n})}} className="bg-slate-900 text-white p-2 rounded w-20 text-center" placeholder="%" />
-                                                     </div>
-                                                 ))}
-                                                 <div className="flex justify-center gap-2 mt-4">
-                                                     {[0,5,10].map(w => <button key={w} onClick={() => setConfig({...config, wastePercentage: w})} className={`px-4 py-2 border rounded ${config.wastePercentage===w ? 'bg-green-600 text-white' : 'text-slate-400'}`}>{w}% Merma</button>)}
-                                                 </div>
-                                            </div>
-                                        )}
-                                        {step === 6 && (
-                                            <div className="text-center">
-                                                <h3 className="text-xl font-bold text-white">Confirmar</h3>
-                                                <div className="mt-4 p-4 bg-slate-900 rounded border border-slate-700">
-                                                    <p className="text-yellow-400 text-lg font-bold">{modelName}</p>
-                                                    {isComposite ? <p className="text-sm text-slate-400">{parts.length} Partes definidas</p> : <p className="text-sm text-slate-400">{config.totalQty} piezas</p>}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="mt-4 pt-4 border-t border-slate-700 flex justify-between">
-                                        <button onClick={() => step > 1 ? setStep(s => s - 1) : setViewMode('list')} className="px-4 py-2 bg-slate-700 text-white rounded">Atrás</button>
-                                        <button onClick={() => step < 6 ? (validateStep(step) && setStep(s => s + 1)) : handleFinalSave()} className="px-6 py-2 bg-green-600 text-white font-bold rounded">
-                                            {step === 6 ? 'Guardar' : 'Siguiente'}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            );
-        });
-
-        const UserManagementModal = ({ onClose, users, onSaveUser, onDeleteUser }) => {
-            const [editingUser, setEditingUser] = useState(null);
-            const [pin, setPin] = useState('');
-            const [name, setName] = useState('');
-            const [role, setRole] = useState(ROLES.OPERATOR);
-            const [area, setArea] = useState('');
-
-            const allUsersArray = Object.entries(users).map(([pin, data]) => ({ pin, ...data }));
-            const availableRoles = Object.values(ROLES);
-
-            const startEdit = (user) => {
-                setEditingUser(user);
-                setPin(user.pin);
-                setName(user.name);
-                setRole(user.role);
-                setArea(user.area || '');
-            };
-
-            const handleSave = () => {
-                if (!pin || !name || !role) { alert('Todos los campos son obligatorios'); return; }
-                if (pin.length !== 4 || isNaN(Number(pin))) { alert('PIN debe ser 4 dígitos'); return; }
-                
-                const payload = { 
-                    name, role, area,
-                    canManageOrders: editingUser ? editingUser.canManageOrders : role === ROLES.ADMIN || role === ROLES.OBSERVER || role === ROLES.DEVELOPMENT,
-                    canViewGraph: editingUser ? editingUser.canViewGraph : role === ROLES.ADMIN || role === ROLES.OBSERVER || role === ROLES.DEVELOPMENT,
-                    canManageUsers: editingUser ? editingUser.canManageUsers : role === ROLES.DEVELOPMENT,
-                };
-                if (role === ROLES.OPERATOR) payload.allowedSlots = editingUser?.allowedSlots || [];
-
-                onSaveUser(pin, payload);
-                setEditingUser(null); setPin(''); setName(''); setRole(ROLES.OPERATOR); setArea('');
-            };
-
-            return (
-                <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in" onClick={onClose}>
-                    <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col border border-slate-700 overflow-hidden" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900 no-print">
-                            <h3 className="font-bold text-white uppercase tracking-wider text-sm flex items-center gap-2"><i data-lucide="users" className="w-5 h-5 text-yellow-400"></i> Gestión de Usuarios</h3>
-                            <button onClick={onClose}><i data-lucide="x" className="text-slate-400 w-5 h-5"></i></button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar flex gap-6">
-                            <div className="w-1/3 shrink-0 bg-slate-900 p-4 rounded-xl border border-slate-700 h-fit sticky top-0">
-                                <h4 className="text-lg font-bold text-white mb-4">{editingUser ? 'Editar' : 'Crear'}</h4>
-                                <div className="space-y-3">
-                                    <input type="number" value={pin} onChange={e => setPin(e.target.value.slice(0, 4))} disabled={!!editingUser} placeholder="PIN" className="w-full bg-slate-700 text-white p-2 rounded" />
-                                    <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nombre" className="w-full bg-slate-700 text-white p-2 rounded" />
-                                    <input type="text" value={area} onChange={e => setArea(e.target.value)} placeholder="Área" className="w-full bg-slate-700 text-white p-2 rounded" />
-                                    <select value={role} onChange={e => setRole(e.target.value)} className="w-full bg-slate-700 text-white p-2 rounded">
-                                        <option value={ROLES.OPERATOR}>Operador</option>
-                                        <option value={ROLES.ADMIN}>Admin</option>
-                                        <option value={ROLES.PRE_COUNT}>iPad Pre (Conteo)</option>
-                                    </select>
-                                </div>
-                                <button onClick={handleSave} className="mt-4 w-full bg-green-600 text-white py-2 rounded font-bold">Guardar</button>
-                            </div>
-                            <div className="flex-1 space-y-3">
-                                {allUsersArray.map(u => (
-                                    <div key={u.pin} className="bg-slate-900 p-4 rounded border border-slate-700 flex justify-between items-center">
-                                        <div><p className="font-bold text-white">{u.name}</p><p className="text-sm text-blue-400">{u.role}</p></div>
-                                        <div className="flex gap-2"><button onClick={() => startEdit(u)} className="p-2 bg-slate-700 rounded"><i data-lucide="pencil" className="w-4 h-4 text-blue-400"></i></button><button onClick={() => onDeleteUser(u.pin)} className="p-2 bg-red-900/50 rounded"><i data-lucide="trash-2" className="w-4 h-4 text-red-400"></i></button></div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        const LoginScreen = ({ setAuthenticatedUser, installPrompt, onInstall, users, isInstalled }) => {
-            const [pin, setPin] = useState('');
-            const handleLogin = (e) => {
-                e.preventDefault();
-                const user = users[pin]; 
-                if (user) setAuthenticatedUser({ ...user, id: pin }); 
-                else alert('PIN incorrecto');
-            };
-            return (
-                <div className="flex items-center justify-center h-full bg-slate-900 p-4 relative">
-                    {!isInstalled && (
-                        <button onClick={onInstall} className="absolute top-4 right-4 md:top-6 md:right-6 flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2.5 rounded-full shadow-lg border border-blue-400/30 hover:scale-105 transition-all z-50">
-                            <div className="bg-white p-0.5 rounded-full">
-                                <img src="https://raw.githubusercontent.com/sweaters-liliana/MAES26/d41232c1301add433daea006546e2c6eb8dd23e6/icon%20maes.svg" className="w-5 h-5 rounded-full" />
-                            </div>
-                            <span className="text-sm font-bold tracking-wide">INSTALAR APP</span>
-                        </button>
-                    )}
-                    <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center border border-slate-700 relative">
-                        <div className="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 text-white shadow-lg"><i data-lucide="grid" className="w-8 h-8"></i></div>
-                        <h2 className="text-2xl font-black text-white mb-2">MAES - TEJIDO</h2>
-                        <form onSubmit={handleLogin} className="space-y-4" autoComplete="off">
-                            <input type="tel" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="• • • •" className="w-full text-center text-4xl p-4 bg-slate-900 border-2 border-slate-700 rounded-xl tracking-[0.2em] focus:border-blue-500 outline-none font-bold text-white password-mask" autoFocus />
-                            <button type="submit" className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-500 shadow-lg transition-colors">INGRESAR</button>
-                        </form>
-                    </div>
-                </div>
-            );
-        };
-
-        const VisibilityModal = ({ onClose, currentHiddenMachines, currentHiddenDays, onSaveVisibility, allRows }) => {
-            const [hiddenM, setHiddenM] = useState([...currentHiddenMachines]);
-            const [hiddenD, setHiddenD] = useState([...currentHiddenDays]);
-            const [dateToHide, setDateToHide] = useState('');
-            const toggleMachine = (mid) => { if (hiddenM.includes(mid)) setHiddenM(prev => prev.filter(id => id !== mid)); else setHiddenM(prev => [...prev, mid]); };
-            const hideDate = () => { if (!dateToHide) return; const row = allRows.find(r => r.isoDate === dateToHide); if (row && !hiddenD.includes(row.id)) setHiddenD(prev => [...prev, row.id]); setDateToHide(''); };
-            const unhideDate = (rowId) => { setHiddenD(prev => prev.filter(id => id !== rowId)) };
-            const handleSave = () => { onSaveVisibility(hiddenM, hiddenD); onClose(); };
-
-            return (
-                <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in" onClick={onClose}>
-                    <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg h-[85vh] flex flex-col border border-slate-700" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900 rounded-t-2xl"><h3 className="font-bold text-lg text-white">Configuración Global</h3><button onClick={onClose}><i data-lucide="x" className="text-slate-400 w-6 h-6"></i></button></div>
-                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-6">
-                            <div><h4 className="text-xs font-bold text-blue-400 uppercase mb-2">Visibilidad Máquinas</h4><div className="grid grid-cols-2 gap-2">{MACHINES.map(m => { const isHidden = hiddenM.includes(m.id); return (<button key={m.id} onClick={() => toggleMachine(m.id)} className={`flex items-center justify-between p-2 rounded border text-sm ${isHidden ? 'bg-red-900/30 border-red-500/50 text-red-300' : 'bg-slate-900 border-slate-700 text-slate-300'}`}><span>{m.name}</span>{isHidden ? <i data-lucide="eye-off" className="w-4 h-4"></i> : <i data-lucide="eye" className="w-4 h-4 text-green-500/50"></i>}</button>) })}</div></div>
-                            <div><h4 className="text-xs font-bold text-blue-400 uppercase mb-2">Ocultar Días (Feriados Globales)</h4><div className="flex gap-2 mb-3"><input type="date" value={dateToHide} onChange={e => setDateToHide(e.target.value)} className="bg-slate-900 text-white border border-slate-600 rounded p-2 flex-1 text-sm" /><button onClick={hideDate} className="bg-slate-700 px-3 rounded text-white text-sm">Ocultar</button></div>{hiddenD.map(rid => (<div key={rid} className="flex justify-between items-center text-sm p-2 bg-slate-800 rounded mb-1"><span className="text-slate-300">{rid}</span><button onClick={() => unhideDate(rid)} className="text-red-400 text-xs font-bold">Mostrar</button></div>))}</div>
-                        </div>
-                        <div className="p-4 border-t border-slate-700 bg-slate-900 rounded-b-2xl"><button onClick={handleSave} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Guardar</button></div>
-                    </div>
-                </div>
-            )
-        };
-
-        const CalendarModal = ({ onClose, onSelectDate, allRows }) => {
-            const [viewDate, setViewDate] = useState(new Date()); 
-            const handleMonthChange = (delta) => { const d = new Date(viewDate); d.setMonth(d.getMonth() + delta); setViewDate(d); };
-            const monthRows = allRows.filter(r => r.monthIndex === viewDate.getMonth() && r.year === viewDate.getFullYear());
-            const startDayOffset = ['DOM','LUN','MAR','MIE','JUE','VIE','SAB'].indexOf(monthRows[0]?.shortDay) || 0;
-
-            return (
-                <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in" onClick={onClose}>
-                    <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm border border-slate-700 p-4" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center mb-4"><button onClick={() => handleMonthChange(-1)} className="p-2 hover:bg-slate-700 rounded"><i data-lucide="chevron-left" className="text-white w-5 h-5"></i></button><span className="font-bold text-white uppercase">{viewDate.toLocaleString('es-MX', { month: 'long', year: 'numeric' })}</span><button onClick={() => handleMonthChange(1)} className="p-2 hover:bg-slate-700 rounded"><i data-lucide="chevron-right" className="text-white w-5 h-5"></i></button></div>
-                        <div className="grid grid-cols-7 gap-1 text-center mb-2">{['D','L','M','M','J','V','S'].map((d,i) => <div key={i} className="text-xs text-slate-500 font-bold">{d}</div>)}</div>
-                        <div className="grid grid-cols-7 gap-1">{Array(startDayOffset).fill(null).map((_, i) => <div key={`b-${i}`}></div>)}{monthRows.map(row => (<button key={row.id} onClick={() => onSelectDate(row)} className="aspect-square flex items-center justify-center rounded-lg hover:bg-blue-600 bg-slate-900 text-slate-200 text-sm font-bold border border-slate-700">{row.dateNum}</button>))}</div>
-                        <button onClick={onClose} className="w-full mt-4 bg-slate-700 py-2 rounded-lg text-white font-bold text-sm">Cerrar</button>
-                    </div>
-                </div>
-            );
-        };
-
-        const App = () => {
-            const [user, setUser] = useState(null);
-            const [usersData, setUsersData] = useState(DEFAULT_USERS); 
+        // --- COMPONENTE DASHBOARD ---
+        const Dashboard = () => {
             const [data, setData] = useState({});
             const [ordersData, setOrdersData] = useState({});
             const [visibilityConfig, setVisibilityConfig] = useState({ machines: [], days: [] });
+            
+            // ESTADO DE NAVEGACIÓN (Controlado por Firebase)
+            const [weekOffset, setWeekOffset] = useState(INITIAL_WEEK);
+            
             const [loading, setLoading] = useState(true);
-            const [weekOffset, setWeekOffset] = useState(INITIAL_STATE.weekOffset);
-            const [selectedDayIndex, setSelectedDayIndex] = useState(INITIAL_STATE.selectedDayIndex); 
-            const [showOrderManager, setShowOrderManager] = useState(false);
-            const [showVisibilityModal, setShowVisibilityModal] = useState(false);
-            const [showCalendar, setShowCalendar] = useState(false);
-            const [showUserManagementModal, setShowUserManagementModal] = useState(false);
-            const [deferredPrompt, setDeferredPrompt] = useState(null);
-            
-            // Modal de Archivo
-            const [showArchiveModal, setShowArchiveModal] = useState(false);
-            const [orderToArchive, setOrderToArchive] = useState(null);
+            const [currentTime, setCurrentTime] = useState(new Date());
 
-            // Modal de Estadísticas
-            const [showStatsModal, setShowStatsModal] = useState(false);
-
-            // Modal de Instalación
-            const [showInstallModal, setShowInstallModal] = useState(false);
-            const [isInstalled, setIsInstalled] = useState(false);
-            const [viewPreference, setViewPreference] = useState(localStorage.getItem('maes26_view_preference') || null);
-
-            const orderManagerRef = React.useRef(); 
-
-            useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
-            
-            useEffect(() => { 
-                const handler = (e) => { e.preventDefault(); setDeferredPrompt(e); }; 
-                window.addEventListener('beforeinstallprompt', handler); 
-                
-                // Check if installed
-                const checkInstalled = () => {
-                    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
-                        setIsInstalled(true);
-                    }
-                };
-                checkInstalled();
-                window.addEventListener('appinstalled', () => setIsInstalled(true));
-
-                return () => window.removeEventListener('beforeinstallprompt', handler); 
+            // Reloj en tiempo real
+            useEffect(() => {
+                const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+                return () => clearInterval(timer);
             }, []);
-            
+
+            // Conexión a Firebase
             useEffect(() => {
                 const unsubAuth = onAuthStateChanged(auth, (u) => {
                     if (u) {
-                        const unsubDb = onSnapshot(collection(db, 'produccion_2026'), (snap) => { const d = {}; snap.forEach(doc => d[doc.id] = doc.data()); setData(d); setLoading(false); });
-                        const unsubSettings = onSnapshot(doc(db, 'settings', 'visibility'), (docSnap) => { if (docSnap.exists()) setVisibilityConfig(docSnap.data()); });
-                        const unsubOrders = onSnapshot(doc(db, 'settings', 'orders'), (docSnap) => { if (docSnap.exists()) setOrdersData(docSnap.data()); });
-                        const unsubUsers = onSnapshot(doc(db, 'settings', 'users'), (docSnap) => { 
-                            if (docSnap.exists()) { const fetchedUsers = docSnap.data(); setUsersData(fetchedUsers); if (user && !fetchedUsers[user.id]) setUser(null); } else { setDoc(doc(db, 'settings', 'users'), DEFAULT_USERS); }
+                        // 1. Producción
+                        const unsubDb = onSnapshot(collection(db, 'produccion_2026'), (snap) => { 
+                            const d = {}; snap.forEach(doc => d[doc.id] = doc.data()); 
+                            setData(d); 
                         });
-                        return () => { unsubDb(); unsubSettings(); unsubOrders(); unsubUsers(); };
-                    } else signInAnonymously(auth);
+                        // 2. Visibilidad (Máquinas Ocultas)
+                        const unsubSettings = onSnapshot(doc(db, 'settings', 'visibility'), (docSnap) => { 
+                            if (docSnap.exists()) setVisibilityConfig(docSnap.data()); 
+                        });
+                        // 3. Pedidos/Metas
+                        const unsubOrders = onSnapshot(doc(db, 'settings', 'orders'), (docSnap) => { 
+                            if (docSnap.exists()) setOrdersData(docSnap.data()); 
+                            setLoading(false);
+                        });
+                        // 4. NAVEGACIÓN REMOTA (Aquí escuchamos al control remoto)
+                        const unsubNav = onSnapshot(doc(db, 'settings', 'navigation'), (docSnap) => {
+                            if (docSnap.exists()) {
+                                const remoteDelta = docSnap.data().weekOffset || 0;
+                                // Sumamos el offset del control remoto a la semana base (Hoy)
+                                setWeekOffset(INITIAL_WEEK + remoteDelta);
+                            }
+                        });
+
+                    } else {
+                        signInAnonymously(auth).catch(err => console.error("Error login:", err));
+                    }
                 });
                 return () => unsubAuth();
-            }, [user]);
+            }, []);
 
-            const handleUpdateSlot = async (rowId, machineId, slotIndex, field, value) => {
-                const currentMachineData = data[rowId]?.[machineId] || {};
-                const currentSlots = currentMachineData.slots || [{}, {}, {}, {}];
-                const updatedSlots = [...currentSlots];
-                if (!updatedSlots[slotIndex]) updatedSlots[slotIndex] = {};
-                if (field === 'qty') updatedSlots[slotIndex].qty = value === '' ? '' : Number(value);
-                else updatedSlots[slotIndex].model = value;
-                const newTotalActual = updatedSlots.reduce((acc, s) => acc + (Number(s?.qty) || 0), 0);
-                const updatedMachine = { ...currentMachineData, slots: updatedSlots, actual: newTotalActual };
-                await setDoc(doc(db, 'produccion_2026', rowId), { [machineId]: updatedMachine }, { merge: true });
-            };
-
-            const handleSaveOrder = async (machineId, orderData) => { await setDoc(doc(db, 'settings', 'orders'), { [machineId]: { ...orderData, lastUpdated: serverTimestamp(), updatedBy: user.name } }, { merge: true }); };
-            const handleDeleteOrder = async (machineId) => { 
-                await setDoc(doc(db, 'settings', 'orders'), { [machineId]: { totalQty: 0, parts: [], verifiedCounts: [], lastUpdated: serverTimestamp() } }, { merge: true }); 
-            };
-            
-            const handleSaveConteo = async (machineId, conteoData) => {
-                 const currentOrder = ordersData[machineId];
-                 if (!currentOrder) return;
-                 const newCounts = [...(currentOrder.verifiedCounts || []), { ...conteoData, timestamp: new Date().toISOString() }];
-                 await setDoc(doc(db, 'settings', 'orders'), { [machineId]: { verifiedCounts: newCounts } }, { merge: true });
-            };
-
-            const handleRequestArchive = (machineId, order) => {
-                const machineName = MACHINES.find(m => m.id === machineId)?.name || machineId;
-                setOrderToArchive({ machineId, order, machineName });
-                setShowArchiveModal(true);
-            };
-
-            const handleConfirmArchive = async () => {
-                if (!orderToArchive) return;
-                const { machineId, order } = orderToArchive;
-                try {
-                    await addDoc(collection(db, 'completed_orders'), { ...order, machineId, archivedAt: serverTimestamp(), archivedBy: user.name, finalStatus: 'COMPLETED' });
-                    await setDoc(doc(db, 'settings', 'orders'), { [machineId]: { totalQty: 0, parts: [], model: '', startDate: '', verifiedCounts: [], materials: [], operators: [], lastUpdated: serverTimestamp() } }, { merge: true });
-                    setShowArchiveModal(false); setOrderToArchive(null);
-                } catch (e) { alert('Error al archivar: ' + e.message); }
-            };
-
-            const handleSaveVisibility = async (hiddenMachines, hiddenDays) => { await setDoc(doc(db, 'settings', 'visibility'), { machines: hiddenMachines, days: hiddenDays }, { merge: true }); };
-            const handleSaveUser = async (pin, userData) => { try { await setDoc(doc(db, 'settings', 'users'), { ...usersData, [pin]: userData }); if (user.id === pin) setUser({...userData, id: pin}); alert('Usuario guardado'); } catch (error) { alert('Error: ' + error.message); } };
-            const handleDeleteUser = async (pinToDelete) => { if (pinToDelete === user.id) return; if (confirm(`¿Eliminar ${pinToDelete}?`) ) { const { [pinToDelete]: _, ...newUsers } = usersData; await setDoc(doc(db, 'settings', 'users'), newUsers); } };
-            const handleDateSelect = (row) => { setWeekOffset(Math.floor(row.index / 7)); setShowCalendar(false); };
-
-            const canViewGraph = user && (user.canViewGraph || user.role === ROLES.ADMIN || user.role === ROLES.DEVELOPMENT || user.role === ROLES.OBSERVER || user.role === ROLES.PRE_COUNT);
-            const canManageUsers = user && user.role === ROLES.DEVELOPMENT; 
+            // Filtrar y preparar datos
             const visibleMachines = useMemo(() => MACHINES.filter(m => !visibilityConfig.machines?.includes(m.id)), [visibilityConfig.machines]);
-            const currentWeekRows = useMemo(() => { const start = weekOffset * 7; return ALL_ROWS.slice(start, start + 7); }, [weekOffset]);
-            const weekLabel = useMemo(() => getWeekLabel(currentWeekRows), [currentWeekRows]);
-            const canManageOrders = user && (user.canManageOrders || user.role === ROLES.ADMIN || user.role === ROLES.DEVELOPMENT || user.role === ROLES.PRE_COUNT); 
-            const canConfig = user && (user.role === ROLES.DEVELOPMENT); 
-            const canEditSlot = (machineId, slotIndex) => { if (!user) return false; if (user.role === ROLES.ADMIN || user.role === ROLES.DEVELOPMENT) return true; if (user.allowedSlots) return user.allowedSlots.includes(slotIndex); return false; };
+            
+            const currentWeekRows = useMemo(() => { 
+                const start = weekOffset * 7; 
+                // Evitar errores si nos salimos del rango
+                const safeStart = Math.max(0, Math.min(start, ALL_ROWS.length - 7));
+                return ALL_ROWS.slice(safeStart, safeStart + 7); 
+            }, [weekOffset]);
 
-            const dailyTotals = useMemo(() => {
-                return currentWeekRows.map(row => {
-                    const rowId = row.id;
-                    const rowData = data[rowId] || {};
-                    let sum = 0;
-                    visibleMachines.forEach(m => {
-                        const mData = rowData[m.id] || {};
-                        const slots = mData.slots || [];
-                        slots.forEach(s => sum += (Number(s.qty) || 0));
-                    });
-                    return { date: row.shortDay, sum };
-                });
-            }, [currentWeekRows, data, visibleMachines]);
+            const weekLabel = useMemo(() => {
+                if (!currentWeekRows.length) return '';
+                const f = currentWeekRows[0];
+                return `${f.month} ${f.year}`;
+            }, [currentWeekRows]);
 
-            const machineTotals = useMemo(() => {
-                return visibleMachines.map(m => {
-                    let sum = 0;
-                    currentWeekRows.forEach(row => {
-                        const rowData = data[row.id] || {};
-                        const mData = rowData[m.id] || {};
-                        const slots = mData.slots || [];
-                        slots.forEach(s => sum += (Number(s.qty) || 0));
-                    });
-                    return { name: m.name.replace('MAQ ', ''), sum };
-                });
-            }, [visibleMachines, currentWeekRows, data]);
-
-            if (!user) return <LoginScreen setAuthenticatedUser={setUser} installPrompt={deferredPrompt} onInstall={() => setShowInstallModal(true)} users={usersData} isInstalled={isInstalled} />;
-            if (loading) return <div className="h-screen flex items-center justify-center bg-slate-900"><i data-lucide="loader-2" className="animate-spin w-12 h-12 text-blue-500"></i></div>;
-
-            const MobileView = () => {
-                const safeIndex = selectedDayIndex >= currentWeekRows.length ? 0 : selectedDayIndex;
-                const selectedDay = currentWeekRows[safeIndex];
-                if (!selectedDay) return <div className="p-10 text-center text-slate-500">Semana sin días visibles</div>;
-                const rowId = selectedDay.id;
-                const dayData = data[rowId] || {};
-                const isHiddenDay = visibilityConfig.days?.includes(rowId);
+            // Función de cálculo de métricas
+            const getMetrics = (machineId, rowData, dateRow) => {
+                const order = ordersData[machineId];
+                const slots = rowData[machineId]?.slots || [];
+                const produced = slots.reduce((acc, s) => acc + (Number(s?.qty) || 0), 0);
                 
-                return (
-                    <div className="flex flex-col h-full bg-slate-900">
-                        <div className="bg-slate-800 shadow-sm z-20 shrink-0 border-b border-slate-700">
-                             <div className="p-3 flex justify-between items-center bg-slate-900/50"> 
-                                <div className="flex items-center gap-2"><i data-lucide="user-check" className="w-5 h-5 text-blue-400"></i><div><p className="text-sm font-bold text-slate-100">{user.name.split(' ')[0]}</p><p className="text-[10px] text-slate-500 uppercase font-medium">{user.area}</p></div></div>
-                                <div className="flex gap-2">
-                                    {canManageUsers && <button onClick={() => setShowUserManagementModal(true)} className="w-8 h-8 bg-yellow-600 rounded-lg flex items-center justify-center text-white"><i data-lucide="users" className="w-4 h-4"></i></button>}
-                                    {canManageOrders && <button onClick={() => setShowOrderManager(true)} className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white"><i data-lucide="clipboard-list" className="w-4 h-4"></i></button>}
-                                    {canConfig && <button onClick={() => setShowVisibilityModal(true)} className="w-8 h-8 bg-slate-700 rounded-lg flex items-center justify-center text-slate-300"><i data-lucide="settings" className="w-4 h-4"></i></button>}
-                                </div>
-                            </div>
-                            <div className="flex overflow-x-auto custom-scrollbar pb-1 px-1 gap-1 bg-slate-900/50">{currentWeekRows.map((day, idx) => (<button key={day.id} onClick={() => setSelectedDayIndex(idx)} className={`flex-shrink-0 flex flex-col items-center justify-center p-2 min-w-[60px] rounded-lg my-2 transition-all ${idx === safeIndex ? 'bg-slate-700 shadow border-b-4 border-blue-500 scale-105' : 'text-slate-500 hover:bg-slate-800'}`}><span className="text-[10px] font-bold uppercase mb-0.5 text-blue-400">{day.shortDay}</span><span className={`text-lg font-black leading-none ${idx === safeIndex ? 'text-white' : 'text-slate-600'}`}>{day.dateNum}</span></button>))}</div>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-3 pb-24 custom-scrollbar">
-                            {isHiddenDay && <div className="p-4 bg-red-900/30 text-red-300 rounded-lg text-center font-bold mb-3">Día Oculto / Feriado</div>}
-                            {visibleMachines.map(m => { 
-                                const mData = dayData[m.id] || {};
-                                const slots = mData.slots || [{}, {}, {}, {}];
-                                const order = ordersData[m.id];
-                                const metrics = calculateOrderMetrics(m.id, order, data, ALL_ROWS, visibilityConfig.days || []);
-                                const isPlannedDay = metrics.isPlanned && new Date(order.startDate).toISOString().split('T')[0] <= selectedDay.isoDate && (metrics.finishDate === null || metrics.finishDate >= selectedDay.isoDate);
-                                const isComposite = order?.parts?.length > 0;
-                                
-                                return (
-                                    <div key={m.id} className="bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-700 relative overflow-hidden mb-3">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div className="flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center"><i data-lucide="cpu" className="w-5 h-5 opacity-50"></i></div><div><h3 className="font-black text-slate-200 text-sm">{m.name.replace('MAQ ','M-')}</h3><p className="text-[10px] text-slate-500 font-medium">{m.type}</p></div></div>
-                                            {(metrics.progress > 0 || isPlannedDay) && <div className="text-[10px] font-bold text-blue-400 bg-blue-900/30 px-2 py-0.5 rounded">{metrics.progress.toFixed(0)}%</div>}
-                                        </div>
-                                        {order && (order.totalQty > 0 || isComposite) && canViewGraph && (
-                                            <div className="mb-3">
-                                                <div className="text-[10px] text-yellow-500 font-bold uppercase flex justify-between border-b border-slate-700 pb-1"><span>{order.model}</span><span>{isComposite ? 'MULTI' : order.totalQty}</span></div>
-                                                {isComposite && metrics.activePart && <div className="text-[9px] text-green-400 mt-1">Prod: {metrics.activePart.name}</div>}
-                                                <div className="h-1 w-full bg-slate-700 mt-1 rounded-full overflow-hidden"><div className="h-full bg-blue-500" style={{width: `${metrics.progress}%`}}></div></div>
-                                            </div>
-                                        )}
-                                        <div className={`rounded-lg p-2 border border-slate-700/50 ${isPlannedDay && !isHiddenDay ? 'bg-yellow-900/10' : 'bg-slate-900/50'}`}>
-                                            {isPlannedDay && !isHiddenDay && <div className="text-[8px] text-yellow-400 text-center font-bold uppercase mb-1">{order.model}</div>}
-                                            <div className="grid grid-cols-2 gap-2 mb-1"><div className="text-[9px] text-center font-bold text-blue-400 uppercase tracking-widest border-b border-blue-900 pb-1">Andrés</div><div className="text-[9px] text-center font-bold text-orange-400 uppercase tracking-widest border-b border-orange-900 pb-1">Balta</div></div>
-                                            <div className="grid grid-cols-2 gap-2 flex-1 h-16">{[0,1].map(idx => (<ProductionSlot key={idx} slotData={slots[idx]} index={idx} disabled={!canEditSlot(m.id, idx) || isHiddenDay} onUpdate={(idx, field, val) => handleUpdateSlot(rowId, m.id, idx, field, val)} />))}</div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="fixed bottom-0 left-0 w-full bg-slate-900/90 backdrop-blur border-t border-slate-700 p-3 flex justify-between items-center z-30">
-                             <button onClick={() => setWeekOffset(prev => Math.max(0, prev - 1))} className="p-3 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400"><i data-lucide="chevron-left" className="w-5 h-5"></i></button>
-                             <div className="text-center"><span className="block text-xs font-bold text-blue-400 uppercase tracking-wide">{weekLabel}</span></div>
-                             <button onClick={() => setWeekOffset(prev => prev + 1)} className="p-3 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400"><i data-lucide="chevron-right" className="w-5 h-5"></i></button>
-                        </div>
-                    </div>
-                );
+                const result = { produced, status: 'idle', efficiency: 0, target: 0, isPlanned: false };
+
+                if (order && order.startDate) {
+                    const isHiddenDay = visibilityConfig.days?.includes(dateRow.id);
+                    const isDisabledDate = (order.disabledDates || []).includes(dateRow.isoDate);
+                    const isStarted = dateRow.isoDate >= order.startDate;
+                    
+                    if (isStarted && !isHiddenDay && !isDisabledDate) {
+                        result.isPlanned = true;
+                        const dailyHours = order.dailyHours || 24; 
+                        const timePerPiece = Number(order.timePerPieceMin) || 0;
+                        if (timePerPiece > 0) {
+                            result.target = Math.floor((dailyHours * 60) / timePerPiece);
+                            result.efficiency = Math.min(100, (produced / result.target) * 100);
+                        }
+
+                        if (produced === 0) {
+                            result.status = 'critical'; 
+                        } else if (result.efficiency >= 90) {
+                            result.status = 'excellent'; 
+                        } else if (result.efficiency >= 70) {
+                            result.status = 'good';
+                        } else {
+                            result.status = 'low'; 
+                        }
+                    }
+                }
+                return result;
             };
 
-            const DesktopView = () => {
-                const [isTableVisible, setIsTableVisible] = useState(false);
-
-                // Filtrar máquinas que tienen pedidos activos
-                const activeMachineOrders = visibleMachines.filter(m => {
-                    const order = ordersData[m.id];
-                    return order && (order.totalQty > 0 || (order.parts && order.parts.length > 0));
-                });
-
-                return (
-                    <div className="h-full flex flex-col bg-slate-900 overflow-hidden relative">
-                        <header className="bg-slate-800 shadow-sm border-b border-slate-700 p-3 flex justify-between items-center z-20 shrink-0">
-                            <div className="flex items-center gap-4">
-                                <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-2 rounded-lg text-white shadow-lg"><i data-lucide="factory" className="w-5 h-5"></i></div>
-                                <h1 className="font-bold text-slate-200 hidden md:block">Control MAES - Tejido</h1>
-                                <div className="flex items-center gap-2 bg-slate-900/50 p-1 rounded-lg border border-slate-700/50 ml-6">
-                                    <button onClick={() => setWeekOffset(prev => Math.max(0, prev - 1))} className="p-1 hover:bg-slate-700 rounded text-slate-400"><i data-lucide="chevron-left" className="w-5 h-5"></i></button>
-                                    <div className="flex items-center gap-2 px-2 cursor-pointer" onClick={() => setShowCalendar(true)}><i data-lucide="calendar" className="w-4 h-4 text-blue-400"></i><span className="text-sm font-bold text-white uppercase w-32 text-center select-none">{weekLabel}</span></div>
-                                    <button onClick={() => setWeekOffset(prev => prev + 1)} className="p-1 hover:bg-slate-700 rounded text-slate-400"><i data-lucide="chevron-right" className="w-5 h-5"></i></button>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <button onClick={() => setShowStatsModal(true)} className="bg-slate-700 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm font-bold flex items-center gap-2 shadow-lg transition-all border border-purple-500/30"><i data-lucide="bar-chart-2" className="w-4 h-4 text-purple-400"></i> Estadísticas</button>
-                                <div className="text-right px-3 py-1 bg-slate-900/50 rounded-lg border border-slate-700/50"><p className="text-sm font-bold text-blue-400">{user.name.toUpperCase()}</p><p className="text-[10px] text-slate-500 uppercase font-medium leading-none">{user.area}</p></div>
-                                <div className="flex gap-2">
-                                    {canManageUsers && <button onClick={() => setShowUserManagementModal(true)} className="bg-yellow-600 hover:bg-yellow-500 text-white px-3 py-1 rounded text-sm font-bold flex items-center gap-2 shadow-lg transition-all"><i data-lucide="users" className="w-4 h-4"></i> Usuarios</button>}
-                                    {canManageOrders && <button onClick={() => setShowOrderManager(true)} className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-sm font-bold flex items-center gap-2 shadow-lg hover:scale-105 transition-all"><i data-lucide="clipboard-list" className="w-4 h-4"></i> Pedidos</button>}
-                                    {canConfig && <button onClick={() => setShowVisibilityModal(true)} className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-slate-300"><i data-lucide="settings" className="w-5 h-5"></i></button>}
-                                    <button onClick={() => setUser(null)} className="p-2 text-red-400 hover:bg-red-900/20 rounded"><i data-lucide="log-out" className="w-5 h-5"></i></button>
-                                </div>
-                            </div>
-                        </header>
-                        
-                        <main className="flex-1 overflow-auto p-4 custom-scrollbar relative space-y-6">
-                            
-                            {/* --- SECCIÓN DE PEDIDOS ACTIVOS (SIEMPRE VISIBLE) --- */}
-                            <div>
-                                <h2 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
-                                    <i data-lucide="activity" className="text-green-400"></i> Tablero de Pedidos Activos
-                                </h2>
-                                {activeMachineOrders.length === 0 ? (
-                                    <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-8 text-center text-slate-500">
-                                        No hay pedidos activos en este momento.
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                        {activeMachineOrders.map(m => {
-                                            const order = ordersData[m.id];
-                                            const metrics = calculateOrderMetrics(m.id, order, data, ALL_ROWS, visibilityConfig.days || []);
-                                            const isComp = !!order.parts?.length;
-                                            const isComplete = metrics.progress >= 100;
-
-                                            return (
-                                                <div key={m.id} className={`bg-slate-800 p-4 rounded-xl border shadow-lg flex flex-col justify-between ${isComplete ? 'border-green-500/50 bg-green-900/10' : 'border-slate-700'}`}>
-                                                    <div className="flex justify-between items-start mb-3">
-                                                        <div>
-                                                            <h3 className="text-blue-400 font-bold text-sm">{m.name}</h3>
-                                                            <div className="text-white font-black text-xl uppercase mt-1">{order.model}</div>
-                                                            {isComp && <span className="bg-slate-700 text-xs px-2 py-0.5 rounded text-slate-300">MULTIEX</span>}
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <div className={`text-2xl font-bold ${isComplete ? 'text-green-400' : 'text-blue-500'}`}>{metrics.progress.toFixed(0)}%</div>
-                                                            <div className="text-[10px] text-slate-500 uppercase font-bold">Avance</div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden mb-3">
-                                                        <div className={`h-full ${isComplete ? 'bg-green-500' : 'bg-blue-600'}`} style={{width: `${metrics.progress}%`}}></div>
-                                                    </div>
-
-                                                    <div className="grid grid-cols-2 gap-2 text-xs mb-4">
-                                                        <div className="bg-slate-900 p-2 rounded border border-slate-700/50">
-                                                            <span className="block text-slate-500 text-[10px] uppercase">Producido</span>
-                                                            <span className="font-bold text-white">{metrics.produced}</span>
-                                                        </div>
-                                                        <div className="bg-slate-900 p-2 rounded border border-slate-700/50">
-                                                            <span className="block text-slate-500 text-[10px] uppercase">Faltante</span>
-                                                            <span className="font-bold text-slate-300">{metrics.totalNeeded > 0 ? metrics.totalNeeded : '0'}</span>
-                                                        </div>
-                                                        <div className="bg-slate-900 p-2 rounded border border-slate-700/50 col-span-2 flex justify-between items-center">
-                                                            <span className="text-slate-500 text-[10px] uppercase">Estado</span>
-                                                            <span className={`font-bold ${metrics.status === 'ATRASO CRÍTICO' ? 'text-red-500' : (metrics.status === 'COMPLETADO' ? 'text-green-400' : 'text-yellow-400')}`}>{metrics.status}</span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="flex gap-2 justify-end mt-auto pt-2 border-t border-slate-700/50">
-                                                        {canDoConteo && (
-                                                            <button onClick={() => { setActiveOrderForAction({ machineId: m.id, order }); setShowConteoModal(true); }} className="p-2 bg-slate-700 hover:bg-purple-900/50 text-purple-300 rounded transition-colors" title="Conteo Físico"><i data-lucide="clipboard-check" className="w-4 h-4"></i></button>
-                                                        )}
-                                                        <button onClick={() => { setActiveOrderForAction({ machineId: m.id, order, metrics }); setShowReportModal(true); }} className="p-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors" title="Ver Reporte"><i data-lucide="file-text" className="w-4 h-4"></i></button>
-                                                        <button onClick={() => handleStartEdit(m.id, order)} className="p-2 bg-slate-700 hover:bg-blue-900/50 text-blue-300 rounded transition-colors" title="Editar Pedido"><i data-lucide="pencil" className="w-4 h-4"></i></button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* --- BOTÓN TOGGLE TABLA --- */}
-                            <div className="flex justify-center my-4">
-                                <button 
-                                    onClick={() => setIsTableVisible(!isTableVisible)}
-                                    className={`flex items-center gap-3 px-6 py-3 rounded-full font-bold shadow-lg transition-all ${isTableVisible ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-blue-600 text-white hover:bg-blue-500 hover:scale-105'}`}
-                                >
-                                    {isTableVisible ? <i data-lucide="eye-off" className="w-5 h-5"></i> : <i data-lucide="table" className="w-5 h-5"></i>}
-                                    {isTableVisible ? 'Ocultar Tabla de Planeación' : 'Mostrar Tabla de Planeación'}
-                                </button>
-                            </div>
-
-                            {/* --- TABLA DE PLANEACIÓN (CONDICIONAL) --- */}
-                            {isTableVisible && (
-                                <div className="bg-slate-800 rounded-xl shadow border border-slate-700 overflow-hidden h-[600px] animate-zoom-in">
-                                    <div className="overflow-auto custom-scrollbar h-full relative">
-                                        <table className="w-full border-collapse">
-                                            <thead className="sticky top-0 z-20 bg-slate-900 shadow-sm border-b border-slate-700">
-                                                <tr>
-                                                    <th className="sticky left-0 z-30 bg-slate-900 p-3 min-w-[120px] text-left border-r border-slate-700 text-xs font-bold text-slate-500">FECHA</th>
-                                                    {visibleMachines.map(m => {
-                                                        const order = ordersData[m.id];
-                                                        const metrics = calculateOrderMetrics(m.id, order, data, ALL_ROWS, visibilityConfig.days || []);
-                                                        const isComp = order?.parts?.length > 0;
-                                                        return (
-                                                            <th key={m.id} className={`min-w-[160px] p-2 border-r border-slate-700 ${metrics.isPlanned ? 'bg-yellow-900/10' : ''}`}>
-                                                                <div className="flex flex-col items-center">
-                                                                    <span className="text-xs font-bold text-blue-400">{m.name.replace('MAQ ','')}</span>
-                                                                    {order && (order.totalQty > 0 || isComp) ? (
-                                                                        <div className="mt-1 w-full px-2">
-                                                                            <div className="flex justify-between items-center text-[9px] font-black text-yellow-400 uppercase leading-none mb-1"><span>{order.model}</span><span>{metrics.progress.toFixed(0)}%</span></div>
-                                                                            {canViewGraph && <div className="h-1 bg-slate-700 rounded-full overflow-hidden w-full"><div className="h-full bg-blue-500" style={{width: `${metrics.progress}%`}}></div></div>}
-                                                                            <span className="block text-[8px] text-slate-500 mt-1 font-bold">Fin: <span className={metrics.status === 'COMPLETADO' ? 'text-green-400' : 'text-red-400'}>{metrics.status === 'COMPLETADO' ? 'OK' : (metrics.finishDate || '-')}</span></span>
-                                                                        </div>
-                                                                    ) : <span className="text-[9px] text-slate-600">Sin Orden</span>}
-                                                                </div>
-                                                            </th>
-                                                        );
-                                                    })}
-                                                    <th className="sticky right-0 z-30 bg-slate-900 p-3 min-w-[80px] text-center border-l border-slate-700 text-xs font-bold text-green-400">TOTAL</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {currentWeekRows.map((row, rIdx) => {
-                                                    const rowId = row.id; 
-                                                    const rowData = data[rowId] || {};
-                                                    const isHiddenDay = visibilityConfig.days?.includes(rowId);
-                                                    const dailyTotal = dailyTotals[rIdx]?.sum || 0;
-
-                                                    return (
-                                                        <tr key={rowId} className={`border-b border-slate-700 hover:bg-slate-700/50 transition-colors ${isHiddenDay ? 'opacity-30' : ''}`}>
-                                                            <td className="sticky left-0 bg-slate-800 p-2 border-r border-slate-700 text-xs font-bold text-slate-400 shadow-[2px_0_5px_rgba(0,0,0,0.3)]">{row.shortDay} <br/> <span className="text-lg text-slate-200">{row.dateNum}</span></td>
-                                                            {visibleMachines.map(m => {
-                                                                const mData = rowData[m.id] || {}; 
-                                                                const slots = mData.slots || [{}, {}, {}, {}];
-                                                                const order = ordersData[m.id];
-                                                                const metrics = calculateOrderMetrics(m.id, order, data, ALL_ROWS, visibilityConfig.days || []);
-                                                                const isFinishDay = metrics.finishDate === row.isoDate && metrics.status !== 'COMPLETADO';
-                                                                const isPlannedDay = metrics.isPlanned && new Date(order.startDate).toISOString().split('T')[0] <= row.isoDate && (metrics.finishDate === null || metrics.finishDate >= row.isoDate);
-                                                                
-                                                                return (
-                                                                    <td key={m.id} className={`p-1 border-r border-slate-700 relative h-[80px] ${isFinishDay ? 'bg-red-900/30 border-red-500/50' : ''} ${isPlannedDay && !isHiddenDay ? 'bg-yellow-900/10' : ''}`}>
-                                                                        {isPlannedDay && !isHiddenDay && <div className="planning-info">{order.model}</div>}
-                                                                        <div className="flex flex-col h-full">
-                                                                            <div className="grid grid-cols-2 gap-1 mb-0.5"><div className="text-[8px] text-center text-blue-400 font-bold bg-slate-900/50 rounded">A</div><div className="text-[8px] text-center text-orange-400 font-bold bg-slate-900/50 rounded">B</div></div>
-                                                                            <div className="grid grid-cols-2 gap-1 flex-1">{[0,1].map(idx => (<ProductionSlot key={idx} slotData={slots[idx]} index={idx} disabled={!canEditSlot(m.id, idx) || isHiddenDay} onUpdate={(idx, field, val) => handleUpdateSlot(rowId, m.id, idx, field, val)} />))}</div>
-                                                                        </div>
-                                                                    </td>
-                                                                );
-                                                            })}
-                                                            <td className="sticky right-0 bg-slate-800 p-2 border-l border-slate-700 text-center shadow-[-2px_0_5px_rgba(0,0,0,0.3)]">
-                                                                <span className="text-xl font-black text-green-400">{dailyTotal}</span>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                            <tfoot className="bg-slate-900 border-t-2 border-slate-600 sticky bottom-0 z-20 shadow-lg">
-                                                <tr>
-                                                    <td className="sticky left-0 z-30 bg-slate-900 p-3 text-right font-bold text-white border-r border-slate-700">TOTALES:</td>
-                                                    {visibleMachines.map((m, i) => (
-                                                        <td key={i} className="p-3 text-center font-bold text-white border-r border-slate-700 bg-slate-900/80">
-                                                            {machineTotals.find(mt => mt.name === m.name.replace('MAQ ', ''))?.sum || 0}
-                                                        </td>
-                                                    ))}
-                                                    <td className="sticky right-0 z-30 bg-slate-800 p-3 text-center font-black text-yellow-400 text-lg border-l border-slate-700">
-                                                        {dailyTotals.reduce((a, b) => a + b.sum, 0)}
-                                                    </td>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
-                                    </div>
-                                </div>
-                            )}
-                        </main>
+            if (loading) return (
+                <div className="flex h-screen items-center justify-center bg-slate-950">
+                    <div className="text-center">
+                        <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                        <h2 className="text-2xl font-bold text-blue-500 animate-pulse">SINCRONIZANDO...</h2>
                     </div>
-                );
-            };
+                </div>
+            );
 
             return (
-                <div className="h-full relative">
-                    {showOrderManager && <OrderManager ref={orderManagerRef} onClose={() => setShowOrderManager(false)} onSaveOrders={handleSaveOrder} onDeleteOrder={handleDeleteOrder} ordersData={ordersData} allProductionData={data} allRows={ALL_ROWS} hiddenDays={visibilityConfig.days} user={user} onSaveConteo={handleSaveConteo} onRequestArchive={handleRequestArchive} />}
-                    {showVisibilityModal && <VisibilityModal onClose={() => setShowVisibilityModal(false)} currentHiddenMachines={visibilityConfig.machines || []} currentHiddenDays={visibilityConfig.days || []} onSaveVisibility={handleSaveVisibility} allRows={ALL_ROWS} />}
-                    {showCalendar && <CalendarModal onClose={() => setShowCalendar(false)} onSelectDate={handleDateSelect} allRows={ALL_ROWS} />}
-                    {canManageUsers && showUserManagementModal && <UserManagementModal onClose={() => setShowUserManagementModal(false)} users={usersData} onSaveUser={handleSaveUser} onDeleteUser={handleDeleteUser} />}
-                    {showArchiveModal && orderToArchive && <ArchiveModal onClose={() => setShowArchiveModal(false)} onConfirm={handleConfirmArchive} machineName={orderToArchive.machineName} orderModel={orderToArchive.order.model} />}
-                    {showStatsModal && <StatsModal onClose={() => setShowStatsModal(false)} dailyTotals={dailyTotals} machineTotals={machineTotals} />}
-                    {showInstallModal && <InstallModal onClose={() => setShowInstallModal(false)} deferredPrompt={deferredPrompt} setViewPreference={setViewPreference} />}
-                    
-                    <div className={`h-full ${viewPreference === 'desktop' ? 'hidden' : (viewPreference === 'mobile' ? 'block' : 'block md:hidden')}`}><MobileView /></div>
-                    <div className={`h-full ${viewPreference === 'mobile' ? 'hidden' : (viewPreference === 'desktop' ? 'block' : 'hidden md:block')}`}><DesktopView /></div>
+                <div className="flex flex-col h-screen bg-slate-950 text-white fade-in select-none">
+                    {/* HEADER */}
+                    <header className="bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center shadow-2xl z-20">
+                        <div className="flex items-center gap-6">
+                            <img src="https://raw.githubusercontent.com/sweaters-liliana/MAES26/d41232c1301add433daea006546e2c6eb8dd23e6/icon%20maes.svg" className="w-16 h-16 rounded-xl shadow-lg bg-white p-1" />
+                            <div>
+                                <h1 className="text-4xl font-black tracking-tighter text-white kiosk-text">MONITOR DE PLANTA</h1>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="bg-green-500 w-3 h-3 rounded-full animate-pulse"></span>
+                                    <span className="text-sm text-green-400 font-bold tracking-widest uppercase">Sistema Remoto Activo</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <h2 className="text-5xl font-black text-slate-200 tabular-nums tracking-tight">
+                                {currentTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </h2>
+                            <p className="text-slate-400 font-bold uppercase text-lg">{currentTime.toLocaleDateString([], {weekday:'long', day:'numeric', month:'long'})}</p>
+                        </div>
+                    </header>
+
+                    {/* TABLA PRINCIPAL */}
+                    <main className="flex-1 overflow-auto no-scrollbar bg-slate-950 p-2">
+                        <table className="w-full border-collapse">
+                            <thead className="sticky top-0 z-10 bg-slate-950 shadow-xl">
+                                <tr>
+                                    <th className="p-4 text-left border-b-2 border-slate-800 text-slate-500 font-bold uppercase text-sm w-32 bg-slate-950">Fecha</th>
+                                    {visibleMachines.map(m => {
+                                        const order = ordersData[m.id];
+                                        const hasOrder = order && (order.totalQty > 0 || (order.parts && order.parts.length > 0));
+                                        
+                                        return (
+                                            <th key={m.id} className="p-2 border-b-2 border-slate-800 min-w-[140px] bg-slate-950">
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-2xl font-black text-blue-500 mb-1">{m.name.replace('MAQ ','M-')}</span>
+                                                    {hasOrder ? (
+                                                        <span className="px-3 py-1 bg-slate-800 rounded-full text-xs font-bold text-yellow-400 border border-slate-700 truncate max-w-[120px] shadow-sm">
+                                                            {order.model}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-700 font-bold uppercase tracking-widest">Inactiva</span>
+                                                    )}
+                                                </div>
+                                            </th>
+                                        );
+                                    })}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {currentWeekRows.map((row) => {
+                                    const isToday = row.isoDate === new Date().toISOString().split('T')[0];
+                                    const isHidden = visibilityConfig.days?.includes(row.id);
+
+                                    return (
+                                        <tr key={row.id} className={`border-b border-slate-800/50 ${isToday ? 'bg-blue-900/10' : ''} ${isHidden ? 'opacity-20 bg-slate-950' : ''}`}>
+                                            <td className="p-4 font-bold border-r border-slate-800/50">
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs text-slate-500 uppercase tracking-widest mb-1">{row.shortDay}</span>
+                                                    <span className={`text-4xl leading-none font-black ${isToday ? 'text-blue-400' : 'text-slate-300'}`}>{row.dateNum}</span>
+                                                </div>
+                                            </td>
+                                            
+                                            {visibleMachines.map(m => {
+                                                const metrics = getMetrics(m.id, data[row.id] || {}, row);
+                                                
+                                                let cellClass = "p-2 border-r border-slate-800/30 text-center relative h-24 align-middle transition-all duration-500 ";
+                                                let content = <span className="text-slate-800 text-2xl font-bold">-</span>;
+
+                                                if (metrics.isPlanned) {
+                                                    if (metrics.status === 'critical') {
+                                                        cellClass += "animate-critical";
+                                                        content = (
+                                                            <div className="flex flex-col items-center justify-center h-full">
+                                                                <i data-lucide="alert-triangle" className="w-8 h-8 mb-1"></i>
+                                                                <span className="text-3xl font-black">0</span>
+                                                                <span className="text-[10px] uppercase font-bold tracking-widest mt-1">¡ATENCIÓN!</span>
+                                                            </div>
+                                                        );
+                                                    } else {
+                                                        let colorClass = "text-slate-400";
+                                                        let barColor = "bg-slate-600";
+                                                        
+                                                        if (metrics.status === 'excellent') { colorClass = "text-green-400"; barColor = "bg-green-500"; }
+                                                        else if (metrics.status === 'good') { colorClass = "text-yellow-400"; barColor = "bg-yellow-500"; }
+                                                        else if (metrics.status === 'low') { colorClass = "text-orange-500"; barColor = "bg-orange-600"; }
+
+                                                        content = (
+                                                            <div className="flex flex-col h-full justify-between py-2 px-1">
+                                                                <div className="flex items-baseline justify-center gap-1">
+                                                                    <span className={`text-4xl font-black ${colorClass} tracking-tighter kiosk-text`}>
+                                                                        {metrics.produced}
+                                                                    </span>
+                                                                    <span className="text-xs font-bold text-slate-600 uppercase">pzas</span>
+                                                                </div>
+                                                                
+                                                                <div className="w-full bg-slate-800 h-3 rounded-full overflow-hidden shadow-inner border border-slate-700/50">
+                                                                    <div 
+                                                                        className={`h-full ${barColor} shadow-[0_0_10px_rgba(0,0,0,0.5)]`} 
+                                                                        style={{width: `${metrics.efficiency}%`}}
+                                                                    ></div>
+                                                                </div>
+                                                                
+                                                                <div className="flex justify-between items-center px-1 mt-1">
+                                                                    <span className="text-[10px] font-bold text-slate-500 uppercase">Meta: {metrics.target}</span>
+                                                                    <span className={`text-sm font-bold ${colorClass}`}>{metrics.efficiency.toFixed(0)}%</span>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }
+                                                }
+
+                                                return <td key={m.id} className={cellClass}>{content}</td>;
+                                            })}
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </main>
+
+                    {/* FOOTER (SOLO INDICADOR DE CONTROL REMOTO) */}
+                    <footer className="fixed bottom-4 right-4 z-30 opacity-80">
+                        <div className="flex bg-slate-900 rounded-full p-2 px-6 border border-slate-700 shadow-xl items-center gap-3">
+                            <i data-lucide="wifi" className="w-5 h-5 text-green-500 animate-pulse"></i>
+                            <span className="font-bold text-slate-300 uppercase tracking-widest">{weekLabel}</span>
+                        </div>
+                    </footer>
                 </div>
             );
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        root.render(<Dashboard />);
+        // Inicializar iconos
+        lucide.createIcons();
     </script>
 </body>
 </html>
