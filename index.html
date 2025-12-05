@@ -1236,7 +1236,7 @@
 
             const handleSaveVisibility = async (hiddenMachines, hiddenDays) => { await setDoc(doc(db, 'settings', 'visibility'), { machines: hiddenMachines, days: hiddenDays }, { merge: true }); };
             const handleSaveUser = async (pin, userData) => { try { await setDoc(doc(db, 'settings', 'users'), { ...usersData, [pin]: userData }); if (user.id === pin) setUser({...userData, id: pin}); alert('Usuario guardado'); } catch (error) { alert('Error: ' + error.message); } };
-            const handleDeleteUser = async (pinToDelete) => { if (pinToDelete === user.id) return; if (confirm(`¿Eliminar ${pinToDelete}?`)) { const { [pinToDelete]: _, ...newUsers } = usersData; await setDoc(doc(db, 'settings', 'users'), newUsers); } };
+            const handleDeleteUser = async (pinToDelete) => { if (pinToDelete === user.id) return; if (confirm(`¿Eliminar ${pinToDelete}?`) ) { const { [pinToDelete]: _, ...newUsers } = usersData; await setDoc(doc(db, 'settings', 'users'), newUsers); } };
             const handleDateSelect = (row) => { setWeekOffset(Math.floor(row.index / 7)); setShowCalendar(false); };
 
             const canViewGraph = user && (user.canViewGraph || user.role === ROLES.ADMIN || user.role === ROLES.DEVELOPMENT || user.role === ROLES.OBSERVER || user.role === ROLES.PRE_COUNT);
@@ -1340,113 +1340,202 @@
                 );
             };
 
-            const DesktopView = () => (
-                <div className="h-full flex flex-col bg-slate-900 overflow-hidden relative">
-                    <header className="bg-slate-800 shadow-sm border-b border-slate-700 p-3 flex justify-between items-center z-20 shrink-0">
-                        <div className="flex items-center gap-4">
-                            <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-2 rounded-lg text-white shadow-lg"><i data-lucide="factory" className="w-5 h-5"></i></div>
-                            <h1 className="font-bold text-slate-200 hidden md:block">Control MAES - Tejido</h1>
-                            <div className="flex items-center gap-2 bg-slate-900/50 p-1 rounded-lg border border-slate-700/50 ml-6">
-                                <button onClick={() => setWeekOffset(prev => Math.max(0, prev - 1))} className="p-1 hover:bg-slate-700 rounded text-slate-400"><i data-lucide="chevron-left" className="w-5 h-5"></i></button>
-                                <div className="flex items-center gap-2 px-2 cursor-pointer" onClick={() => setShowCalendar(true)}><i data-lucide="calendar" className="w-4 h-4 text-blue-400"></i><span className="text-sm font-bold text-white uppercase w-32 text-center select-none">{weekLabel}</span></div>
-                                <button onClick={() => setWeekOffset(prev => prev + 1)} className="p-1 hover:bg-slate-700 rounded text-slate-400"><i data-lucide="chevron-right" className="w-5 h-5"></i></button>
+            const DesktopView = () => {
+                const [isTableVisible, setIsTableVisible] = useState(false);
+
+                // Filtrar máquinas que tienen pedidos activos
+                const activeMachineOrders = visibleMachines.filter(m => {
+                    const order = ordersData[m.id];
+                    return order && (order.totalQty > 0 || (order.parts && order.parts.length > 0));
+                });
+
+                return (
+                    <div className="h-full flex flex-col bg-slate-900 overflow-hidden relative">
+                        <header className="bg-slate-800 shadow-sm border-b border-slate-700 p-3 flex justify-between items-center z-20 shrink-0">
+                            <div className="flex items-center gap-4">
+                                <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-2 rounded-lg text-white shadow-lg"><i data-lucide="factory" className="w-5 h-5"></i></div>
+                                <h1 className="font-bold text-slate-200 hidden md:block">Control MAES - Tejido</h1>
+                                <div className="flex items-center gap-2 bg-slate-900/50 p-1 rounded-lg border border-slate-700/50 ml-6">
+                                    <button onClick={() => setWeekOffset(prev => Math.max(0, prev - 1))} className="p-1 hover:bg-slate-700 rounded text-slate-400"><i data-lucide="chevron-left" className="w-5 h-5"></i></button>
+                                    <div className="flex items-center gap-2 px-2 cursor-pointer" onClick={() => setShowCalendar(true)}><i data-lucide="calendar" className="w-4 h-4 text-blue-400"></i><span className="text-sm font-bold text-white uppercase w-32 text-center select-none">{weekLabel}</span></div>
+                                    <button onClick={() => setWeekOffset(prev => prev + 1)} className="p-1 hover:bg-slate-700 rounded text-slate-400"><i data-lucide="chevron-right" className="w-5 h-5"></i></button>
+                                </div>
                             </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <button onClick={() => setShowStatsModal(true)} className="bg-slate-700 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm font-bold flex items-center gap-2 shadow-lg transition-all border border-purple-500/30"><i data-lucide="bar-chart-2" className="w-4 h-4 text-purple-400"></i> Estadísticas</button>
-                            <div className="text-right px-3 py-1 bg-slate-900/50 rounded-lg border border-slate-700/50"><p className="text-sm font-bold text-blue-400">{user.name.toUpperCase()}</p><p className="text-[10px] text-slate-500 uppercase font-medium leading-none">{user.area}</p></div>
-                            <div className="flex gap-2">
-                                {canManageUsers && <button onClick={() => setShowUserManagementModal(true)} className="bg-yellow-600 hover:bg-yellow-500 text-white px-3 py-1 rounded text-sm font-bold flex items-center gap-2 shadow-lg transition-all"><i data-lucide="users" className="w-4 h-4"></i> Usuarios</button>}
-                                {canManageOrders && <button onClick={() => setShowOrderManager(true)} className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-sm font-bold flex items-center gap-2 shadow-lg hover:scale-105 transition-all"><i data-lucide="clipboard-list" className="w-4 h-4"></i> Pedidos</button>}
-                                {canConfig && <button onClick={() => setShowVisibilityModal(true)} className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-slate-300"><i data-lucide="settings" className="w-5 h-5"></i></button>}
-                                <button onClick={() => setUser(null)} className="p-2 text-red-400 hover:bg-red-900/20 rounded"><i data-lucide="log-out" className="w-5 h-5"></i></button>
+                            <div className="flex items-center gap-4">
+                                <button onClick={() => setShowStatsModal(true)} className="bg-slate-700 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm font-bold flex items-center gap-2 shadow-lg transition-all border border-purple-500/30"><i data-lucide="bar-chart-2" className="w-4 h-4 text-purple-400"></i> Estadísticas</button>
+                                <div className="text-right px-3 py-1 bg-slate-900/50 rounded-lg border border-slate-700/50"><p className="text-sm font-bold text-blue-400">{user.name.toUpperCase()}</p><p className="text-[10px] text-slate-500 uppercase font-medium leading-none">{user.area}</p></div>
+                                <div className="flex gap-2">
+                                    {canManageUsers && <button onClick={() => setShowUserManagementModal(true)} className="bg-yellow-600 hover:bg-yellow-500 text-white px-3 py-1 rounded text-sm font-bold flex items-center gap-2 shadow-lg transition-all"><i data-lucide="users" className="w-4 h-4"></i> Usuarios</button>}
+                                    {canManageOrders && <button onClick={() => setShowOrderManager(true)} className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-sm font-bold flex items-center gap-2 shadow-lg hover:scale-105 transition-all"><i data-lucide="clipboard-list" className="w-4 h-4"></i> Pedidos</button>}
+                                    {canConfig && <button onClick={() => setShowVisibilityModal(true)} className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-slate-300"><i data-lucide="settings" className="w-5 h-5"></i></button>}
+                                    <button onClick={() => setUser(null)} className="p-2 text-red-400 hover:bg-red-900/20 rounded"><i data-lucide="log-out" className="w-5 h-5"></i></button>
+                                </div>
                             </div>
-                        </div>
-                    </header>
-                    <main className="flex-1 overflow-auto p-2 custom-scrollbar relative">
-                        <div className="bg-slate-800 rounded-xl shadow border border-slate-700 overflow-hidden h-full">
-                            <div className="overflow-auto custom-scrollbar h-full relative">
-                                <table className="w-full border-collapse">
-                                    <thead className="sticky top-0 z-20 bg-slate-900 shadow-sm border-b border-slate-700">
-                                        <tr>
-                                            <th className="sticky left-0 z-30 bg-slate-900 p-3 min-w-[120px] text-left border-r border-slate-700 text-xs font-bold text-slate-500">FECHA</th>
-                                            {visibleMachines.map(m => {
-                                                const order = ordersData[m.id];
-                                                const metrics = calculateOrderMetrics(m.id, order, data, ALL_ROWS, visibilityConfig.days || []);
-                                                const isComp = order?.parts?.length > 0;
-                                                return (
-                                                    <th key={m.id} className={`min-w-[160px] p-2 border-r border-slate-700 ${metrics.isPlanned ? 'bg-yellow-900/10' : ''}`}>
-                                                        <div className="flex flex-col items-center">
-                                                            <span className="text-xs font-bold text-blue-400">{m.name.replace('MAQ ','')}</span>
-                                                            {order && (order.totalQty > 0 || isComp) ? (
-                                                                <div className="mt-1 w-full px-2">
-                                                                    <div className="flex justify-between items-center text-[9px] font-black text-yellow-400 uppercase leading-none mb-1"><span>{order.model}</span><span>{metrics.progress.toFixed(0)}%</span></div>
-                                                                    {canViewGraph && <div className="h-1 bg-slate-700 rounded-full overflow-hidden w-full"><div className="h-full bg-blue-500" style={{width: `${metrics.progress}%`}}></div></div>}
-                                                                    <span className="block text-[8px] text-slate-500 mt-1 font-bold">Fin: <span className={metrics.status === 'COMPLETADO' ? 'text-green-400' : 'text-red-400'}>{metrics.status === 'COMPLETADO' ? 'OK' : (metrics.finishDate || '-')}</span></span>
-                                                                </div>
-                                                            ) : <span className="text-[9px] text-slate-600">Sin Orden</span>}
-                                                        </div>
-                                                    </th>
-                                                );
-                                            })}
-                                            <th className="sticky right-0 z-30 bg-slate-900 p-3 min-w-[80px] text-center border-l border-slate-700 text-xs font-bold text-green-400">TOTAL</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {currentWeekRows.map((row, rIdx) => {
-                                            const rowId = row.id; 
-                                            const rowData = data[rowId] || {};
-                                            const isHiddenDay = visibilityConfig.days?.includes(rowId);
-                                            const dailyTotal = dailyTotals[rIdx]?.sum || 0; // Total por día calculado anteriormente
+                        </header>
+                        
+                        <main className="flex-1 overflow-auto p-4 custom-scrollbar relative space-y-6">
+                            
+                            {/* --- SECCIÓN DE PEDIDOS ACTIVOS (SIEMPRE VISIBLE) --- */}
+                            <div>
+                                <h2 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
+                                    <i data-lucide="activity" className="text-green-400"></i> Tablero de Pedidos Activos
+                                </h2>
+                                {activeMachineOrders.length === 0 ? (
+                                    <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-8 text-center text-slate-500">
+                                        No hay pedidos activos en este momento.
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                        {activeMachineOrders.map(m => {
+                                            const order = ordersData[m.id];
+                                            const metrics = calculateOrderMetrics(m.id, order, data, ALL_ROWS, visibilityConfig.days || []);
+                                            const isComp = !!order.parts?.length;
+                                            const isComplete = metrics.progress >= 100;
 
                                             return (
-                                                <tr key={rowId} className={`border-b border-slate-700 hover:bg-slate-700/50 transition-colors ${isHiddenDay ? 'opacity-30' : ''}`}>
-                                                    <td className="sticky left-0 bg-slate-800 p-2 border-r border-slate-700 text-xs font-bold text-slate-400 shadow-[2px_0_5px_rgba(0,0,0,0.3)]">{row.shortDay} <br/> <span className="text-lg text-slate-200">{row.dateNum}</span></td>
-                                                    {visibleMachines.map(m => {
-                                                        const mData = rowData[m.id] || {}; 
-                                                        const slots = mData.slots || [{}, {}, {}, {}];
-                                                        const order = ordersData[m.id];
-                                                        const metrics = calculateOrderMetrics(m.id, order, data, ALL_ROWS, visibilityConfig.days || []);
-                                                        const isFinishDay = metrics.finishDate === row.isoDate && metrics.status !== 'COMPLETADO';
-                                                        const isPlannedDay = metrics.isPlanned && new Date(order.startDate).toISOString().split('T')[0] <= row.isoDate && (metrics.finishDate === null || metrics.finishDate >= row.isoDate);
-                                                        
-                                                        return (
-                                                            <td key={m.id} className={`p-1 border-r border-slate-700 relative h-[80px] ${isFinishDay ? 'bg-red-900/30 border-red-500/50' : ''} ${isPlannedDay && !isHiddenDay ? 'bg-yellow-900/10' : ''}`}>
-                                                                {isPlannedDay && !isHiddenDay && <div className="planning-info">{order.model}</div>}
-                                                                <div className="flex flex-col h-full">
-                                                                    <div className="grid grid-cols-2 gap-1 mb-0.5"><div className="text-[8px] text-center text-blue-400 font-bold bg-slate-900/50 rounded">A</div><div className="text-[8px] text-center text-orange-400 font-bold bg-slate-900/50 rounded">B</div></div>
-                                                                    <div className="grid grid-cols-2 gap-1 flex-1">{[0,1].map(idx => (<ProductionSlot key={idx} slotData={slots[idx]} index={idx} disabled={!canEditSlot(m.id, idx) || isHiddenDay} onUpdate={(idx, field, val) => handleUpdateSlot(rowId, m.id, idx, field, val)} />))}</div>
-                                                                </div>
-                                                            </td>
-                                                        );
-                                                    })}
-                                                    <td className="sticky right-0 bg-slate-800 p-2 border-l border-slate-700 text-center shadow-[-2px_0_5px_rgba(0,0,0,0.3)]">
-                                                        <span className="text-xl font-black text-green-400">{dailyTotal}</span>
-                                                    </td>
-                                                </tr>
+                                                <div key={m.id} className={`bg-slate-800 p-4 rounded-xl border shadow-lg flex flex-col justify-between ${isComplete ? 'border-green-500/50 bg-green-900/10' : 'border-slate-700'}`}>
+                                                    <div className="flex justify-between items-start mb-3">
+                                                        <div>
+                                                            <h3 className="text-blue-400 font-bold text-sm">{m.name}</h3>
+                                                            <div className="text-white font-black text-xl uppercase mt-1">{order.model}</div>
+                                                            {isComp && <span className="bg-slate-700 text-xs px-2 py-0.5 rounded text-slate-300">MULTIEX</span>}
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <div className={`text-2xl font-bold ${isComplete ? 'text-green-400' : 'text-blue-500'}`}>{metrics.progress.toFixed(0)}%</div>
+                                                            <div className="text-[10px] text-slate-500 uppercase font-bold">Avance</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden mb-3">
+                                                        <div className={`h-full ${isComplete ? 'bg-green-500' : 'bg-blue-600'}`} style={{width: `${metrics.progress}%`}}></div>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-2 gap-2 text-xs mb-4">
+                                                        <div className="bg-slate-900 p-2 rounded border border-slate-700/50">
+                                                            <span className="block text-slate-500 text-[10px] uppercase">Producido</span>
+                                                            <span className="font-bold text-white">{metrics.produced}</span>
+                                                        </div>
+                                                        <div className="bg-slate-900 p-2 rounded border border-slate-700/50">
+                                                            <span className="block text-slate-500 text-[10px] uppercase">Faltante</span>
+                                                            <span className="font-bold text-slate-300">{metrics.totalNeeded > 0 ? metrics.totalNeeded : '0'}</span>
+                                                        </div>
+                                                        <div className="bg-slate-900 p-2 rounded border border-slate-700/50 col-span-2 flex justify-between items-center">
+                                                            <span className="text-slate-500 text-[10px] uppercase">Estado</span>
+                                                            <span className={`font-bold ${metrics.status === 'ATRASO CRÍTICO' ? 'text-red-500' : (metrics.status === 'COMPLETADO' ? 'text-green-400' : 'text-yellow-400')}`}>{metrics.status}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex gap-2 justify-end mt-auto pt-2 border-t border-slate-700/50">
+                                                        {canDoConteo && (
+                                                            <button onClick={() => { setActiveOrderForAction({ machineId: m.id, order }); setShowConteoModal(true); }} className="p-2 bg-slate-700 hover:bg-purple-900/50 text-purple-300 rounded transition-colors" title="Conteo Físico"><i data-lucide="clipboard-check" className="w-4 h-4"></i></button>
+                                                        )}
+                                                        <button onClick={() => { setActiveOrderForAction({ machineId: m.id, order, metrics }); setShowReportModal(true); }} className="p-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded transition-colors" title="Ver Reporte"><i data-lucide="file-text" className="w-4 h-4"></i></button>
+                                                        <button onClick={() => handleStartEdit(m.id, order)} className="p-2 bg-slate-700 hover:bg-blue-900/50 text-blue-300 rounded transition-colors" title="Editar Pedido"><i data-lucide="pencil" className="w-4 h-4"></i></button>
+                                                    </div>
+                                                </div>
                                             );
                                         })}
-                                    </tbody>
-                                    {/* Footer con Totales por Máquina */}
-                                    <tfoot className="bg-slate-900 border-t-2 border-slate-600 sticky bottom-0 z-20 shadow-lg">
-                                        <tr>
-                                            <td className="sticky left-0 z-30 bg-slate-900 p-3 text-right font-bold text-white border-r border-slate-700">TOTALES:</td>
-                                            {visibleMachines.map((m, i) => (
-                                                <td key={i} className="p-3 text-center font-bold text-white border-r border-slate-700 bg-slate-900/80">
-                                                    {machineTotals.find(mt => mt.name === m.name.replace('MAQ ', ''))?.sum || 0}
-                                                </td>
-                                            ))}
-                                            <td className="sticky right-0 z-30 bg-slate-800 p-3 text-center font-black text-yellow-400 text-lg border-l border-slate-700">
-                                                {dailyTotals.reduce((a, b) => a + b.sum, 0)}
-                                            </td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    </main>
-                </div>
-            );
+
+                            {/* --- BOTÓN TOGGLE TABLA --- */}
+                            <div className="flex justify-center my-4">
+                                <button 
+                                    onClick={() => setIsTableVisible(!isTableVisible)}
+                                    className={`flex items-center gap-3 px-6 py-3 rounded-full font-bold shadow-lg transition-all ${isTableVisible ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-blue-600 text-white hover:bg-blue-500 hover:scale-105'}`}
+                                >
+                                    {isTableVisible ? <i data-lucide="eye-off" className="w-5 h-5"></i> : <i data-lucide="table" className="w-5 h-5"></i>}
+                                    {isTableVisible ? 'Ocultar Tabla de Planeación' : 'Mostrar Tabla de Planeación'}
+                                </button>
+                            </div>
+
+                            {/* --- TABLA DE PLANEACIÓN (CONDICIONAL) --- */}
+                            {isTableVisible && (
+                                <div className="bg-slate-800 rounded-xl shadow border border-slate-700 overflow-hidden h-[600px] animate-zoom-in">
+                                    <div className="overflow-auto custom-scrollbar h-full relative">
+                                        <table className="w-full border-collapse">
+                                            <thead className="sticky top-0 z-20 bg-slate-900 shadow-sm border-b border-slate-700">
+                                                <tr>
+                                                    <th className="sticky left-0 z-30 bg-slate-900 p-3 min-w-[120px] text-left border-r border-slate-700 text-xs font-bold text-slate-500">FECHA</th>
+                                                    {visibleMachines.map(m => {
+                                                        const order = ordersData[m.id];
+                                                        const metrics = calculateOrderMetrics(m.id, order, data, ALL_ROWS, visibilityConfig.days || []);
+                                                        const isComp = order?.parts?.length > 0;
+                                                        return (
+                                                            <th key={m.id} className={`min-w-[160px] p-2 border-r border-slate-700 ${metrics.isPlanned ? 'bg-yellow-900/10' : ''}`}>
+                                                                <div className="flex flex-col items-center">
+                                                                    <span className="text-xs font-bold text-blue-400">{m.name.replace('MAQ ','')}</span>
+                                                                    {order && (order.totalQty > 0 || isComp) ? (
+                                                                        <div className="mt-1 w-full px-2">
+                                                                            <div className="flex justify-between items-center text-[9px] font-black text-yellow-400 uppercase leading-none mb-1"><span>{order.model}</span><span>{metrics.progress.toFixed(0)}%</span></div>
+                                                                            {canViewGraph && <div className="h-1 bg-slate-700 rounded-full overflow-hidden w-full"><div className="h-full bg-blue-500" style={{width: `${metrics.progress}%`}}></div></div>}
+                                                                            <span className="block text-[8px] text-slate-500 mt-1 font-bold">Fin: <span className={metrics.status === 'COMPLETADO' ? 'text-green-400' : 'text-red-400'}>{metrics.status === 'COMPLETADO' ? 'OK' : (metrics.finishDate || '-')}</span></span>
+                                                                        </div>
+                                                                    ) : <span className="text-[9px] text-slate-600">Sin Orden</span>}
+                                                                </div>
+                                                            </th>
+                                                        );
+                                                    })}
+                                                    <th className="sticky right-0 z-30 bg-slate-900 p-3 min-w-[80px] text-center border-l border-slate-700 text-xs font-bold text-green-400">TOTAL</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {currentWeekRows.map((row, rIdx) => {
+                                                    const rowId = row.id; 
+                                                    const rowData = data[rowId] || {};
+                                                    const isHiddenDay = visibilityConfig.days?.includes(rowId);
+                                                    const dailyTotal = dailyTotals[rIdx]?.sum || 0;
+
+                                                    return (
+                                                        <tr key={rowId} className={`border-b border-slate-700 hover:bg-slate-700/50 transition-colors ${isHiddenDay ? 'opacity-30' : ''}`}>
+                                                            <td className="sticky left-0 bg-slate-800 p-2 border-r border-slate-700 text-xs font-bold text-slate-400 shadow-[2px_0_5px_rgba(0,0,0,0.3)]">{row.shortDay} <br/> <span className="text-lg text-slate-200">{row.dateNum}</span></td>
+                                                            {visibleMachines.map(m => {
+                                                                const mData = rowData[m.id] || {}; 
+                                                                const slots = mData.slots || [{}, {}, {}, {}];
+                                                                const order = ordersData[m.id];
+                                                                const metrics = calculateOrderMetrics(m.id, order, data, ALL_ROWS, visibilityConfig.days || []);
+                                                                const isFinishDay = metrics.finishDate === row.isoDate && metrics.status !== 'COMPLETADO';
+                                                                const isPlannedDay = metrics.isPlanned && new Date(order.startDate).toISOString().split('T')[0] <= row.isoDate && (metrics.finishDate === null || metrics.finishDate >= row.isoDate);
+                                                                
+                                                                return (
+                                                                    <td key={m.id} className={`p-1 border-r border-slate-700 relative h-[80px] ${isFinishDay ? 'bg-red-900/30 border-red-500/50' : ''} ${isPlannedDay && !isHiddenDay ? 'bg-yellow-900/10' : ''}`}>
+                                                                        {isPlannedDay && !isHiddenDay && <div className="planning-info">{order.model}</div>}
+                                                                        <div className="flex flex-col h-full">
+                                                                            <div className="grid grid-cols-2 gap-1 mb-0.5"><div className="text-[8px] text-center text-blue-400 font-bold bg-slate-900/50 rounded">A</div><div className="text-[8px] text-center text-orange-400 font-bold bg-slate-900/50 rounded">B</div></div>
+                                                                            <div className="grid grid-cols-2 gap-1 flex-1">{[0,1].map(idx => (<ProductionSlot key={idx} slotData={slots[idx]} index={idx} disabled={!canEditSlot(m.id, idx) || isHiddenDay} onUpdate={(idx, field, val) => handleUpdateSlot(rowId, m.id, idx, field, val)} />))}</div>
+                                                                        </div>
+                                                                    </td>
+                                                                );
+                                                            })}
+                                                            <td className="sticky right-0 bg-slate-800 p-2 border-l border-slate-700 text-center shadow-[-2px_0_5px_rgba(0,0,0,0.3)]">
+                                                                <span className="text-xl font-black text-green-400">{dailyTotal}</span>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                            <tfoot className="bg-slate-900 border-t-2 border-slate-600 sticky bottom-0 z-20 shadow-lg">
+                                                <tr>
+                                                    <td className="sticky left-0 z-30 bg-slate-900 p-3 text-right font-bold text-white border-r border-slate-700">TOTALES:</td>
+                                                    {visibleMachines.map((m, i) => (
+                                                        <td key={i} className="p-3 text-center font-bold text-white border-r border-slate-700 bg-slate-900/80">
+                                                            {machineTotals.find(mt => mt.name === m.name.replace('MAQ ', ''))?.sum || 0}
+                                                        </td>
+                                                    ))}
+                                                    <td className="sticky right-0 z-30 bg-slate-800 p-3 text-center font-black text-yellow-400 text-lg border-l border-slate-700">
+                                                        {dailyTotals.reduce((a, b) => a + b.sum, 0)}
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+                        </main>
+                    </div>
+                );
+            };
 
             return (
                 <div className="h-full relative">
