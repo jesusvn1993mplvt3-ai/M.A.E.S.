@@ -3,23 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Producción Textil v3.0 - MultiPieza</title>
+    <title>Sistema Textil v4.0 - Diseño Central</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        /* Estilos EXCLUSIVOS para Impresión */
+        /* ESTILOS DE IMPRESIÓN RIGUROSOS */
         @media print {
+            @page { margin: 0.5cm; size: letter portrait; }
             body { background: white; -webkit-print-color-adjust: exact; }
             .no-print { display: none !important; }
             .print-only { display: block !important; }
-            .page-break { page-break-before: always; }
-            /* Asegura bordes negros definidos para que el tejedor escriba */
-            table, th, td { border-color: #000 !important; }
+            
+            /* Layout de Media Hoja */
+            .print-section-top { 
+                height: 48vh; /* Poco menos de la mitad para margen */
+                overflow: hidden; 
+                border-bottom: 2px dashed #ccc;
+                margin-bottom: 1vh;
+            }
+            .print-section-bottom { 
+                height: 48vh; 
+                display: block; 
+            }
+            
+            /* Ajustes de texto para impresión */
+            .text-print-sm { font-size: 10pt !important; }
+            .text-print-xs { font-size: 8pt !important; }
+            
+            /* Forzar bordes negros */
+            table, th, td { border-color: black !important; }
         }
-        .print-only { display: none; } /* Oculto en pantalla normal */
+        .print-only { display: none; }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans">
@@ -28,262 +45,246 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // --- FUNCIONES AUXILIARES ---
-
-        /** 
-         * Genera el ID compuesto: [Inicial Cliente]-[Consecutivo]-[Sufijo Pieza]
-         * Ej: O-00000001-bl
-         */
+        // --- UTILIDADES ---
         const generateID = (clientName, sequence, pieceName) => {
             const clientInitial = clientName ? clientName.charAt(0).toUpperCase() : 'X';
-            const seqString = String(sequence).padStart(8, '0');
+            const seqString = String(sequence).padStart(6, '0'); // Reducido a 6 ceros
             
-            // Lógica para abreviación (toma las primeras 2 letras o mapeo manual)
             let suffix = 'xx';
             if (pieceName) {
                 const lower = pieceName.toLowerCase();
-                if (lower.includes('manga') && lower.includes('larga')) suffix = 'ml'; // Caso especial Manga Larga
+                // Detección de sets combinados
+                if (lower.includes('+') || lower.includes('juego')) suffix = 'SET';
+                else if (lower.includes('manga') && lower.includes('larga')) suffix = 'ml';
                 else if (lower.includes('manga') && lower.includes('corta')) suffix = 'mc'; 
                 else suffix = lower.substring(0, 2);
             }
-            
             return `${clientInitial}-${seqString}-${suffix}`;
         };
 
-        const getGithubImageUrl = (repoBase, codigo) => {
-            if (!repoBase || !codigo) return null;
-            // Asegurar que termine en /
-            const cleanBase = repoBase.endsWith('/') ? repoBase : repoBase + '/';
-            // Asume extensión .jpg (puedes cambiarlo si usas png)
-            return `${cleanBase}${codigo}.jpg`;
-        };
+        const Icon = ({ name, size = 18, className }) => <i data-lucide={name} width={size} height={size} className={className}></i>;
 
-        // --- ICONOS ---
-        const Icon = ({ name, size = 20, className }) => {
-            return <i data-lucide={name} width={size} height={size} className={className}></i>;
-        };
+        // --- COMPONENTE IMAGEN INTELIGENTE (JPG -> PNG -> ERROR) ---
+        const SmartImage = ({ repoUrl, codigo, className }) => {
+            const [imgSrc, setImgSrc] = useState(null);
+            const [attempt, setAttempt] = useState('jpg'); // jpg, png, fail
 
-        // --- COMPONENTE: MODAL CONFIGURACIÓN ---
-        const SettingsModal = ({ config, onSave, onClose }) => {
-            const [localConfig, setLocalConfig] = useState(config);
+            useEffect(() => {
+                if(!repoUrl || !codigo) return;
+                const cleanBase = repoUrl.endsWith('/') ? repoUrl : repoUrl + '/';
+                setImgSrc(`${cleanBase}${codigo}.jpg`);
+                setAttempt('jpg');
+            }, [repoUrl, codigo]);
+
+            const handleError = () => {
+                if (attempt === 'jpg') {
+                    // Si falla JPG, probar PNG
+                    const cleanBase = repoUrl.endsWith('/') ? repoUrl : repoUrl + '/';
+                    setImgSrc(`${cleanBase}${codigo}.png`);
+                    setAttempt('png');
+                } else {
+                    // Si falla PNG, marcar como fail
+                    setAttempt('fail');
+                }
+            };
+
+            if (attempt === 'fail' || !repoUrl) {
+                return (
+                    <div className={`flex flex-col items-center justify-center bg-slate-100 text-slate-400 border-2 border-dashed ${className}`}>
+                        <Icon name="image-off" size={32} />
+                        <span className="text-[10px] font-bold mt-1">NO IMAGEN</span>
+                    </div>
+                );
+            }
 
             return (
+                <img 
+                    src={imgSrc} 
+                    alt={codigo} 
+                    className={className} 
+                    onError={handleError}
+                />
+            );
+        };
+
+        // --- MODAL CONFIGURACIÓN ---
+        const SettingsModal = ({ config, onSave, onClose }) => {
+            const [localConfig, setLocalConfig] = useState(config);
+            return (
                 <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-                    <div className="bg-white p-6 rounded-xl w-full max-w-lg shadow-2xl">
-                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                            <Icon name="settings" /> Configuración del Sistema
-                        </h2>
-                        
+                    <div className="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
+                        <h2 className="text-lg font-bold mb-4">Configuración</h2>
                         <div className="mb-4">
-                            <label className="block text-sm font-bold text-slate-700 mb-1">URL Base de Fotos (GitHub RAW)</label>
-                            <input 
-                                type="text" 
-                                className="w-full border p-2 rounded text-sm font-mono bg-slate-50" 
-                                placeholder="https://raw.githubusercontent.com/usuario/repo/main/fotos/"
-                                value={localConfig.repoUrl}
-                                onChange={e => setLocalConfig({...localConfig, repoUrl: e.target.value})}
-                            />
-                            <p className="text-xs text-slate-500 mt-1">
-                                El sistema buscará: <code>URL_BASE</code> + <code>CODIGO</code> + <code>.jpg</code>
-                            </p>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">URL GitHub (Carpeta Fotos)</label>
+                            <input type="text" className="w-full border p-2 rounded text-xs font-mono" value={localConfig.repoUrl} onChange={e => setLocalConfig({...localConfig, repoUrl: e.target.value})} />
                         </div>
-
                         <div className="mb-4">
-                            <label className="block text-sm font-bold text-slate-700 mb-1">Consecutivo de Lote Actual</label>
-                            <input 
-                                type="number" 
-                                className="w-full border p-2 rounded text-sm" 
-                                value={localConfig.sequenceCounter}
-                                onChange={e => setLocalConfig({...localConfig, sequenceCounter: parseInt(e.target.value) || 1})}
-                            />
-                            <p className="text-xs text-slate-500 mt-1">Número central del ID (Ej: el '1' en O-00000001-bl)</p>
+                            <label className="block text-xs font-bold text-slate-700 mb-1">Consecutivo Actual</label>
+                            <input type="number" className="w-full border p-2 rounded text-xs" value={localConfig.sequenceCounter} onChange={e => setLocalConfig({...localConfig, sequenceCounter: parseInt(e.target.value) || 1})} />
                         </div>
-
-                        <div className="flex justify-end gap-2 border-t pt-4">
-                            <button onClick={onClose} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded">Cancelar</button>
-                            <button onClick={() => onSave(localConfig)} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-bold">Guardar Cambios</button>
+                        <div className="flex justify-end gap-2">
+                            <button onClick={onClose} className="px-3 py-1 text-slate-600 border rounded">Cancelar</button>
+                            <button onClick={() => onSave(localConfig)} className="px-3 py-1 bg-indigo-600 text-white rounded">Guardar</button>
                         </div>
                     </div>
                 </div>
             );
         };
 
-        // --- COMPONENTE: FORMULARIO MULTI-ORDEN (LOTE) ---
+        // --- FORMULARIO DE LOTE ---
         const MultiOrderForm = ({ config, onSave, onCancel }) => {
-            // Datos compartidos (Lote)
             const [header, setHeader] = useState({
+                codigo: '', // CÓDIGO AHORA ES PRINCIPAL
                 cliente: '',
                 maquina: '',
                 fechaInicio: new Date().toISOString().split('T')[0],
                 fechaEntrega: ''
             });
 
-            // Lista de piezas individuales
+            // Piezas individuales
             const [pieces, setPieces] = useState([
-                { id: 1, codigo: '', pieza: 'Blusa', talla: 'Unitalla', totalPedido: '', materiales: [] }
+                { id: 1, pieza: 'Blusa', talla: 'Unitalla', totalPedido: '' }
             ]);
 
-            // Función para añadir otra pieza al mismo lote
             const addPiece = () => {
-                setPieces([...pieces, { 
-                    id: Date.now(), 
-                    codigo: pieces.length > 0 ? pieces[0].codigo : '', // Copia el código anterior por comodidad
-                    pieza: '', 
-                    talla: 'Unitalla', 
-                    totalPedido: '', 
-                    materiales: [] 
-                }]);
+                setPieces([...pieces, { id: Date.now(), pieza: '', talla: 'Unitalla', totalPedido: '' }]);
             };
-
-            const updatePiece = (id, field, value) => {
-                setPieces(pieces.map(p => p.id === id ? { ...p, [field]: value } : p));
-            };
-
-            const removePiece = (id) => {
-                if(pieces.length > 1) setPieces(pieces.filter(p => p.id !== id));
-            };
+            const updatePiece = (id, f, v) => setPieces(pieces.map(p => p.id === id ? { ...p, [f]: v } : p));
+            const removePiece = (id) => pieces.length > 1 && setPieces(pieces.filter(p => p.id !== id));
 
             const handleSubmit = () => {
-                if(!header.cliente || !header.maquina) return alert("Falta Cliente o Máquina");
+                if(!header.codigo || !header.cliente || !header.maquina) return alert("Falta Código, Cliente o Máquina");
 
-                // Generar objetos de orden final
-                const newOrders = pieces.map((p, index) => {
-                    const uniqueID = generateID(header.cliente, config.sequenceCounter, p.pieza);
+                let finalOrders = [];
+
+                // Lógica de pregunta para unir órdenes
+                const shouldMerge = pieces.length > 1 && confirm(`Tienes ${pieces.length} piezas asignadas a la Máquina ${header.maquina}.\n\n¿Quieres JUNTARLAS en una sola orden de producción?`);
+
+                if (shouldMerge) {
+                    // Crear UNA sola orden combinada
+                    const combinedName = pieces.map(p => p.pieza).join(' + ');
+                    const totalCombined = pieces[0].totalPedido; // Asumimos pedido igual para el set, o tomamos el primero
                     
-                    return {
-                        id: Date.now() + index, // ID interno React
-                        displayId: uniqueID,    // ID Visual (O-000001-bl)
-                        batchSequence: config.sequenceCounter, // Para agrupar lógicamente
+                    finalOrders.push({
+                        id: Date.now(),
+                        displayId: generateID(header.cliente, config.sequenceCounter, "Set"),
+                        batchSequence: config.sequenceCounter,
                         
-                        // Datos Header
+                        // Header Info
                         cliente: header.cliente,
                         maquina: header.maquina,
+                        codigo: header.codigo, // Código viene del header
                         fechaInicio: header.fechaInicio,
                         fechaFin: header.fechaEntrega,
                         
-                        // Datos Pieza
-                        codigo: p.codigo,
+                        // Combined Piece Info
+                        pieza: `Juego: ${combinedName}`,
+                        talla: pieces[0].talla, // Asumimos misma talla para el set
+                        totalPedido: totalCombined,
+                        isMerged: true,
+                        
+                        status: 'En Proceso',
+                        progreso: [],
+                        enhebrado: ''
+                    });
+
+                } else {
+                    // Crear órdenes SEPARADAS
+                    finalOrders = pieces.map((p, index) => ({
+                        id: Date.now() + index,
+                        displayId: generateID(header.cliente, config.sequenceCounter, p.pieza),
+                        batchSequence: config.sequenceCounter,
+                        
+                        cliente: header.cliente,
+                        maquina: header.maquina,
+                        codigo: header.codigo, // Heredan el código principal
+                        fechaInicio: header.fechaInicio,
+                        fechaFin: header.fechaEntrega,
+                        
                         pieza: p.pieza,
                         talla: p.talla,
                         totalPedido: p.totalPedido,
-                        materiales: p.materiales, // (Simplificado para el demo)
                         
-                        // Estado
-                        enhebrado: '', 
+                        status: 'En Proceso',
                         progreso: [],
-                        status: 'En Proceso'
-                    };
-                });
+                        enhebrado: ''
+                    }));
+                }
 
-                onSave(newOrders);
+                onSave(finalOrders);
             };
 
-            // Previsualización del ID mientras escribes
-            const previewID = generateID(header.cliente, config.sequenceCounter, "Ejemplo");
-
             return (
-                <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-lg my-6 overflow-hidden">
-                    <div className="bg-slate-800 p-4 flex justify-between items-center text-white">
-                        <div>
-                            <h2 className="text-xl font-bold flex items-center gap-2"><Icon name="plus-circle" /> Crear Nuevo Lote de Producción</h2>
-                            <p className="text-xs text-slate-400 mt-1">Lote #{config.sequenceCounter} | ID Base: {previewID.split('-')[0]}-{previewID.split('-')[1]}-??</p>
-                        </div>
-                        <button onClick={onCancel} className="text-slate-300 hover:text-white px-3 py-1 border border-slate-600 rounded">Cancelar</button>
+                <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-xl my-6 overflow-hidden">
+                    <div className="bg-slate-800 text-white p-4 flex justify-between items-center">
+                        <h2 className="font-bold flex items-center gap-2"><Icon name="file-plus" /> Nuevo Lote de Producción</h2>
+                        <button onClick={onCancel} className="text-sm underline opacity-80 hover:opacity-100">Cancelar</button>
                     </div>
                     
                     <div className="p-6">
-                        {/* 1. DATOS GENERALES (Header) */}
-                        <div className="bg-indigo-50 p-4 rounded-lg mb-6 border border-indigo-100">
-                            <h3 className="text-xs font-bold text-indigo-800 uppercase mb-3 border-b border-indigo-200 pb-1">Datos del Cliente y Máquina</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-600 mb-1">Cliente *</label>
-                                    <input 
-                                        list="clientesSugeridos"
-                                        value={header.cliente} 
-                                        onChange={e => setHeader({...header, cliente: e.target.value})} 
-                                        className="w-full p-2 border border-slate-300 rounded focus:border-indigo-500 outline-none" 
-                                        placeholder="Ej: Optima" 
-                                    />
-                                    <datalist id="clientesSugeridos">
-                                        <option value="Optima" />
-                                        <option value="Zara" />
-                                        <option value="Shein" />
-                                    </datalist>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-600 mb-1">Máquina *</label>
-                                    <input value={header.maquina} onChange={e => setHeader({...header, maquina: e.target.value})} className="w-full p-2 border border-slate-300 rounded" placeholder="#5" />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-600 mb-1">Fecha Inicio</label>
-                                    <input type="date" value={header.fechaInicio} onChange={e => setHeader({...header, fechaInicio: e.target.value})} className="w-full p-2 border border-slate-300 rounded" />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-600 mb-1">Entrega Estimada</label>
-                                    <input type="date" value={header.fechaEntrega} onChange={e => setHeader({...header, fechaEntrega: e.target.value})} className="w-full p-2 border border-slate-300 rounded" />
-                                </div>
+                        {/* 1. CÓDIGO PRINCIPAL (LO MÁS IMPORTANTE) */}
+                        <div className="bg-indigo-50 p-4 rounded-lg border-2 border-indigo-100 mb-6 flex gap-6 items-start">
+                            <div className="flex-1">
+                                <label className="block text-sm font-black text-indigo-900 mb-1">CÓDIGO DE DISEÑO (Ref. Foto)</label>
+                                <input 
+                                    value={header.codigo} 
+                                    onChange={e => setHeader({...header, codigo: e.target.value.toUpperCase()})} 
+                                    className="w-full text-2xl font-black p-2 border-2 border-indigo-300 rounded focus:border-indigo-600 uppercase text-indigo-700" 
+                                    placeholder="EJ: M026" 
+                                    autoFocus
+                                />
+                                <p className="text-xs text-indigo-400 mt-1">Este código buscará la imagen (jpg/png) para todas las piezas.</p>
+                            </div>
+                            {/* Previsualización de Imagen */}
+                            <div className="w-32 h-32 bg-white rounded border flex items-center justify-center overflow-hidden shadow-sm">
+                                {header.codigo ? (
+                                    <SmartImage repoUrl={config.repoUrl} codigo={header.codigo} className="object-cover w-full h-full" />
+                                ) : (
+                                    <span className="text-xs text-slate-300 text-center">Sin Código</span>
+                                )}
                             </div>
                         </div>
 
-                        {/* 2. LISTA DE PIEZAS */}
-                        <div className="space-y-4">
-                            {pieces.map((piece, idx) => (
-                                <div key={piece.id} className="border border-slate-200 rounded-lg p-4 bg-white shadow-sm relative hover:border-indigo-300 transition">
-                                    <div className="absolute top-0 left-0 bg-slate-100 text-slate-500 px-2 py-1 text-xs font-bold rounded-br border-b border-r">
-                                        Pieza #{idx + 1}
-                                    </div>
-                                    <button onClick={() => removePiece(piece.id)} className="absolute top-2 right-2 text-red-300 hover:text-red-500" title="Eliminar pieza">
-                                        <Icon name="trash-2" size={18} />
-                                    </button>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mt-4">
-                                        <div className="md:col-span-3">
-                                            <label className="text-xs font-bold text-slate-500 block">Tipo Pieza</label>
-                                            <input 
-                                                list="tiposPieza" 
-                                                value={piece.pieza} 
-                                                onChange={e => updatePiece(piece.id, 'pieza', e.target.value)} 
-                                                className="w-full p-2 border rounded bg-slate-50 font-medium text-slate-900" 
-                                                placeholder="Ej: Blusa" 
-                                            />
-                                            <datalist id="tiposPieza">
-                                                <option value="Blusa" />
-                                                <option value="Manga Larga" />
-                                                <option value="Manga Corta" />
-                                                <option value="Cuello" />
-                                                <option value="Tirante" />
-                                                <option value="Espalda" />
-                                            </datalist>
-                                            <p className="text-[10px] text-indigo-500 mt-1 font-mono">
-                                                ID Generado: ...-{generateID("X", 0, piece.pieza).split('-')[2]}
-                                            </p>
-                                        </div>
-                                        <div className="md:col-span-3">
-                                            <label className="text-xs font-bold text-slate-500 block">Código Diseño</label>
-                                            <input value={piece.codigo} onChange={e => updatePiece(piece.id, 'codigo', e.target.value)} className="w-full p-2 border rounded" placeholder="Ej: M026BL01" />
-                                        </div>
-                                        <div className="md:col-span-3">
-                                            <label className="text-xs font-bold text-slate-500 block">Talla</label>
-                                            <input value={piece.talla} onChange={e => updatePiece(piece.id, 'talla', e.target.value)} className="w-full p-2 border rounded" />
-                                        </div>
-                                        <div className="md:col-span-3">
-                                            <label className="text-xs font-bold text-slate-500 block">Pedido Total (Pzs)</label>
-                                            <input type="number" value={piece.totalPedido} onChange={e => updatePiece(piece.id, 'totalPedido', e.target.value)} className="w-full p-2 border rounded font-bold text-slate-800" />
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                        {/* 2. DATOS GENERALES */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div className="col-span-2">
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Cliente</label>
+                                <input list="clients" value={header.cliente} onChange={e => setHeader({...header, cliente: e.target.value})} className="w-full p-2 border rounded" placeholder="Nombre Cliente" />
+                                <datalist id="clients"><option value="Optima"/><option value="Shein"/><option value="Zara"/></datalist>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Máquina</label>
+                                <input value={header.maquina} onChange={e => setHeader({...header, maquina: e.target.value})} className="w-full p-2 border rounded font-bold" placeholder="#" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Fecha Inicio</label>
+                                <input type="date" value={header.fechaInicio} onChange={e => setHeader({...header, fechaInicio: e.target.value})} className="w-full p-2 border rounded" />
+                            </div>
                         </div>
 
-                        {/* BOTONES ACCIÓN */}
-                        <div className="mt-8 flex flex-col md:flex-row gap-4 items-center border-t pt-6">
-                            <button onClick={addPiece} className="text-indigo-600 font-bold flex items-center gap-2 hover:bg-indigo-50 px-4 py-2 rounded transition border border-dashed border-indigo-200 w-full md:w-auto justify-center">
-                                <Icon name="plus" size={18} /> Agregar Otra Pieza (Mismo Lote)
+                        {/* 3. PIEZAS */}
+                        <div className="space-y-3 mb-6">
+                            <label className="block text-xs font-bold text-slate-500 uppercase">Piezas a fabricar en esta máquina:</label>
+                            {pieces.map((p, idx) => (
+                                <div key={p.id} className="flex gap-2 items-center">
+                                    <span className="text-xs font-bold text-slate-400 w-6">#{idx+1}</span>
+                                    <input list="parts" value={p.pieza} onChange={e => updatePiece(p.id, 'pieza', e.target.value)} className="flex-1 p-2 border rounded text-sm" placeholder="Pieza (Ej: Blusa)" />
+                                    <input value={p.talla} onChange={e => updatePiece(p.id, 'talla', e.target.value)} className="w-24 p-2 border rounded text-sm" placeholder="Talla" />
+                                    <input type="number" value={p.totalPedido} onChange={e => updatePiece(p.id, 'totalPedido', e.target.value)} className="w-24 p-2 border rounded text-sm" placeholder="Cant." />
+                                    <button onClick={() => removePiece(p.id)} className="text-red-400 hover:text-red-600"><Icon name="trash-2" /></button>
+                                </div>
+                            ))}
+                            <datalist id="parts">
+                                <option value="Blusa"/><option value="Manga"/><option value="Cuello"/><option value="Puño"/><option value="Tirante"/>
+                            </datalist>
+                        </div>
+
+                        <div className="flex gap-4">
+                            <button onClick={addPiece} className="flex-1 border-2 border-dashed border-slate-300 py-2 rounded text-slate-500 hover:bg-slate-50 font-bold text-sm">
+                                + Agregar otra pieza (Mismo Código)
                             </button>
-                            <div className="flex-grow"></div>
-                            <button onClick={handleSubmit} className="bg-slate-900 text-white px-8 py-3 rounded-lg shadow-lg hover:bg-slate-800 font-bold flex items-center justify-center gap-2 w-full md:w-auto transition transform hover:scale-105">
-                                <Icon name="save" /> Generar {pieces.length} Órdenes de Producción
+                            <button onClick={handleSubmit} className="flex-1 bg-slate-900 text-white py-2 rounded font-bold shadow hover:bg-slate-800">
+                                Guardar y Generar
                             </button>
                         </div>
                     </div>
@@ -291,142 +292,120 @@
             );
         };
 
-        // --- COMPONENTE: DETALLE DE ORDEN (CON VISTA DE IMPRESIÓN) ---
-        const OrderView = ({ order, config, onBack, onUpdateStatus, onUpdateProgress, onUpdateNotes }) => {
+        // --- VISTA DETALLE / IMPRESIÓN ---
+        const OrderView = ({ order, config, onBack, onUpdate }) => {
             const [entry, setEntry] = useState({ fecha: new Date().toISOString().split('T')[0], tejedor: '', produccion: '', defectos: '' });
             const [notes, setNotes] = useState(order.enhebrado || '');
-            
-            // Construir URL de imagen
-            const imageUrl = getGithubImageUrl(config.repoUrl, order.codigo);
 
             const addProgress = () => {
-                if(!entry.produccion || !entry.tejedor) return alert("Falta producción o tejedor");
-                const newProgress = [...(order.progreso || []), { ...entry, produccion: Number(entry.produccion), id: Date.now() }];
-                onUpdateProgress(order.id, newProgress);
-                setEntry({ ...entry, produccion: '', defectos: '' });
+                if(!entry.produccion) return;
+                const newP = [...(order.progreso||[]), { ...entry, id: Date.now(), produccion: Number(entry.produccion) }];
+                onUpdate(order.id, 'progreso', newP);
+                setEntry({...entry, produccion: '', defectos: ''});
             };
 
-            const totalProd = order.progreso?.reduce((acc, curr) => acc + Number(curr.produccion), 0) || 0;
-            const porcentaje = order.totalPedido ? Math.min(100, ((totalProd / Number(order.totalPedido)) * 100)).toFixed(1) : 0;
+            const totalProd = order.progreso?.reduce((a,b)=>a+b.produccion,0) || 0;
+            const pct = order.totalPedido ? Math.round((totalProd/order.totalPedido)*100) : 0;
 
             return (
-                <div className="max-w-5xl mx-auto my-4 bg-white shadow-xl min-h-screen">
-                    {/* BARRA SUPERIOR (NO IMPRIMIR) */}
-                    <div className="no-print p-4 border-b bg-slate-50 flex justify-between items-center sticky top-0 z-20 shadow-sm">
-                        <button onClick={onBack} className="text-slate-600 flex items-center gap-2 font-bold hover:text-indigo-600 transition">
-                            <Icon name="arrow-left" /> Regresar
-                        </button>
+                <div className="bg-white min-h-screen">
+                    {/* NAV SOLO PANTALLA */}
+                    <div className="no-print p-4 border-b flex justify-between bg-slate-50 sticky top-0 z-10">
+                        <button onClick={onBack} className="flex items-center gap-2 text-slate-600 font-bold"><Icon name="arrow-left"/> Volver</button>
                         <div className="flex gap-2">
-                            {order.status !== 'Archivado' ? (
-                                <button onClick={() => onUpdateStatus(order.id, 'Archivado')} className="bg-white border border-amber-500 text-amber-600 px-3 py-2 rounded flex items-center gap-2 hover:bg-amber-50 transition font-bold text-xs">
-                                    <Icon name="archive" size={16} /> Archivar
-                                </button>
-                            ) : (
-                                <span className="bg-gray-200 text-gray-500 px-3 py-2 rounded font-bold text-xs">ARCHIVADO</span>
-                            )}
-                            <button onClick={() => window.print()} className="bg-slate-800 text-white px-4 py-2 rounded flex items-center gap-2 hover:bg-slate-900 transition font-bold text-xs">
-                                <Icon name="printer" size={16} /> Imprimir Hoja
+                             <button onClick={() => onUpdate(order.id, 'status', order.status === 'Archivado' ? 'En Proceso' : 'Archivado')} className="px-3 py-1 border rounded bg-white text-xs font-bold">
+                                {order.status === 'Archivado' ? 'Desarchivar' : 'Archivar'}
+                            </button>
+                            <button onClick={() => window.print()} className="px-4 py-1 bg-slate-800 text-white rounded font-bold flex gap-2 items-center text-xs">
+                                <Icon name="printer" size={14}/> Imprimir
                             </button>
                         </div>
                     </div>
 
                     <div className="p-8 print:p-0">
-                        {/* ENCABEZADO ORDEN */}
-                        <div className="flex justify-between items-start border-b-4 border-slate-800 pb-4 mb-6">
-                            <div>
-                                <h1 className="text-4xl font-black text-slate-800 tracking-tight uppercase">{order.cliente}</h1>
-                                <div className="text-2xl text-slate-600 mt-1 font-mono font-bold">{order.displayId}</div>
-                                <div className="text-sm text-slate-400 mt-1">Lote Seq: {order.batchSequence}</div>
+                        
+                        {/* --- SECCIÓN SUPERIOR (MEDIA HOJA) --- */}
+                        <div className="print-section-top flex flex-col h-full justify-between">
+                            
+                            {/* Header Info */}
+                            <div className="flex justify-between items-start border-b-2 border-black pb-2 mb-2">
+                                <div className="w-2/3">
+                                    <h1 className="text-4xl font-black uppercase leading-none">{order.cliente}</h1>
+                                    <div className="text-xl font-bold font-mono mt-1">{order.displayId}</div>
+                                    <div className="mt-2 text-sm">
+                                        <span className="font-bold">PIEZA:</span> <span className="text-lg bg-slate-100 px-2 print:bg-transparent print:p-0 print:font-black">{order.pieza}</span>
+                                    </div>
+                                </div>
+                                <div className="w-1/3 text-right">
+                                    <div className="bg-black text-white inline-block px-4 py-1 text-sm font-bold uppercase mb-1">Máquina</div>
+                                    <div className="text-6xl font-black leading-none">{order.maquina}</div>
+                                </div>
                             </div>
-                            <div className="text-right">
-                                <div className="bg-slate-900 text-white px-6 py-2 text-sm font-bold uppercase mb-1 rounded-t inline-block">Máquina</div>
-                                <div className="text-6xl font-black text-slate-900 leading-none">{order.maquina}</div>
-                            </div>
-                        </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-6">
-                            {/* INFO IZQUIERDA */}
-                            <div className="lg:col-span-2">
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-6 text-sm mb-6 p-4 rounded bg-white border border-slate-200">
-                                    <div>
-                                        <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Código Diseño</span>
-                                        <span className="text-xl font-bold text-slate-800">{order.codigo}</span>
-                                    </div>
-                                    <div>
-                                        <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Pieza</span>
-                                        <span className="text-xl font-bold text-slate-800">{order.pieza}</span>
-                                    </div>
-                                    <div>
-                                        <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Talla</span>
-                                        <span className="text-xl font-bold text-slate-800">{order.talla}</span>
-                                    </div>
-                                    <div className="col-span-2 md:col-span-3 border-t pt-3 mt-1 flex justify-between items-center">
+                            <div className="flex gap-4 flex-grow overflow-hidden">
+                                {/* Datos e Imagen */}
+                                <div className="w-1/2 flex flex-col gap-2">
+                                    <div className="border border-black p-2 flex justify-between items-center">
                                         <div>
-                                            <span className="block text-[10px] font-bold text-slate-500 uppercase">Total Pedido</span>
-                                            <span className="text-3xl font-black text-slate-800">{order.totalPedido} <span className="text-sm font-normal text-slate-500">pzs</span></span>
+                                            <div className="text-[10px] font-bold uppercase text-slate-500">Código Diseño</div>
+                                            <div className="text-3xl font-black">{order.codigo}</div>
                                         </div>
                                         <div className="text-right">
-                                            <span className="block text-[10px] font-bold text-slate-500 uppercase">Restante</span>
-                                            <span className="text-xl font-bold text-red-600">{order.totalPedido - totalProd}</span>
+                                            <div className="text-[10px] font-bold uppercase text-slate-500">Talla</div>
+                                            <div className="text-xl font-bold">{order.talla}</div>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-
-                            {/* IMAGEN DERECHA */}
-                            <div className="lg:col-span-1">
-                                <div className="border-2 border-slate-900 bg-slate-50 p-2 flex items-center justify-center min-h-[200px]">
-                                    {imageUrl ? (
-                                        <img src={imageUrl} alt="Ref" className="max-w-full max-h-[250px] object-contain"
-                                            onError={(e) => {
-                                                e.target.style.display = 'none';
-                                                e.target.parentElement.innerHTML = `<div class="text-center p-4"><p class="text-xs font-bold text-slate-400">IMAGEN NO ENCONTRADA</p><p class="text-[10px] text-slate-300 font-mono mt-1">${order.codigo}.jpg</p></div>`;
-                                            }}
-                                        />
-                                    ) : (
-                                        <div className="text-center text-slate-400">
-                                            <Icon name="image" size={48} className="mx-auto mb-2 opacity-50" />
-                                            <span className="text-xs font-bold">SIN REFERENCIA</span>
+                                    
+                                    <div className="border border-black p-2 flex justify-between items-center bg-slate-50 print:bg-transparent">
+                                        <div>
+                                            <div className="text-[10px] font-bold uppercase text-slate-500">Pedido Total</div>
+                                            <div className="text-2xl font-black">{order.totalPedido} <span className="text-xs font-normal">pzs</span></div>
                                         </div>
-                                    )}
+                                        {/* Solo visible en pantalla para control */}
+                                        <div className="text-right no-print">
+                                            <div className="text-[10px] font-bold uppercase text-slate-500">Avance</div>
+                                            <div className={`text-xl font-bold ${pct>=100?'text-green-600':'text-indigo-600'}`}>{pct}%</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Notas Enhebrado */}
+                                    <div className="flex-grow border border-black p-2 relative">
+                                        <label className="text-[10px] font-bold uppercase bg-white px-1 absolute -top-2 left-2">Notas / Ajustes Máquina</label>
+                                        <textarea 
+                                            className="w-full h-full text-sm font-mono resize-none outline-none bg-transparent" 
+                                            value={notes} 
+                                            onChange={e => setNotes(e.target.value)}
+                                            onBlur={() => onUpdate(order.id, 'enhebrado', notes)}
+                                            placeholder="Escribir notas..."
+                                        ></textarea>
+                                    </div>
+                                </div>
+
+                                {/* Foto Grande */}
+                                <div className="w-1/2 border-2 border-black flex items-center justify-center p-1 bg-white">
+                                    <SmartImage repoUrl={config.repoUrl} codigo={order.codigo} className="max-w-full max-h-full object-contain" />
                                 </div>
                             </div>
                         </div>
 
-                        {/* NOTAS / ENHEBRADO */}
-                        <div className="mb-6">
-                            <label className="text-xs font-bold text-slate-900 uppercase block mb-1 bg-slate-200 px-2 py-1 inline-block">Instrucciones de Tejido / Enhebrado</label>
-                            <textarea 
-                                className="w-full p-3 border-2 border-slate-300 rounded text-sm font-mono focus:border-indigo-500 outline-none no-print" 
-                                rows="3" 
-                                value={notes}
-                                onChange={e => setNotes(e.target.value)}
-                                onBlur={() => onUpdateNotes(order.id, notes)}
-                                placeholder="Escribe aquí notas técnicas para el tejedor..."
-                            ></textarea>
-                            {/* Versión solo impresión de notas */}
-                            <div className="print-only border border-black p-2 min-h-[80px] text-sm font-mono whitespace-pre-wrap">
-                                {notes}
-                            </div>
-                        </div>
-
-                        {/* --- TABLA DE CAPTURA MANUAL (SOLO IMPRESIÓN) --- */}
-                        <div className="print-only mt-8">
-                            <h3 className="text-center font-bold uppercase text-lg mb-2 border-b-2 border-black pb-1">Control de Producción (Llenado Manual)</h3>
+                        {/* --- SECCIÓN INFERIOR (TABLA DE TEJEDORES) --- */}
+                        <div className="print-section-bottom print-only mt-4">
+                            <h3 className="text-center font-bold uppercase text-sm mb-1 bg-black text-white py-1">Hoja de Producción Diaria</h3>
                             <table className="w-full text-sm border-collapse border border-black">
                                 <thead>
-                                    <tr className="bg-slate-200">
-                                        <th className="border border-black p-2 w-24">Fecha</th>
-                                        <th className="border border-black p-2 w-20">Turno</th>
-                                        <th className="border border-black p-2">Tejedor</th>
-                                        <th className="border border-black p-2 w-24">Cant. (Pzs)</th>
-                                        <th className="border border-black p-2 w-24">Defectos</th>
-                                        <th className="border border-black p-2">Firma / Observaciones</th>
+                                    <tr className="bg-gray-200">
+                                        <th className="border border-black p-1 w-16 text-center">Fecha</th>
+                                        <th className="border border-black p-1 w-12 text-center">Turno</th>
+                                        <th className="border border-black p-1 text-left pl-2">Tejedor</th>
+                                        <th className="border border-black p-1 w-16 text-center">Prod.</th>
+                                        <th className="border border-black p-1 w-20 text-center">Defectos</th>
+                                        <th className="border border-black p-1 text-left pl-2">Firmas / Obs.</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {[...Array(20)].map((_, i) => (
-                                        <tr key={i} className="h-12">
+                                    {/* Generar suficientes renglones para llenar media hoja (aprox 16-18 líneas) */}
+                                    {[...Array(17)].map((_, i) => (
+                                        <tr key={i} className="h-8">
                                             <td className="border border-black"></td>
                                             <td className="border border-black"></td>
                                             <td className="border border-black"></td>
@@ -437,305 +416,123 @@
                                     ))}
                                 </tbody>
                             </table>
-                            <div className="mt-4 flex justify-between text-xs font-bold">
-                                <span>Sistema v3.0</span>
-                                <span>{new Date().toLocaleDateString()}</span>
-                            </div>
+                            <div className="text-[10px] text-center mt-1">Revisar agujas y tensión al iniciar turno. - {order.displayId}</div>
                         </div>
 
                         {/* --- CAPTURA DIGITAL (SOLO PANTALLA) --- */}
-                        <div className="no-print mt-10 bg-slate-50 p-6 rounded-xl border border-slate-200">
-                            <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <Icon name="monitor" className="text-indigo-600" /> Captura Digital
-                            </h3>
-                            
-                            <div className="flex flex-col sm:flex-row gap-2 mb-6 items-end">
-                                <div className="flex-1">
-                                    <label className="text-xs text-slate-500 font-bold ml-1">Fecha</label>
-                                    <input type="date" className="p-2 border rounded w-full text-sm" value={entry.fecha} onChange={e=>setEntry({...entry, fecha: e.target.value})} />
-                                </div>
-                                <div className="flex-1">
-                                    <label className="text-xs text-slate-500 font-bold ml-1">Tejedor</label>
-                                    <input type="text" className="p-2 border rounded w-full text-sm" placeholder="Nombre" value={entry.tejedor} onChange={e=>setEntry({...entry, tejedor: e.target.value})} />
-                                </div>
-                                <div className="w-32">
-                                    <label className="text-xs text-green-600 font-bold ml-1">Producción</label>
-                                    <input type="number" className="p-2 border border-green-300 rounded w-full text-sm font-bold text-center" placeholder="0" value={entry.produccion} onChange={e=>setEntry({...entry, produccion: e.target.value})} />
-                                </div>
-                                <div className="flex-1">
-                                    <label className="text-xs text-slate-500 font-bold ml-1">Defectos/Notas</label>
-                                    <input type="text" className="p-2 border rounded w-full text-sm" placeholder="..." value={entry.defectos} onChange={e=>setEntry({...entry, defectos: e.target.value})} />
-                                </div>
-                                <button onClick={addProgress} className="bg-indigo-600 text-white p-2 rounded w-12 flex justify-center items-center hover:bg-indigo-700">
-                                    <Icon name="plus" />
-                                </button>
+                        <div className="no-print mt-8 bg-slate-50 p-6 rounded border">
+                            <h3 className="font-bold mb-4 flex gap-2"><Icon name="monitor"/> Captura Digital</h3>
+                            <div className="flex gap-2 items-end mb-4">
+                                <input type="date" value={entry.fecha} onChange={e=>setEntry({...entry,fecha:e.target.value})} className="border p-2 rounded text-sm"/>
+                                <input placeholder="Tejedor" value={entry.tejedor} onChange={e=>setEntry({...entry,tejedor:e.target.value})} className="border p-2 rounded text-sm flex-1"/>
+                                <input placeholder="Cant." type="number" value={entry.produccion} onChange={e=>setEntry({...entry,produccion:e.target.value})} className="border p-2 rounded text-sm w-20"/>
+                                <button onClick={addProgress} className="bg-indigo-600 text-white p-2 rounded"><Icon name="plus"/></button>
                             </div>
-
-                            {/* Historial Digital */}
-                            <div className="overflow-hidden rounded border border-slate-200">
-                                <table className="w-full text-sm bg-white">
-                                    <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-xs">
-                                        <tr>
-                                            <th className="p-3 text-left">Fecha</th>
-                                            <th className="p-3 text-left">Tejedor</th>
-                                            <th className="p-3 text-center text-green-700">Pzs</th>
-                                            <th className="p-3 text-left">Notas</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {order.progreso?.slice().reverse().map((p) => (
-                                            <tr key={p.id}>
-                                                <td className="p-3 text-slate-500">{p.fecha}</td>
-                                                <td className="p-3 font-medium">{p.tejedor}</td>
-                                                <td className="p-3 text-center font-bold text-green-600 bg-green-50">{p.produccion}</td>
-                                                <td className="p-3 text-slate-400 italic">{p.defectos}</td>
-                                            </tr>
+                            <div className="max-h-60 overflow-y-auto border bg-white">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-100"><tr><th className="text-left p-2">Fecha</th><th className="text-left p-2">Tejedor</th><th className="text-right p-2">Cant.</th></tr></thead>
+                                    <tbody>
+                                        {order.progreso?.map(p => (
+                                            <tr key={p.id} className="border-t"><td className="p-2">{p.fecha}</td><td className="p-2">{p.tejedor}</td><td className="p-2 text-right font-bold">{p.produccion}</td></tr>
                                         ))}
-                                        {(!order.progreso || order.progreso.length === 0) && (
-                                            <tr><td colSpan="4" className="p-4 text-center text-slate-400 italic">Sin registros digitales</td></tr>
-                                        )}
                                     </tbody>
                                 </table>
                             </div>
                         </div>
+
                     </div>
                 </div>
             );
         };
 
-        // --- COMPONENTE PRINCIPAL ---
-        const MainApp = () => {
+        // --- APP PRINCIPAL ---
+        const App = () => {
             const [view, setView] = useState('list');
-            const [orders, setOrders] = useState([]);
+            const [orders, setOrders] = useState(() => JSON.parse(localStorage.getItem('v4_orders')) || []);
+            const [config, setConfig] = useState(() => JSON.parse(localStorage.getItem('v4_config')) || { repoUrl: '', sequenceCounter: 1 });
             const [selectedOrder, setSelectedOrder] = useState(null);
-            
-            // Filtros
-            const [filterClient, setFilterClient] = useState('ALL');
-            const [searchTerm, setSearchTerm] = useState('');
-            const [config, setConfig] = useState({ repoUrl: '', sequenceCounter: 1 });
             const [showSettings, setShowSettings] = useState(false);
-
-            // Cargar datos
-            useEffect(() => {
-                const savedOrders = localStorage.getItem('v3_prod_orders');
-                const savedConfig = localStorage.getItem('v3_prod_config');
-                if (savedOrders) setOrders(JSON.parse(savedOrders));
-                if (savedConfig) setConfig(JSON.parse(savedConfig));
-                
-                // Inicializar iconos lucide
-                setTimeout(() => lucide.createIcons(), 100);
-            }, []);
+            const [filterClient, setFilterClient] = useState('ALL');
 
             useEffect(() => {
+                localStorage.setItem('v4_orders', JSON.stringify(orders));
+                localStorage.setItem('v4_config', JSON.stringify(config));
                 lucide.createIcons();
-            });
+            }, [orders, config, view]);
 
-            // Guardar datos
-            const saveData = (newOrders, newConfig) => {
-                if(newOrders) {
-                    setOrders(newOrders);
-                    localStorage.setItem('v3_prod_orders', JSON.stringify(newOrders));
-                }
-                if(newConfig) {
-                    setConfig(newConfig);
-                    localStorage.setItem('v3_prod_config', JSON.stringify(newConfig));
-                }
-            };
-
-            const handleNewBatch = (newOrdersList) => {
-                const updatedOrders = [...newOrdersList, ...orders];
-                const updatedConfig = { ...config, sequenceCounter: config.sequenceCounter + 1 };
-                saveData(updatedOrders, updatedConfig);
+            const handleSaveBatch = (newOrders) => {
+                setOrders([...newOrders, ...orders]);
+                setConfig({...config, sequenceCounter: config.sequenceCounter + 1});
                 setView('list');
             };
 
-            const handleUpdateOrder = (id, field, value) => {
-                const updated = orders.map(o => o.id === id ? { ...o, [field]: value } : o);
-                saveData(updated, null);
-                if (selectedOrder && selectedOrder.id === id) {
-                    setSelectedOrder({ ...selectedOrder, [field]: value });
-                }
+            const handleUpdateOrder = (id, field, val) => {
+                const updated = orders.map(o => o.id === id ? { ...o, [field]: val } : o);
+                setOrders(updated);
+                if(selectedOrder && selectedOrder.id === id) setSelectedOrder({...selectedOrder, [field]: val});
             };
 
-            // Derivar clientes únicos para las "Carpetas"
-            const clients = useMemo(() => {
-                const c = [...new Set(orders.map(o => o.cliente))];
-                return c.sort();
-            }, [orders]);
-
-            // Filtrado
-            const filteredOrders = orders.filter(o => {
-                const matchClient = filterClient === 'ALL' || o.cliente === filterClient;
-                const matchSearch = 
-                    o.displayId.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                    o.codigo.toLowerCase().includes(searchTerm.toLowerCase());
-                
-                // Si estamos filtrando por cliente, mostramos activos y archivados de ese cliente.
-                // Si estamos en "Todos", solo activos (opcional, aquí muestro todo y uso estado visual)
-                return matchClient && matchSearch;
-            });
+            const clients = useMemo(() => [...new Set(orders.map(o => o.cliente))].sort(), [orders]);
+            const filtered = orders.filter(o => (filterClient === 'ALL' || o.cliente === filterClient) && o.status !== 'Archivado');
 
             return (
                 <div className="min-h-screen flex flex-col">
-                    {/* NAV */}
-                    <nav className="bg-slate-900 text-white p-4 no-print shadow-lg z-30">
-                        <div className="max-w-7xl mx-auto flex justify-between items-center">
-                            <div className="flex items-center gap-3">
-                                <div className="bg-indigo-600 p-2 rounded-lg">
-                                    <Icon name="layers" className="text-white" />
-                                </div>
-                                <h1 className="font-bold text-xl tracking-tight">Control Producción <span className="text-indigo-400 font-light">v3.0</span></h1>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <div className="relative">
-                                    <Icon name="search" size={16} className="absolute left-3 top-2.5 text-slate-500" />
-                                    <input 
-                                        type="text" 
-                                        placeholder="Buscar ID u Orden..." 
-                                        className="bg-slate-800 border border-slate-700 rounded-full pl-9 pr-4 py-2 text-sm focus:outline-none focus:border-indigo-500 transition w-64"
-                                        value={searchTerm}
-                                        onChange={e => setSearchTerm(e.target.value)}
-                                    />
-                                </div>
-                                <button onClick={() => setShowSettings(true)} className="p-2 hover:bg-slate-800 rounded-full transition">
-                                    <Icon name="settings" />
-                                </button>
-                            </div>
-                        </div>
+                    <nav className="bg-slate-900 text-white p-3 flex justify-between items-center no-print">
+                        <div className="font-bold flex gap-2"><Icon name="box"/> Control v4.0</div>
+                        <button onClick={() => setShowSettings(true)}><Icon name="settings"/></button>
                     </nav>
 
-                    {/* CONTENIDO */}
-                    <main className="flex-grow bg-slate-100 p-6">
+                    <main className="flex-grow bg-slate-100">
                         {view === 'list' && (
-                            <div className="max-w-7xl mx-auto">
-                                {/* BARRA DE ACCIONES Y FILTROS DE CLIENTE (CARPETAS) */}
-                                <div className="flex flex-col md:flex-row justify-between items-end mb-6 gap-4">
-                                    <div className="w-full md:w-auto overflow-x-auto">
-                                        <div className="flex gap-2 pb-2">
-                                            <button 
-                                                onClick={() => setFilterClient('ALL')}
-                                                className={`px-5 py-2 rounded-t-lg font-bold text-sm transition border-b-2 ${filterClient === 'ALL' ? 'bg-white text-indigo-600 border-indigo-600 shadow-sm' : 'bg-slate-200 text-slate-500 border-transparent hover:bg-slate-300'}`}
-                                            >
-                                                Todas
-                                            </button>
-                                            {clients.map(c => (
-                                                <button 
-                                                    key={c}
-                                                    onClick={() => setFilterClient(c)}
-                                                    className={`px-5 py-2 rounded-t-lg font-bold text-sm transition border-b-2 whitespace-nowrap flex items-center gap-2 ${filterClient === c ? 'bg-white text-indigo-600 border-indigo-600 shadow-sm' : 'bg-slate-200 text-slate-500 border-transparent hover:bg-slate-300'}`}
-                                                >
-                                                    <Icon name="folder" size={14} /> {c}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        {/* Línea decorativa para simular carpeta */}
-                                        <div className="h-1 bg-white shadow-sm w-full -mt-2 rounded-b-lg"></div>
+                            <div className="max-w-6xl mx-auto p-6">
+                                <div className="flex justify-between items-end mb-6">
+                                    <div className="flex gap-2 overflow-x-auto pb-1">
+                                        <button onClick={() => setFilterClient('ALL')} className={`px-4 py-1 rounded-full text-sm font-bold ${filterClient==='ALL'?'bg-indigo-600 text-white':'bg-white border'}`}>Todos</button>
+                                        {clients.map(c => (
+                                            <button key={c} onClick={() => setFilterClient(c)} className={`px-4 py-1 rounded-full text-sm font-bold ${filterClient===c?'bg-indigo-600 text-white':'bg-white border'}`}>{c}</button>
+                                        ))}
                                     </div>
-                                    
-                                    <button onClick={() => setView('create')} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-bold shadow-lg flex items-center gap-2 transition transform hover:-translate-y-1">
-                                        <Icon name="plus" /> Nuevo Lote
-                                    </button>
+                                    <button onClick={() => setView('create')} className="bg-indigo-600 text-white px-4 py-2 rounded font-bold shadow hover:bg-indigo-700 flex gap-2"><Icon name="plus"/> Nuevo Lote</button>
                                 </div>
 
-                                {/* GRID DE ÓRDENES */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                    {filteredOrders.map(order => {
-                                        const totalProd = order.progreso?.reduce((acc, curr) => acc + Number(curr.produccion), 0) || 0;
-                                        const pct = order.totalPedido ? Math.min(100, (totalProd / order.totalPedido) * 100) : 0;
-                                        const isArchived = order.status === 'Archivado';
-
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {filtered.map(o => {
+                                        const total = o.progreso?.reduce((a,b)=>a+b.produccion,0)||0;
+                                        const pct = o.totalPedido ? Math.min(100, Math.round((total/o.totalPedido)*100)) : 0;
                                         return (
-                                            <div 
-                                                key={order.id} 
-                                                onClick={() => { setSelectedOrder(order); setView('detail'); }}
-                                                className={`group relative bg-white rounded-xl border-2 cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1 overflow-hidden ${isArchived ? 'border-slate-200 opacity-75' : 'border-white shadow-md'}`}
-                                            >
-                                                {isArchived && (
-                                                    <div className="absolute top-2 right-2 bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-1 rounded uppercase flex items-center gap-1">
-                                                        <Icon name="archive" size={10} /> Archivado
-                                                    </div>
-                                                )}
-                                                
-                                                <div className={`h-1.5 w-full ${isArchived ? 'bg-slate-300' : 'bg-gradient-to-r from-indigo-500 to-purple-500'}`}></div>
-                                                
-                                                <div className="p-5">
-                                                    <div className="flex justify-between items-baseline mb-2">
-                                                        <span className="font-mono text-xs font-bold text-slate-400">{order.displayId}</span>
-                                                        <span className="text-xs font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded">MQ-{order.maquina}</span>
-                                                    </div>
-                                                    
-                                                    <h3 className="font-bold text-lg text-slate-800 leading-tight mb-1">{order.pieza}</h3>
-                                                    <p className="text-sm font-medium text-slate-500 mb-4">{order.codigo}</p>
-                                                    
-                                                    {/* Barra Progreso Mini */}
-                                                    <div className="mb-4">
-                                                        <div className="flex justify-between text-[10px] font-bold uppercase text-slate-400 mb-1">
-                                                            <span>Progreso</span>
-                                                            <span>{Math.round(pct)}%</span>
-                                                        </div>
-                                                        <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                                                            <div className={`h-full rounded-full ${isArchived ? 'bg-slate-400' : 'bg-green-500'}`} style={{width: `${pct}%`}}></div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="pt-3 border-t flex justify-between items-center">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-6 h-6 rounded bg-indigo-50 text-indigo-700 flex items-center justify-center text-xs font-bold">
-                                                                {order.cliente.charAt(0)}
-                                                            </div>
-                                                            <span className="text-xs font-bold text-slate-600">{order.cliente}</span>
-                                                        </div>
-                                                        <span className="text-[10px] text-slate-400">{order.fechaInicio}</span>
-                                                    </div>
+                                            <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className="bg-white p-4 rounded shadow border hover:shadow-lg cursor-pointer group">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div className="font-mono text-xs font-bold text-slate-400">{o.displayId}</div>
+                                                    <div className="bg-slate-100 text-slate-600 text-xs px-2 rounded font-bold">MQ-{o.maquina}</div>
                                                 </div>
+                                                <div className="font-bold text-lg leading-tight mb-1">{o.cliente}</div>
+                                                <div className="text-sm text-slate-500 mb-2">{o.pieza} <span className="font-mono text-xs text-indigo-500">({o.codigo})</span></div>
+                                                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                                                    <div className="bg-green-500 h-full" style={{width:`${pct}%`}}></div>
+                                                </div>
+                                                <div className="text-right text-xs mt-1 text-slate-400">{pct}% completado</div>
                                             </div>
-                                        );
+                                        )
                                     })}
+                                    {filtered.length === 0 && <div className="col-span-3 text-center py-10 text-slate-400 italic">No hay órdenes activas.</div>}
                                 </div>
-                                
-                                {filteredOrders.length === 0 && (
-                                    <div className="flex flex-col items-center justify-center py-20 text-slate-300">
-                                        <Icon name="inbox" size={64} className="mb-4" />
-                                        <p className="text-lg font-medium">No se encontraron órdenes</p>
-                                        <p className="text-sm">Prueba cambiando el filtro de cliente o creando un nuevo lote.</p>
-                                    </div>
-                                )}
                             </div>
                         )}
 
-                        {view === 'create' && (
-                            <MultiOrderForm 
-                                config={config} 
-                                onSave={handleNewBatch} 
-                                onCancel={() => setView('list')} 
-                            />
-                        )}
-
+                        {view === 'create' && <MultiOrderForm config={config} onSave={handleSaveBatch} onCancel={() => setView('list')} />}
+                        
                         {view === 'detail' && selectedOrder && (
-                            <OrderView 
-                                order={selectedOrder}
-                                config={config}
-                                onBack={() => { setView('list'); setSelectedOrder(null); }}
-                                onUpdateStatus={(id, st) => handleUpdateOrder(id, 'status', st)}
-                                onUpdateProgress={(id, prog) => handleUpdateOrder(id, 'progreso', prog)}
-                                onUpdateNotes={(id, n) => handleUpdateOrder(id, 'enhebrado', n)}
-                            />
+                            <OrderView order={selectedOrder} config={config} onBack={()=>{setView('list'); setSelectedOrder(null)}} onUpdate={handleUpdateOrder} />
                         )}
 
-                        {showSettings && (
-                            <SettingsModal 
-                                config={config} 
-                                onClose={() => setShowSettings(false)} 
-                                onSave={(newConf) => { saveData(null, newConf); setShowSettings(false); }} 
-                            />
-                        )}
+                        {showSettings && <SettingsModal config={config} onSave={(c)=>{setConfig(c); setShowSettings(false)}} onClose={()=>setShowSettings(false)} />}
                     </main>
                 </div>
             );
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<MainApp />);
+        root.render(<App />);
     </script>
 </body>
 </html>
