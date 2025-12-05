@@ -3,38 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Textil v4.0 - Diseño Central</title>
+    <title>Sistema Textil v5.0 - Enhebrado y Tiempos</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        /* ESTILOS DE IMPRESIÓN RIGUROSOS */
+        /* ESTILOS DE IMPRESIÓN */
         @media print {
             @page { margin: 0.5cm; size: letter portrait; }
             body { background: white; -webkit-print-color-adjust: exact; }
             .no-print { display: none !important; }
             .print-only { display: block !important; }
             
-            /* Layout de Media Hoja */
+            /* Layout de Media Hoja Ajustado */
             .print-section-top { 
-                height: 48vh; /* Poco menos de la mitad para margen */
-                overflow: hidden; 
-                border-bottom: 2px dashed #ccc;
-                margin-bottom: 1vh;
-            }
-            .print-section-bottom { 
                 height: 48vh; 
-                display: block; 
+                overflow: hidden; 
+                border-bottom: 2px dashed #000;
+                margin-bottom: 1vh;
+                display: flex;
+                flex-direction: column;
             }
+            .print-section-bottom { height: 48vh; display: block; }
             
-            /* Ajustes de texto para impresión */
-            .text-print-sm { font-size: 10pt !important; }
-            .text-print-xs { font-size: 8pt !important; }
+            /* Tablas de impresión con bordes negros fuertes */
+            table, th, td { border: 1px solid black !important; border-collapse: collapse; }
             
-            /* Forzar bordes negros */
-            table, th, td { border-color: black !important; }
+            /* Fuente condensada para la tabla de enhebrado */
+            .threading-table-print { font-size: 8pt; width: 100%; }
+            .threading-table-print th { background-color: #ddd !important; }
         }
         .print-only { display: none; }
     </style>
@@ -48,12 +47,10 @@
         // --- UTILIDADES ---
         const generateID = (clientName, sequence, pieceName) => {
             const clientInitial = clientName ? clientName.charAt(0).toUpperCase() : 'X';
-            const seqString = String(sequence).padStart(6, '0'); // Reducido a 6 ceros
-            
+            const seqString = String(sequence).padStart(6, '0');
             let suffix = 'xx';
             if (pieceName) {
                 const lower = pieceName.toLowerCase();
-                // Detección de sets combinados
                 if (lower.includes('+') || lower.includes('juego')) suffix = 'SET';
                 else if (lower.includes('manga') && lower.includes('larga')) suffix = 'ml';
                 else if (lower.includes('manga') && lower.includes('corta')) suffix = 'mc'; 
@@ -64,10 +61,10 @@
 
         const Icon = ({ name, size = 18, className }) => <i data-lucide={name} width={size} height={size} className={className}></i>;
 
-        // --- COMPONENTE IMAGEN INTELIGENTE (JPG -> PNG -> ERROR) ---
+        // --- COMPONENTE IMAGEN INTELIGENTE ---
         const SmartImage = ({ repoUrl, codigo, className }) => {
             const [imgSrc, setImgSrc] = useState(null);
-            const [attempt, setAttempt] = useState('jpg'); // jpg, png, fail
+            const [attempt, setAttempt] = useState('jpg');
 
             useEffect(() => {
                 if(!repoUrl || !codigo) return;
@@ -78,55 +75,54 @@
 
             const handleError = () => {
                 if (attempt === 'jpg') {
-                    // Si falla JPG, probar PNG
                     const cleanBase = repoUrl.endsWith('/') ? repoUrl : repoUrl + '/';
                     setImgSrc(`${cleanBase}${codigo}.png`);
                     setAttempt('png');
                 } else {
-                    // Si falla PNG, marcar como fail
                     setAttempt('fail');
                 }
             };
 
-            if (attempt === 'fail' || !repoUrl) {
-                return (
-                    <div className={`flex flex-col items-center justify-center bg-slate-100 text-slate-400 border-2 border-dashed ${className}`}>
-                        <Icon name="image-off" size={32} />
-                        <span className="text-[10px] font-bold mt-1">NO IMAGEN</span>
-                    </div>
-                );
-            }
-
-            return (
-                <img 
-                    src={imgSrc} 
-                    alt={codigo} 
-                    className={className} 
-                    onError={handleError}
-                />
-            );
+            if (attempt === 'fail' || !repoUrl) return <div className={`flex flex-col items-center justify-center bg-slate-100 text-slate-400 border-2 border-dashed ${className}`}><Icon name="image-off" size={32} /><span className="text-[10px] font-bold mt-1">NO IMAGEN</span></div>;
+            return <img src={imgSrc} alt={codigo} className={className} onError={handleError} />;
         };
 
-        // --- MODAL CONFIGURACIÓN ---
-        const SettingsModal = ({ config, onSave, onClose }) => {
-            const [localConfig, setLocalConfig] = useState(config);
+        // --- COMPONENTE EDITOR DE ENHEBRADO ---
+        const ThreadingEditor = ({ data, onChange }) => {
+            const addRow = () => onChange([...data, { id: Date.now(), guia: '', material: '', tension: '' }]);
+            const updateRow = (id, field, val) => onChange(data.map(r => r.id === id ? { ...r, [field]: val } : r));
+            const removeRow = (id) => onChange(data.filter(r => r.id !== id));
+
             return (
-                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-                    <div className="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl">
-                        <h2 className="text-lg font-bold mb-4">Configuración</h2>
-                        <div className="mb-4">
-                            <label className="block text-xs font-bold text-slate-700 mb-1">URL GitHub (Carpeta Fotos)</label>
-                            <input type="text" className="w-full border p-2 rounded text-xs font-mono" value={localConfig.repoUrl} onChange={e => setLocalConfig({...localConfig, repoUrl: e.target.value})} />
-                        </div>
-                        <div className="mb-4">
-                            <label className="block text-xs font-bold text-slate-700 mb-1">Consecutivo Actual</label>
-                            <input type="number" className="w-full border p-2 rounded text-xs" value={localConfig.sequenceCounter} onChange={e => setLocalConfig({...localConfig, sequenceCounter: parseInt(e.target.value) || 1})} />
-                        </div>
-                        <div className="flex justify-end gap-2">
-                            <button onClick={onClose} className="px-3 py-1 text-slate-600 border rounded">Cancelar</button>
-                            <button onClick={() => onSave(localConfig)} className="px-3 py-1 bg-indigo-600 text-white rounded">Guardar</button>
-                        </div>
+                <div className="border rounded bg-white overflow-hidden">
+                    <div className="bg-slate-200 p-2 text-xs font-bold flex justify-between items-center">
+                        <span>TABLA DE ENHEBRADO</span>
+                        <button onClick={addRow} className="text-indigo-600 flex items-center gap-1 hover:underline"><Icon name="plus" size={14}/> Agregar Hilo</button>
                     </div>
+                    {data.length === 0 ? (
+                        <div className="p-4 text-center text-xs text-slate-400 cursor-pointer hover:bg-slate-50" onClick={addRow}>+ Click para agregar configuración de hilos</div>
+                    ) : (
+                        <table className="w-full text-xs text-left">
+                            <thead className="bg-slate-50 text-slate-500">
+                                <tr>
+                                    <th className="p-2 w-16">Guía/#</th>
+                                    <th className="p-2">Material / Color</th>
+                                    <th className="p-2 w-20">Tensión</th>
+                                    <th className="p-2 w-8"></th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                                {data.map((row, i) => (
+                                    <tr key={row.id}>
+                                        <td className="p-1"><input className="w-full border rounded p-1" placeholder="#" value={row.guia} onChange={e=>updateRow(row.id,'guia',e.target.value)} /></td>
+                                        <td className="p-1"><input className="w-full border rounded p-1" placeholder="Ej: Algodón Negro" value={row.material} onChange={e=>updateRow(row.id,'material',e.target.value)} /></td>
+                                        <td className="p-1"><input className="w-full border rounded p-1" placeholder="Ej: 5.0" value={row.tension} onChange={e=>updateRow(row.id,'tension',e.target.value)} /></td>
+                                        <td className="p-1 text-center"><button onClick={()=>removeRow(row.id)} className="text-red-400 hover:text-red-600"><Icon name="x" size={14}/></button></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
             );
         };
@@ -134,157 +130,125 @@
         // --- FORMULARIO DE LOTE ---
         const MultiOrderForm = ({ config, onSave, onCancel }) => {
             const [header, setHeader] = useState({
-                codigo: '', // CÓDIGO AHORA ES PRINCIPAL
-                cliente: '',
-                maquina: '',
-                fechaInicio: new Date().toISOString().split('T')[0],
-                fechaEntrega: ''
+                codigo: '', cliente: '', maquina: '', 
+                fechaInicio: new Date().toISOString().split('T')[0], fechaEntrega: ''
             });
+            
+            // Estado para la tabla de enhebrado (Común para el lote)
+            const [threadingData, setThreadingData] = useState([]);
 
-            // Piezas individuales
             const [pieces, setPieces] = useState([
-                { id: 1, pieza: 'Blusa', talla: 'Unitalla', totalPedido: '' }
+                { id: 1, pieza: 'Blusa', talla: 'Unitalla', totalPedido: '', peso: '', tiempo: '', porcentaje: '' }
             ]);
 
-            const addPiece = () => {
-                setPieces([...pieces, { id: Date.now(), pieza: '', talla: 'Unitalla', totalPedido: '' }]);
-            };
+            const addPiece = () => setPieces([...pieces, { id: Date.now(), pieza: '', talla: 'Unitalla', totalPedido: '', peso: '', tiempo: '', porcentaje: '' }]);
             const updatePiece = (id, f, v) => setPieces(pieces.map(p => p.id === id ? { ...p, [f]: v } : p));
             const removePiece = (id) => pieces.length > 1 && setPieces(pieces.filter(p => p.id !== id));
 
             const handleSubmit = () => {
                 if(!header.codigo || !header.cliente || !header.maquina) return alert("Falta Código, Cliente o Máquina");
 
+                const shouldMerge = pieces.length > 1 && confirm(`¿Quieres JUNTAR estas ${pieces.length} piezas en una sola orden?`);
                 let finalOrders = [];
 
-                // Lógica de pregunta para unir órdenes
-                const shouldMerge = pieces.length > 1 && confirm(`Tienes ${pieces.length} piezas asignadas a la Máquina ${header.maquina}.\n\n¿Quieres JUNTARLAS en una sola orden de producción?`);
+                const commonData = {
+                    cliente: header.cliente, maquina: header.maquina, codigo: header.codigo,
+                    fechaInicio: header.fechaInicio, fechaFin: header.fechaEntrega,
+                    batchSequence: config.sequenceCounter,
+                    status: 'En Proceso', progreso: [],
+                    threading: threadingData // Guardamos la tabla
+                };
 
                 if (shouldMerge) {
-                    // Crear UNA sola orden combinada
-                    const combinedName = pieces.map(p => p.pieza).join(' + ');
-                    const totalCombined = pieces[0].totalPedido; // Asumimos pedido igual para el set, o tomamos el primero
-                    
                     finalOrders.push({
+                        ...commonData,
                         id: Date.now(),
                         displayId: generateID(header.cliente, config.sequenceCounter, "Set"),
-                        batchSequence: config.sequenceCounter,
-                        
-                        // Header Info
-                        cliente: header.cliente,
-                        maquina: header.maquina,
-                        codigo: header.codigo, // Código viene del header
-                        fechaInicio: header.fechaInicio,
-                        fechaFin: header.fechaEntrega,
-                        
-                        // Combined Piece Info
-                        pieza: `Juego: ${combinedName}`,
-                        talla: pieces[0].talla, // Asumimos misma talla para el set
-                        totalPedido: totalCombined,
-                        isMerged: true,
-                        
-                        status: 'En Proceso',
-                        progreso: [],
-                        enhebrado: ''
+                        pieza: `Juego: ${pieces.map(p => p.pieza).join(' + ')}`,
+                        talla: pieces[0].talla,
+                        totalPedido: pieces[0].totalPedido,
+                        // Concatenamos datos técnicos para la vista combinada
+                        peso: pieces.reduce((a,b)=> a + (Number(b.peso)||0), 0),
+                        tiempo: pieces.reduce((a,b)=> a + (Number(b.tiempo)||0), 0),
+                        porcentaje: pieces[0].porcentaje, // Tomamos el primero o promedio
+                        isMerged: true
                     });
-
                 } else {
-                    // Crear órdenes SEPARADAS
                     finalOrders = pieces.map((p, index) => ({
+                        ...commonData,
                         id: Date.now() + index,
                         displayId: generateID(header.cliente, config.sequenceCounter, p.pieza),
-                        batchSequence: config.sequenceCounter,
-                        
-                        cliente: header.cliente,
-                        maquina: header.maquina,
-                        codigo: header.codigo, // Heredan el código principal
-                        fechaInicio: header.fechaInicio,
-                        fechaFin: header.fechaEntrega,
-                        
-                        pieza: p.pieza,
-                        talla: p.talla,
-                        totalPedido: p.totalPedido,
-                        
-                        status: 'En Proceso',
-                        progreso: [],
-                        enhebrado: ''
+                        pieza: p.pieza, talla: p.talla, totalPedido: p.totalPedido,
+                        peso: p.peso, tiempo: p.tiempo, porcentaje: p.porcentaje
                     }));
                 }
-
                 onSave(finalOrders);
             };
 
             return (
-                <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-xl my-6 overflow-hidden">
+                <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-xl my-6 overflow-hidden">
                     <div className="bg-slate-800 text-white p-4 flex justify-between items-center">
-                        <h2 className="font-bold flex items-center gap-2"><Icon name="file-plus" /> Nuevo Lote de Producción</h2>
-                        <button onClick={onCancel} className="text-sm underline opacity-80 hover:opacity-100">Cancelar</button>
+                        <h2 className="font-bold flex items-center gap-2"><Icon name="file-plus" /> Nuevo Lote Producción</h2>
+                        <button onClick={onCancel} className="text-sm underline">Cancelar</button>
                     </div>
                     
-                    <div className="p-6">
-                        {/* 1. CÓDIGO PRINCIPAL (LO MÁS IMPORTANTE) */}
-                        <div className="bg-indigo-50 p-4 rounded-lg border-2 border-indigo-100 mb-6 flex gap-6 items-start">
-                            <div className="flex-1">
-                                <label className="block text-sm font-black text-indigo-900 mb-1">CÓDIGO DE DISEÑO (Ref. Foto)</label>
-                                <input 
-                                    value={header.codigo} 
-                                    onChange={e => setHeader({...header, codigo: e.target.value.toUpperCase()})} 
-                                    className="w-full text-2xl font-black p-2 border-2 border-indigo-300 rounded focus:border-indigo-600 uppercase text-indigo-700" 
-                                    placeholder="EJ: M026" 
-                                    autoFocus
-                                />
-                                <p className="text-xs text-indigo-400 mt-1">Este código buscará la imagen (jpg/png) para todas las piezas.</p>
-                            </div>
-                            {/* Previsualización de Imagen */}
-                            <div className="w-32 h-32 bg-white rounded border flex items-center justify-center overflow-hidden shadow-sm">
-                                {header.codigo ? (
-                                    <SmartImage repoUrl={config.repoUrl} codigo={header.codigo} className="object-cover w-full h-full" />
-                                ) : (
-                                    <span className="text-xs text-slate-300 text-center">Sin Código</span>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* 2. DATOS GENERALES */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                            <div className="col-span-2">
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Cliente</label>
-                                <input list="clients" value={header.cliente} onChange={e => setHeader({...header, cliente: e.target.value})} className="w-full p-2 border rounded" placeholder="Nombre Cliente" />
-                                <datalist id="clients"><option value="Optima"/><option value="Shein"/><option value="Zara"/></datalist>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Máquina</label>
-                                <input value={header.maquina} onChange={e => setHeader({...header, maquina: e.target.value})} className="w-full p-2 border rounded font-bold" placeholder="#" />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Fecha Inicio</label>
-                                <input type="date" value={header.fechaInicio} onChange={e => setHeader({...header, fechaInicio: e.target.value})} className="w-full p-2 border rounded" />
-                            </div>
-                        </div>
-
-                        {/* 3. PIEZAS */}
-                        <div className="space-y-3 mb-6">
-                            <label className="block text-xs font-bold text-slate-500 uppercase">Piezas a fabricar en esta máquina:</label>
-                            {pieces.map((p, idx) => (
-                                <div key={p.id} className="flex gap-2 items-center">
-                                    <span className="text-xs font-bold text-slate-400 w-6">#{idx+1}</span>
-                                    <input list="parts" value={p.pieza} onChange={e => updatePiece(p.id, 'pieza', e.target.value)} className="flex-1 p-2 border rounded text-sm" placeholder="Pieza (Ej: Blusa)" />
-                                    <input value={p.talla} onChange={e => updatePiece(p.id, 'talla', e.target.value)} className="w-24 p-2 border rounded text-sm" placeholder="Talla" />
-                                    <input type="number" value={p.totalPedido} onChange={e => updatePiece(p.id, 'totalPedido', e.target.value)} className="w-24 p-2 border rounded text-sm" placeholder="Cant." />
-                                    <button onClick={() => removePiece(p.id)} className="text-red-400 hover:text-red-600"><Icon name="trash-2" /></button>
+                    <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* COLUMNA IZQUIERDA: DATOS GENERALES Y PIEZAS */}
+                        <div>
+                            <div className="bg-indigo-50 p-4 rounded-lg border-2 border-indigo-100 mb-6">
+                                <label className="block text-xs font-black text-indigo-900 mb-1">CÓDIGO DE DISEÑO</label>
+                                <div className="flex gap-4">
+                                    <input value={header.codigo} onChange={e => setHeader({...header, codigo: e.target.value.toUpperCase()})} className="flex-1 text-2xl font-black p-2 border-2 border-indigo-300 rounded uppercase" placeholder="EJ: M026" autoFocus />
+                                    <div className="w-16 h-16 bg-white border rounded overflow-hidden">
+                                        <SmartImage repoUrl={config.repoUrl} codigo={header.codigo} className="w-full h-full object-cover" />
+                                    </div>
                                 </div>
-                            ))}
-                            <datalist id="parts">
-                                <option value="Blusa"/><option value="Manga"/><option value="Cuello"/><option value="Puño"/><option value="Tirante"/>
-                            </datalist>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 mb-6">
+                                <input value={header.cliente} onChange={e => setHeader({...header, cliente: e.target.value})} className="p-2 border rounded text-sm" placeholder="Cliente" />
+                                <input value={header.maquina} onChange={e => setHeader({...header, maquina: e.target.value})} className="p-2 border rounded text-sm font-bold" placeholder="Máquina #" />
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="text-xs font-bold text-slate-500 border-b pb-1">DETALLES DE PIEZAS</div>
+                                {pieces.map((p, idx) => (
+                                    <div key={p.id} className="bg-slate-50 p-3 rounded border relative">
+                                        <div className="flex gap-2 mb-2">
+                                            <input list="parts" value={p.pieza} onChange={e => updatePiece(p.id, 'pieza', e.target.value)} className="flex-1 p-1 border rounded text-sm font-bold" placeholder="Nombre Pieza" />
+                                            <input value={p.talla} onChange={e => updatePiece(p.id, 'talla', e.target.value)} className="w-20 p-1 border rounded text-sm" placeholder="Talla" />
+                                            <input type="number" value={p.totalPedido} onChange={e => updatePiece(p.id, 'totalPedido', e.target.value)} className="w-20 p-1 border rounded text-sm font-bold" placeholder="Cant." />
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <div className="flex-1 relative">
+                                                <span className="absolute right-2 top-1.5 text-[10px] text-slate-400">g</span>
+                                                <input type="number" value={p.peso} onChange={e => updatePiece(p.id, 'peso', e.target.value)} className="w-full p-1 border rounded text-xs" placeholder="Peso" />
+                                            </div>
+                                            <div className="flex-1 relative">
+                                                <span className="absolute right-2 top-1.5 text-[10px] text-slate-400">min</span>
+                                                <input type="number" value={p.tiempo} onChange={e => updatePiece(p.id, 'tiempo', e.target.value)} className="w-full p-1 border rounded text-xs" placeholder="Tiempo" />
+                                            </div>
+                                            <div className="flex-1 relative">
+                                                <span className="absolute right-2 top-1.5 text-[10px] text-slate-400">%</span>
+                                                <input type="number" value={p.porcentaje} onChange={e => updatePiece(p.id, 'porcentaje', e.target.value)} className="w-full p-1 border rounded text-xs" placeholder="%" />
+                                            </div>
+                                        </div>
+                                        {pieces.length > 1 && <button onClick={() => removePiece(p.id)} className="absolute -top-2 -right-2 bg-red-100 text-red-500 rounded-full p-1 border hover:bg-red-200"><Icon name="x" size={12} /></button>}
+                                    </div>
+                                ))}
+                                <datalist id="parts"><option value="Blusa"/><option value="Manga"/><option value="Cuello"/></datalist>
+                                <button onClick={addPiece} className="w-full py-2 border-2 border-dashed text-slate-500 text-xs font-bold rounded hover:bg-slate-50">+ Agregar Otra Pieza</button>
+                            </div>
                         </div>
 
-                        <div className="flex gap-4">
-                            <button onClick={addPiece} className="flex-1 border-2 border-dashed border-slate-300 py-2 rounded text-slate-500 hover:bg-slate-50 font-bold text-sm">
-                                + Agregar otra pieza (Mismo Código)
-                            </button>
-                            <button onClick={handleSubmit} className="flex-1 bg-slate-900 text-white py-2 rounded font-bold shadow hover:bg-slate-800">
-                                Guardar y Generar
+                        {/* COLUMNA DERECHA: TABLA DE ENHEBRADO */}
+                        <div className="flex flex-col h-full">
+                            <label className="text-xs font-bold text-slate-700 mb-2 block">CONFIGURACIÓN DE MÁQUINA / ENHEBRADO</label>
+                            <div className="flex-grow">
+                                <ThreadingEditor data={threadingData} onChange={setThreadingData} />
+                            </div>
+                            <button onClick={handleSubmit} className="mt-6 w-full bg-slate-900 text-white py-3 rounded-lg font-bold shadow hover:bg-slate-800 flex items-center justify-center gap-2">
+                                <Icon name="save" /> Guardar Orden
                             </button>
                         </div>
                     </div>
@@ -294,14 +258,13 @@
 
         // --- VISTA DETALLE / IMPRESIÓN ---
         const OrderView = ({ order, config, onBack, onUpdate }) => {
-            const [entry, setEntry] = useState({ fecha: new Date().toISOString().split('T')[0], tejedor: '', produccion: '', defectos: '' });
-            const [notes, setNotes] = useState(order.enhebrado || '');
-
+            const [entry, setEntry] = useState({ fecha: new Date().toISOString().split('T')[0], tejedor: '', produccion: '' });
+            
             const addProgress = () => {
                 if(!entry.produccion) return;
                 const newP = [...(order.progreso||[]), { ...entry, id: Date.now(), produccion: Number(entry.produccion) }];
                 onUpdate(order.id, 'progreso', newP);
-                setEntry({...entry, produccion: '', defectos: ''});
+                setEntry({...entry, produccion: ''});
             };
 
             const totalProd = order.progreso?.reduce((a,b)=>a+b.produccion,0) || 0;
@@ -309,104 +272,116 @@
 
             return (
                 <div className="bg-white min-h-screen">
-                    {/* NAV SOLO PANTALLA */}
+                    {/* Header Pantalla */}
                     <div className="no-print p-4 border-b flex justify-between bg-slate-50 sticky top-0 z-10">
                         <button onClick={onBack} className="flex items-center gap-2 text-slate-600 font-bold"><Icon name="arrow-left"/> Volver</button>
-                        <div className="flex gap-2">
-                             <button onClick={() => onUpdate(order.id, 'status', order.status === 'Archivado' ? 'En Proceso' : 'Archivado')} className="px-3 py-1 border rounded bg-white text-xs font-bold">
-                                {order.status === 'Archivado' ? 'Desarchivar' : 'Archivar'}
-                            </button>
-                            <button onClick={() => window.print()} className="px-4 py-1 bg-slate-800 text-white rounded font-bold flex gap-2 items-center text-xs">
-                                <Icon name="printer" size={14}/> Imprimir
-                            </button>
-                        </div>
+                        <button onClick={() => window.print()} className="px-4 py-1 bg-slate-800 text-white rounded font-bold flex gap-2 items-center text-xs"><Icon name="printer" size={14}/> Imprimir</button>
                     </div>
 
                     <div className="p-8 print:p-0">
-                        
                         {/* --- SECCIÓN SUPERIOR (MEDIA HOJA) --- */}
-                        <div className="print-section-top flex flex-col h-full justify-between">
-                            
-                            {/* Header Info */}
-                            <div className="flex justify-between items-start border-b-2 border-black pb-2 mb-2">
+                        <div className="print-section-top">
+                            {/* Cabecera Principal */}
+                            <div className="flex justify-between items-start border-b-2 border-black pb-1 mb-2">
                                 <div className="w-2/3">
-                                    <h1 className="text-4xl font-black uppercase leading-none">{order.cliente}</h1>
-                                    <div className="text-xl font-bold font-mono mt-1">{order.displayId}</div>
-                                    <div className="mt-2 text-sm">
-                                        <span className="font-bold">PIEZA:</span> <span className="text-lg bg-slate-100 px-2 print:bg-transparent print:p-0 print:font-black">{order.pieza}</span>
-                                    </div>
+                                    <h1 className="text-4xl font-black uppercase leading-none tracking-tighter">{order.cliente}</h1>
+                                    <div className="text-lg font-bold font-mono mt-1">{order.displayId}</div>
                                 </div>
                                 <div className="w-1/3 text-right">
-                                    <div className="bg-black text-white inline-block px-4 py-1 text-sm font-bold uppercase mb-1">Máquina</div>
-                                    <div className="text-6xl font-black leading-none">{order.maquina}</div>
+                                    <div className="bg-black text-white inline-block px-3 py-0.5 text-xs font-bold uppercase mb-1">Máquina</div>
+                                    <div className="text-5xl font-black leading-none">{order.maquina}</div>
                                 </div>
                             </div>
 
-                            <div className="flex gap-4 flex-grow overflow-hidden">
-                                {/* Datos e Imagen */}
+                            {/* Cuerpo de Datos */}
+                            <div className="flex gap-3 flex-grow overflow-hidden">
+                                {/* Columna Izquierda: Datos Técnicos y Tabla */}
                                 <div className="w-1/2 flex flex-col gap-2">
-                                    <div className="border border-black p-2 flex justify-between items-center">
-                                        <div>
-                                            <div className="text-[10px] font-bold uppercase text-slate-500">Código Diseño</div>
-                                            <div className="text-3xl font-black">{order.codigo}</div>
+                                    <div className="flex border border-black text-center divide-x divide-black bg-slate-100 print:bg-transparent">
+                                        <div className="flex-1 p-1">
+                                            <div className="text-[9px] font-bold uppercase">Código</div>
+                                            <div className="text-xl font-black">{order.codigo}</div>
                                         </div>
-                                        <div className="text-right">
-                                            <div className="text-[10px] font-bold uppercase text-slate-500">Talla</div>
-                                            <div className="text-xl font-bold">{order.talla}</div>
+                                        <div className="flex-1 p-1">
+                                            <div className="text-[9px] font-bold uppercase">Pieza</div>
+                                            <div className="text-sm font-bold truncate">{order.pieza}</div>
                                         </div>
-                                    </div>
-                                    
-                                    <div className="border border-black p-2 flex justify-between items-center bg-slate-50 print:bg-transparent">
-                                        <div>
-                                            <div className="text-[10px] font-bold uppercase text-slate-500">Pedido Total</div>
-                                            <div className="text-2xl font-black">{order.totalPedido} <span className="text-xs font-normal">pzs</span></div>
-                                        </div>
-                                        {/* Solo visible en pantalla para control */}
-                                        <div className="text-right no-print">
-                                            <div className="text-[10px] font-bold uppercase text-slate-500">Avance</div>
-                                            <div className={`text-xl font-bold ${pct>=100?'text-green-600':'text-indigo-600'}`}>{pct}%</div>
+                                        <div className="flex-1 p-1">
+                                            <div className="text-[9px] font-bold uppercase">Total</div>
+                                            <div className="text-xl font-black">{order.totalPedido}</div>
                                         </div>
                                     </div>
 
-                                    {/* Notas Enhebrado */}
-                                    <div className="flex-grow border border-black p-2 relative">
-                                        <label className="text-[10px] font-bold uppercase bg-white px-1 absolute -top-2 left-2">Notas / Ajustes Máquina</label>
-                                        <textarea 
-                                            className="w-full h-full text-sm font-mono resize-none outline-none bg-transparent" 
-                                            value={notes} 
-                                            onChange={e => setNotes(e.target.value)}
-                                            onBlur={() => onUpdate(order.id, 'enhebrado', notes)}
-                                            placeholder="Escribir notas..."
-                                        ></textarea>
+                                    {/* Nuevos Campos: Peso, Tiempo, % */}
+                                    <div className="flex border border-black text-center divide-x divide-black">
+                                        <div className="flex-1 p-1">
+                                            <div className="text-[9px] font-bold uppercase text-slate-500">Peso</div>
+                                            <div className="font-bold">{order.peso || '-'} <span className="text-[9px]">g</span></div>
+                                        </div>
+                                        <div className="flex-1 p-1">
+                                            <div className="text-[9px] font-bold uppercase text-slate-500">Tiempo</div>
+                                            <div className="font-bold">{order.tiempo || '-'} <span className="text-[9px]">min</span></div>
+                                        </div>
+                                        <div className="flex-1 p-1">
+                                            <div className="text-[9px] font-bold uppercase text-slate-500">%</div>
+                                            <div className="font-bold">{order.porcentaje || '-'}</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Tabla de Enhebrado Impresa */}
+                                    <div className="flex-grow border border-black relative overflow-hidden flex flex-col">
+                                        <div className="bg-black text-white text-[9px] font-bold px-1 text-center uppercase">Tabla de Enhebrado</div>
+                                        {order.threading && order.threading.length > 0 ? (
+                                            <div className="flex-grow overflow-hidden">
+                                                <table className="threading-table-print text-[9px] w-full text-left">
+                                                    <thead>
+                                                        <tr className="bg-gray-200 border-b border-black">
+                                                            <th className="p-1 w-8 border-r border-black">Pos.</th>
+                                                            <th className="p-1 border-r border-black">Material</th>
+                                                            <th className="p-1 w-10 text-center">Tens.</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {order.threading.map((row, i) => (
+                                                            <tr key={i} className="border-b border-black h-4">
+                                                                <td className="pl-1 border-r border-black font-bold">{row.guia}</td>
+                                                                <td className="pl-1 border-r border-black truncate">{row.material}</td>
+                                                                <td className="text-center">{row.tension}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center justify-center h-full text-xs italic text-gray-400">Sin datos de enhebrado</div>
+                                        )}
                                     </div>
                                 </div>
 
-                                {/* Foto Grande */}
-                                <div className="w-1/2 border-2 border-black flex items-center justify-center p-1 bg-white">
+                                {/* Columna Derecha: Imagen */}
+                                <div className="w-1/2 border border-black flex items-center justify-center p-1 bg-white relative">
+                                    <div className="absolute top-0 left-0 bg-black text-white text-[9px] px-1">REF: {order.codigo}</div>
                                     <SmartImage repoUrl={config.repoUrl} codigo={order.codigo} className="max-w-full max-h-full object-contain" />
                                 </div>
                             </div>
                         </div>
 
-                        {/* --- SECCIÓN INFERIOR (TABLA DE TEJEDORES) --- */}
-                        <div className="print-section-bottom print-only mt-4">
-                            <h3 className="text-center font-bold uppercase text-sm mb-1 bg-black text-white py-1">Hoja de Producción Diaria</h3>
-                            <table className="w-full text-sm border-collapse border border-black">
+                        {/* --- SECCIÓN INFERIOR (TABLA MANUAL) --- */}
+                        <div className="print-section-bottom print-only mt-2">
+                            <h3 className="text-center font-bold uppercase text-xs mb-1 bg-black text-white py-0.5">Control de Producción</h3>
+                            <table className="w-full text-xs border border-black">
                                 <thead>
                                     <tr className="bg-gray-200">
-                                        <th className="border border-black p-1 w-16 text-center">Fecha</th>
-                                        <th className="border border-black p-1 w-12 text-center">Turno</th>
-                                        <th className="border border-black p-1 text-left pl-2">Tejedor</th>
-                                        <th className="border border-black p-1 w-16 text-center">Prod.</th>
-                                        <th className="border border-black p-1 w-20 text-center">Defectos</th>
-                                        <th className="border border-black p-1 text-left pl-2">Firmas / Obs.</th>
+                                        <th className="border border-black p-1 w-16">Fecha</th>
+                                        <th className="border border-black p-1 w-12">Turno</th>
+                                        <th className="border border-black p-1">Tejedor</th>
+                                        <th className="border border-black p-1 w-16">Prod.</th>
+                                        <th className="border border-black p-1">Obs/Defectos</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {/* Generar suficientes renglones para llenar media hoja (aprox 16-18 líneas) */}
-                                    {[...Array(17)].map((_, i) => (
-                                        <tr key={i} className="h-8">
-                                            <td className="border border-black"></td>
+                                    {[...Array(18)].map((_, i) => (
+                                        <tr key={i} className="h-6">
                                             <td className="border border-black"></td>
                                             <td className="border border-black"></td>
                                             <td className="border border-black"></td>
@@ -416,117 +391,114 @@
                                     ))}
                                 </tbody>
                             </table>
-                            <div className="text-[10px] text-center mt-1">Revisar agujas y tensión al iniciar turno. - {order.displayId}</div>
                         </div>
 
-                        {/* --- CAPTURA DIGITAL (SOLO PANTALLA) --- */}
-                        <div className="no-print mt-8 bg-slate-50 p-6 rounded border">
-                            <h3 className="font-bold mb-4 flex gap-2"><Icon name="monitor"/> Captura Digital</h3>
+                        {/* --- VISTA DIGITAL (PANTALLA) --- */}
+                        <div className="no-print mt-6 bg-slate-50 p-4 rounded border">
+                            <h3 className="font-bold mb-4">Captura Digital</h3>
                             <div className="flex gap-2 items-end mb-4">
                                 <input type="date" value={entry.fecha} onChange={e=>setEntry({...entry,fecha:e.target.value})} className="border p-2 rounded text-sm"/>
                                 <input placeholder="Tejedor" value={entry.tejedor} onChange={e=>setEntry({...entry,tejedor:e.target.value})} className="border p-2 rounded text-sm flex-1"/>
                                 <input placeholder="Cant." type="number" value={entry.produccion} onChange={e=>setEntry({...entry,produccion:e.target.value})} className="border p-2 rounded text-sm w-20"/>
                                 <button onClick={addProgress} className="bg-indigo-600 text-white p-2 rounded"><Icon name="plus"/></button>
                             </div>
-                            <div className="max-h-60 overflow-y-auto border bg-white">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-slate-100"><tr><th className="text-left p-2">Fecha</th><th className="text-left p-2">Tejedor</th><th className="text-right p-2">Cant.</th></tr></thead>
-                                    <tbody>
-                                        {order.progreso?.map(p => (
-                                            <tr key={p.id} className="border-t"><td className="p-2">{p.fecha}</td><td className="p-2">{p.tejedor}</td><td className="p-2 text-right font-bold">{p.produccion}</td></tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                            {/* Renderizar tabla de enhebrado en pantalla también para referencia */}
+                            {order.threading && order.threading.length > 0 && (
+                                <div className="mb-4 bg-white p-2 border rounded">
+                                    <h4 className="text-xs font-bold text-slate-500 mb-2">Tabla de Enhebrado</h4>
+                                    <table className="w-full text-xs">
+                                        <thead className="bg-slate-100"><tr><th className="text-left p-1">Pos</th><th className="text-left p-1">Material</th><th className="text-left p-1">Tensión</th></tr></thead>
+                                        <tbody>
+                                            {order.threading.map((r,i)=><tr key={i} className="border-b"><td className="p-1 font-bold">{r.guia}</td><td className="p-1">{r.material}</td><td className="p-1">{r.tension}</td></tr>)}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
-
                     </div>
                 </div>
             );
         };
 
         // --- APP PRINCIPAL ---
+        const SettingsModal = ({ config, onSave, onClose }) => {
+            const [local, setLocal] = useState(config);
+            return (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white p-6 rounded w-96">
+                        <h2 className="font-bold mb-4">Configuración</h2>
+                        <input className="w-full border p-2 mb-2 text-sm" placeholder="URL GitHub" value={local.repoUrl} onChange={e=>setLocal({...local,repoUrl:e.target.value})}/>
+                        <input className="w-full border p-2 mb-4 text-sm" type="number" placeholder="Consecutivo" value={local.sequenceCounter} onChange={e=>setLocal({...local,sequenceCounter:parseInt(e.target.value)||1})}/>
+                        <div className="flex justify-end gap-2"><button onClick={onClose}>Cancelar</button><button onClick={()=>onSave(local)} className="bg-indigo-600 text-white px-3 py-1 rounded">Guardar</button></div>
+                    </div>
+                </div>
+            );
+        };
+
         const App = () => {
             const [view, setView] = useState('list');
-            const [orders, setOrders] = useState(() => JSON.parse(localStorage.getItem('v4_orders')) || []);
-            const [config, setConfig] = useState(() => JSON.parse(localStorage.getItem('v4_config')) || { repoUrl: '', sequenceCounter: 1 });
+            const [orders, setOrders] = useState(() => JSON.parse(localStorage.getItem('v5_orders')) || []);
+            const [config, setConfig] = useState(() => JSON.parse(localStorage.getItem('v5_config')) || { repoUrl: '', sequenceCounter: 1 });
             const [selectedOrder, setSelectedOrder] = useState(null);
             const [showSettings, setShowSettings] = useState(false);
             const [filterClient, setFilterClient] = useState('ALL');
 
             useEffect(() => {
-                localStorage.setItem('v4_orders', JSON.stringify(orders));
-                localStorage.setItem('v4_config', JSON.stringify(config));
+                localStorage.setItem('v5_orders', JSON.stringify(orders));
+                localStorage.setItem('v5_config', JSON.stringify(config));
                 lucide.createIcons();
             }, [orders, config, view]);
 
-            const handleSaveBatch = (newOrders) => {
+            const handleSave = (newOrders) => {
                 setOrders([...newOrders, ...orders]);
                 setConfig({...config, sequenceCounter: config.sequenceCounter + 1});
                 setView('list');
             };
 
-            const handleUpdateOrder = (id, field, val) => {
-                const updated = orders.map(o => o.id === id ? { ...o, [field]: val } : o);
+            const updateOrder = (id, f, v) => {
+                const updated = orders.map(o => o.id === id ? { ...o, [f]: v } : o);
                 setOrders(updated);
-                if(selectedOrder && selectedOrder.id === id) setSelectedOrder({...selectedOrder, [field]: val});
+                if(selectedOrder?.id === id) setSelectedOrder({...selectedOrder, [f]: v});
             };
 
-            const clients = useMemo(() => [...new Set(orders.map(o => o.cliente))].sort(), [orders]);
+            const clients = [...new Set(orders.map(o => o.cliente))].sort();
             const filtered = orders.filter(o => (filterClient === 'ALL' || o.cliente === filterClient) && o.status !== 'Archivado');
 
             return (
-                <div className="min-h-screen flex flex-col">
-                    <nav className="bg-slate-900 text-white p-3 flex justify-between items-center no-print">
-                        <div className="font-bold flex gap-2"><Icon name="box"/> Control v4.0</div>
-                        <button onClick={() => setShowSettings(true)}><Icon name="settings"/></button>
+                <div className="min-h-screen bg-slate-100 pb-10">
+                    <nav className="bg-slate-900 text-white p-3 flex justify-between no-print">
+                        <div className="font-bold flex gap-2"><Icon name="box"/> Producción v5.0</div>
+                        <button onClick={()=>setShowSettings(true)}><Icon name="settings"/></button>
                     </nav>
 
-                    <main className="flex-grow bg-slate-100">
-                        {view === 'list' && (
-                            <div className="max-w-6xl mx-auto p-6">
-                                <div className="flex justify-between items-end mb-6">
-                                    <div className="flex gap-2 overflow-x-auto pb-1">
-                                        <button onClick={() => setFilterClient('ALL')} className={`px-4 py-1 rounded-full text-sm font-bold ${filterClient==='ALL'?'bg-indigo-600 text-white':'bg-white border'}`}>Todos</button>
-                                        {clients.map(c => (
-                                            <button key={c} onClick={() => setFilterClient(c)} className={`px-4 py-1 rounded-full text-sm font-bold ${filterClient===c?'bg-indigo-600 text-white':'bg-white border'}`}>{c}</button>
-                                        ))}
-                                    </div>
-                                    <button onClick={() => setView('create')} className="bg-indigo-600 text-white px-4 py-2 rounded font-bold shadow hover:bg-indigo-700 flex gap-2"><Icon name="plus"/> Nuevo Lote</button>
+                    {view === 'list' && (
+                        <div className="max-w-6xl mx-auto p-6">
+                            <div className="flex justify-between items-end mb-6">
+                                <div className="flex gap-2 overflow-x-auto pb-1">
+                                    <button onClick={()=>setFilterClient('ALL')} className={`px-3 py-1 rounded-full text-xs font-bold border ${filterClient==='ALL'?'bg-indigo-600 text-white':'bg-white'}`}>Todos</button>
+                                    {clients.map(c=><button key={c} onClick={()=>setFilterClient(c)} className={`px-3 py-1 rounded-full text-xs font-bold border ${filterClient===c?'bg-indigo-600 text-white':'bg-white'}`}>{c}</button>)}
                                 </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {filtered.map(o => {
-                                        const total = o.progreso?.reduce((a,b)=>a+b.produccion,0)||0;
-                                        const pct = o.totalPedido ? Math.min(100, Math.round((total/o.totalPedido)*100)) : 0;
-                                        return (
-                                            <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className="bg-white p-4 rounded shadow border hover:shadow-lg cursor-pointer group">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div className="font-mono text-xs font-bold text-slate-400">{o.displayId}</div>
-                                                    <div className="bg-slate-100 text-slate-600 text-xs px-2 rounded font-bold">MQ-{o.maquina}</div>
-                                                </div>
-                                                <div className="font-bold text-lg leading-tight mb-1">{o.cliente}</div>
-                                                <div className="text-sm text-slate-500 mb-2">{o.pieza} <span className="font-mono text-xs text-indigo-500">({o.codigo})</span></div>
-                                                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                                                    <div className="bg-green-500 h-full" style={{width:`${pct}%`}}></div>
-                                                </div>
-                                                <div className="text-right text-xs mt-1 text-slate-400">{pct}% completado</div>
-                                            </div>
-                                        )
-                                    })}
-                                    {filtered.length === 0 && <div className="col-span-3 text-center py-10 text-slate-400 italic">No hay órdenes activas.</div>}
-                                </div>
+                                <button onClick={()=>setView('create')} className="bg-indigo-600 text-white px-4 py-2 rounded font-bold shadow flex gap-2"><Icon name="plus"/> Nuevo</button>
                             </div>
-                        )}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {filtered.map(o => {
+                                    const pct = o.totalPedido ? Math.round(((o.progreso?.reduce((a,b)=>a+b.produccion,0)||0)/o.totalPedido)*100) : 0;
+                                    return (
+                                        <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className="bg-white p-4 rounded shadow border cursor-pointer hover:shadow-lg">
+                                            <div className="flex justify-between mb-2"><span className="font-mono text-xs text-slate-400 font-bold">{o.displayId}</span><span className="bg-slate-100 text-xs px-2 rounded font-bold">MQ-{o.maquina}</span></div>
+                                            <div className="font-bold">{o.cliente}</div>
+                                            <div className="text-sm text-slate-500 mb-2">{o.pieza} <span className="text-xs text-indigo-500">({o.codigo})</span></div>
+                                            <div className="w-full bg-slate-100 h-1.5 rounded-full mb-1"><div className="bg-green-500 h-full rounded-full" style={{width:`${pct}%`}}></div></div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    )}
 
-                        {view === 'create' && <MultiOrderForm config={config} onSave={handleSaveBatch} onCancel={() => setView('list')} />}
-                        
-                        {view === 'detail' && selectedOrder && (
-                            <OrderView order={selectedOrder} config={config} onBack={()=>{setView('list'); setSelectedOrder(null)}} onUpdate={handleUpdateOrder} />
-                        )}
-
-                        {showSettings && <SettingsModal config={config} onSave={(c)=>{setConfig(c); setShowSettings(false)}} onClose={()=>setShowSettings(false)} />}
-                    </main>
+                    {view === 'create' && <MultiOrderForm config={config} onSave={handleSave} onCancel={()=>setView('list')} />}
+                    {view === 'detail' && selectedOrder && <OrderView order={selectedOrder} config={config} onBack={()=>{setView('list');setSelectedOrder(null)}} onUpdate={updateOrder} />}
+                    {showSettings && <SettingsModal config={config} onSave={c=>{setConfig(c);setShowSettings(false)}} onClose={()=>setShowSettings(false)} />}
                 </div>
             );
         };
