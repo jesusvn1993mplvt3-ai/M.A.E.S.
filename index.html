@@ -1,21 +1,72 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Textil v8.1 - Control de Producción e Inventario (Firebase)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    
-    </head>
+
+    <style>
+        /* ESTILOS DE IMPRESIÓN */
+        @media print {
+            @page { margin: 0.5cm; size: letter portrait; }
+            body { background: white; -webkit-print-color-adjust: exact; }
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            
+            /* Layout de Media Hoja Ajustado */
+            .print-section-top { 
+                height: 48vh; 
+                overflow: hidden; 
+                border-bottom: 2px dashed #000;
+                margin-bottom: 1vh;
+                display: flex;
+                flex-direction: column;
+            }
+            .print-section-bottom { height: 48vh; display: block; }
+            
+            /* Tablas de impresión con bordes negros fuertes */
+            table, th, td { border: 1px solid black !important; border-collapse: collapse; }
+            
+            /* Fuente condensada para la tabla de enhebrado (Aumentada a 9pt) */
+            .threading-table-print { font-size: 9pt; width: 100%; }
+            .threading-table-print th { background-color: #ddd !important; }
+
+             /* Altura de renglón en tabla de producción */
+            .production-row-h { height: 21px; }
+            
+            /* Estilo específico para la tabla de paquetes */
+            .package-table-print { font-size: 10pt; }
+            .package-table-print td { padding: 2px 4px; }
+        }
+        .print-only { display: none; }
+        /* Estilo para hacer scroll horizontal en la lista de miniaturas */
+        .scroll-container {
+            display: flex;
+            overflow-x: auto;
+            gap: 10px;
+            padding-bottom: 10px; /* Espacio para la barra de desplazamiento */
+        }
+    </style>
+</head>
 <body class="bg-slate-100 text-slate-800 font-sans">
     <div id="root"></div>
 
     <script type="text/babel">
+        // Se removió 'useCallback' de aquí para evitar posibles fallos de Babel Standalone.
+        const { useState, useEffect, useMemo } = React; 
+
         // =================================================================
-        // 1. CONFIGURACIÓN Y LÓGICA DE PERSISTENCIA (AÑADIDO Y ADAPTADO)
+        // 1. CONFIGURACIÓN Y LÓGICA DE PERSISTENCIA (ADAPTADO A FIREBASE)
         // =================================================================
 
-        const { useState, useEffect, useMemo, useCallback } = React;
-
-        // --- CONFIGURACIÓN DE FIREBASE (Datos proporcionados por el usuario) ---
+        // --- CONFIGURACIÓN DE FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyBqHgV4vDat1-VmZfKbiPg7nuiX-ROcexw",
             authDomain: "cirineo-cec21.firebaseapp.com",
@@ -35,11 +86,10 @@
         const db = firebase.firestore();
         const ORDERS_COLLECTION = db.collection("v8_orders");
         const CONFIG_DOC = db.collection("v8_config").doc("config");
-        const INVENTORY_DOC = db.collection("v8_inventory").doc("yarn_stock"); // Documento único para el inventario
+        const INVENTORY_DOC = db.collection("v8_inventory").doc("yarn_stock"); 
 
         // --- FUNCIONES DE PERSISTENCIA ASÍNCRONAS ---
 
-        // Configuración
         const loadConfig = async () => {
             const doc = await CONFIG_DOC.get();
             return doc.exists ? doc.data() : { repoUrls: [''], sequenceCounter: 1, shiftHours: 8 };
@@ -48,32 +98,32 @@
             await CONFIG_DOC.set(config);
         };
 
-        // Órdenes
         const loadOrders = async () => {
             const snapshot = await ORDERS_COLLECTION.get();
-            // Incluimos el ID de Firestore para futuras actualizaciones
+            // Mapeamos el ID del documento de Firestore al campo 'id'
             return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         };
         
-        // Guarda/Actualiza una orden (utilizada por handleSave y updateOrder)
         const saveOrder = async (orderData) => {
             const dataToSave = { ...orderData };
             
-            if (orderData.id && typeof orderData.id === 'string') {
-                // Actualizar orden existente (si tiene ID de Firestore)
+            if (orderData.id && typeof orderData.id === 'string' && orderData.id.length > 10) { 
+                // Asumimos que un ID de más de 10 caracteres es un ID de Firestore válido
                 const docId = dataToSave.id;
-                delete dataToSave.id; // No guardar el ID dentro del documento
+                delete dataToSave.id; 
                 await ORDERS_COLLECTION.doc(docId).update(dataToSave);
-                return { id: docId, ...dataToSave }; // Retornar el objeto con ID
+                return { id: docId, ...dataToSave }; 
             } else {
                 // Crear nueva orden
-                delete dataToSave.id; // Asegurar que no usamos un ID temporal
+                // Eliminamos cualquier ID temporal (numérico o corto) antes de crear
+                if (typeof dataToSave.id === 'number') delete dataToSave.id; 
+                if (dataToSave.id === undefined) delete dataToSave.id;
+                
                 const newRef = await ORDERS_COLLECTION.add(dataToSave);
-                return { id: newRef.id, ...dataToSave }; // Retornar el objeto con el nuevo ID de Firestore
+                return { id: newRef.id, ...dataToSave }; 
             }
         };
 
-        // Inventario
         const loadYarnInventory = async (initialData) => {
             const doc = await INVENTORY_DOC.get();
             return doc.exists ? doc.data() : initialData;
@@ -82,7 +132,7 @@
             await INVENTORY_DOC.set(inventory);
         };
 
-        // --- UTILIDADES ---
+        // --- UTILIDADES (Sin cambios) ---
         const generateID = (clientName, sequence, pieceName) => {
             const clientInitial = clientName ? clientName.charAt(0).toUpperCase() : 'X';
             const seqString = String(sequence).padStart(6, '0');
@@ -105,18 +155,20 @@
             handler(e);
         };
 
-        // --- DATOS INICIALES DE EJEMPLO DE INVENTARIO (Solo se usan si Firestore está vacío) ---
+        // --- DATOS INICIALES DE EJEMPLO DE INVENTARIO ---
         const initialYarnInventory = {
             'ALEMANIA': { comp: '40/40/12', estiraje: 2500, bodega: 100, taller: 0 },
             'PARÍS': { comp: '20/33/34', estiraje: 2050, bodega: 100, taller: 0 },
             'YUKI': { comp: '20/70/68', estiraje: 1800, bodega: 100, taller: 0 },
-            // ... (resto de tus datos iniciales de hilatura)
+            'DUBAI': { comp: '20/70/68', estiraje: 2050, bodega: 100, taller: 0 },
+            'MIAMI': { comp: '20/40/24', estiraje: 1800, bodega: 100, taller: 0 },
+            'TEXAS': { comp: '20/40/24', estiraje: 2050, bodega: 100, taller: 0 },
+            'UCRANIA': { comp: '40/70/68', estiraje: 2500, bodega: 100, taller: 0 },
+            'RUSIA': { comp: '40/70/68', estiraje: 2600, bodega: 100, taller: 0 },
+            'GUATEMALA': { comp: '40/40/24', estiraje: 2800, bodega: 100, taller: 0 },
             'NYLON CALIDAD A': { comp: '70/68', estiraje: '-', bodega: 0, taller: 0 },
             'NYLON CALIDAD C': { comp: '70/68', estiraje: '-', bodega: 0, taller: 0 },
         };
-        
-        // Las órdenes iniciales ya no se necesitan, ya que se cargarán de Firestore.
-        // const initialOrdersData = [...]; 
         
         // =================================================================
         // 2. COMPONENTE GESTIÓN DE INVENTARIO DE HILATURAS (ADAPTADO)
@@ -134,7 +186,7 @@
                     const entry = { name, ...data };
                     if (name.startsWith('NYLON')) {
                         groups.Nylon.push(entry);
-                    } else if (data.comp && data.comp.includes('/') && data.estiraje !== '-') { // Verificación añadida para evitar errores
+                    } else if (data.comp && data.comp.includes('/') && data.estiraje !== '-') {
                         groups.Lycras.push(entry);
                     } else {
                         groups.Otros.push(entry);
@@ -185,14 +237,13 @@
                 }
                 
                 if (success) {
-                    await onUpdate(newInventory); // Llama a la función asíncrona de la App
+                    await onUpdate(newInventory); 
                     alert(`¡Operación exitosa! ${key} actualizado.`);
                     setAmount('');
                     setSelectedYarn(null);
                 }
             };
             
-            // ... (Resto del componente YarnInventory sin cambios) ...
             const InventoryTable = ({ title, data }) => (
                 <div className="mb-8">
                     <h3 className="text-xl font-bold mb-3 border-b pb-1 text-slate-700 flex items-center gap-2"><Icon name="box-select" size={20}/> {title} ({data.length})</h3>
@@ -313,7 +364,6 @@
                     return;
                 }
                 setAttempt({ urlIndex: 0, extension: 'jpg' });
-                // Inicializa el primer intento
                 const cleanBase = repoUrls[0].endsWith('/') ? repoUrls[0] : repoUrls[0] + '/';
                 setImgSrc(`${cleanBase}${codigo}.jpg`);
             }, [repoUrls, codigo]);
@@ -322,18 +372,15 @@
                 const { urlIndex, extension } = attempt;
                 
                 if (extension === 'jpg') {
-                    // 1. Intenta con PNG en la URL actual
                     const cleanBase = repoUrls[urlIndex].endsWith('/') ? repoUrls[urlIndex] : repoUrls[urlIndex] + '/';
                     setImgSrc(`${cleanBase}${codigo}.png`);
                     setAttempt({ urlIndex, extension: 'png' });
                 } else if (urlIndex < repoUrls.length - 1) {
-                    // 2. Intenta con la siguiente URL (empezando con JPG)
                     const nextIndex = urlIndex + 1;
                     const cleanBase = repoUrls[nextIndex].endsWith('/') ? repoUrls[nextIndex] : repoUrls[nextIndex] + '/';
                     setImgSrc(`${cleanBase}${codigo}.jpg`);
                     setAttempt({ urlIndex: nextIndex, extension: 'jpg' });
                 } else {
-                    // 3. Fallaron todas las URLs y extensiones
                     setAttempt({ urlIndex, extension: 'fail' });
                 }
             };
@@ -348,7 +395,6 @@
             const updateRow = (id, field, val) => onChange(data.map(r => r.id === id ? { ...r, [field]: val } : r));
             const removeRow = (id) => onChange(data.filter(r => r.id !== id));
 
-            // Calcular suma de porcentajes
             const totalPercent = data.reduce((sum, row) => sum + (Number(row.porcentaje) || 0), 0);
 
             return (
@@ -401,10 +447,9 @@
             );
         };
 
-        // --- FORMULARIO DE LOTE (Mantiene la lógica, `onSave` es asíncrono) ---
+        // --- FORMULARIO DE LOTE (ADAPTADO A ASYNC) ---
         const MultiOrderForm = ({ config, onSave, onCancel, initialOrder = null, clientHistory, pieceHistory }) => {
             
-            // Lógica para inicializar el formulario con datos de una orden copiada o con valores por defecto
             const defaultHeader = initialOrder ? {
                 codigo: initialOrder.codigo || '', 
                 cliente: initialOrder.cliente || '', 
@@ -438,7 +483,6 @@
                 return Math.floor(shiftMinutes / time);
             };
 
-            // Genera la lista de paquetes para una orden (fusionada o simple)
             const generatePackageList = (pieces, packageSize) => {
                 const packages = [];
                 let totalPieces = 0;
@@ -469,7 +513,7 @@
                 return packages;
             };
 
-            const handleSubmit = async () => { // Hacemos esta función ASÍNCRONA
+            const handleSubmit = async () => { 
                 if(!header.codigo || !header.cliente || !header.maquina || pieces.some(p => !p.pieza || !p.programa)) {
                     return alert("Falta CÓDIGO, CLIENTE, MÁQUINA o el NOMBRE DEL PROGRAMA de alguna pieza. Favor de completar los campos.");
                 }
@@ -487,17 +531,13 @@
 
                 if (shouldMerge) {
                     const subPiecesData = pieces.map(p => ({
-                        pieza: p.pieza,
-                        talla: p.talla,
-                        totalPedido: Number(p.totalPedido) || 0,
-                        peso: p.peso,
-                        tiempo: p.tiempo,
-                        programa: p.programa, // Nuevo campo
+                        pieza: p.pieza, talla: p.talla, totalPedido: Number(p.totalPedido) || 0,
+                        peso: p.peso, tiempo: p.tiempo, programa: p.programa, 
                     }));
 
                     finalOrders.push({
                         ...commonData,
-                        id: Date.now(),
+                        id: Date.now(), // ID temporal, será reemplazado por Firestore ID
                         displayId: generateID(header.cliente, config.sequenceCounter, "Set"),
                         pieza: `JUEGO: ${subPiecesData.map(p => p.pieza).join(' + ')}`,
                         subPiecesData: subPiecesData, 
@@ -511,10 +551,10 @@
                         const packageList = generatePackageList([p], packageSize);
                         return {
                             ...commonData,
-                            id: Date.now() + index,
+                            id: Date.now() + index, // ID temporal
                             displayId: generateID(header.cliente, config.sequenceCounter, p.pieza),
                             pieza: p.pieza, talla: p.talla, totalPedido: p.totalPedido,
-                            peso: p.peso, tiempo: p.tiempo, programa: p.programa, // Nuevo campo
+                            peso: p.peso, tiempo: p.tiempo, programa: p.programa, 
                             progreso: packageList, 
                             packageSize: Number(packageSize) || 0,
                             isMerged: false,
@@ -522,7 +562,6 @@
                     });
                 }
                 
-                // Llama a la función asíncrona de guardado de la App
                 await onSave(finalOrders);
             };
 
@@ -619,18 +658,16 @@
             );
         };
 
-        // --- VISTA DETALLE / IMPRESIÓN (ADAPTADO) ---
+        // --- VISTA DETALLE / IMPRESIÓN (ADAPTADO A ASYNC) ---
         const OrderView = ({ order, config, onBack, onUpdate }) => {
             const [entry, setEntry] = useState({ tejedor: '', fecha: new Date().toISOString().split('T')[0], defectos: '', agujas: '' });
             
-            // Calculamos totales
             const totalProdPackages = order.progreso?.filter(p => p.finished).reduce((a, b) => a + (b.cantidad || 0), 0) || 0;
             const totalPzOrdered = order.totalPedido || order.progreso?.reduce((a, b) => a + (b.cantidad || 0), 0) || 0;
             const pct = totalPzOrdered ? Math.round((totalProdPackages / totalPzOrdered) * 100) : 0;
             const totalPackages = order.progreso?.length || 0;
             const completedPackages = order.progreso?.filter(p => p.finished).length || 0;
             
-            // Función para marcar un paquete como terminado
             const markPackageAsFinished = (packageId) => {
                 if (!entry.tejedor || !entry.fecha) {
                     alert("Por favor, ingresa el nombre del Tejedor y la Fecha.");
@@ -641,7 +678,7 @@
                     if (pkg.id === packageId) {
                         return {
                             ...pkg,
-                            tejedor: entry.tejedor.toUpperCase(), // Mayúsculas
+                            tejedor: entry.tejedor.toUpperCase(), 
                             fecha: entry.fecha,
                             defectos: entry.defectos,
                             agujas: entry.agujas,
@@ -651,7 +688,6 @@
                     return pkg;
                 });
                 
-                // Llama a onUpdate (que es asíncrona)
                 onUpdate(order.id, 'progreso', updatedProgreso);
 
                 setEntry(prev => ({ 
@@ -661,7 +697,6 @@
                 }));
             };
 
-            // Componente para mostrar detalles de las piezas (solo para órdenes compuestas)
             const PieceDetails = ({ data }) => (
                 <div className="border border-black p-1.5 text-xs">
                     <div className="font-bold text-[9px] uppercase mb-1 border-b border-black pb-0.5">Detalles de Pieza</div>
@@ -675,11 +710,9 @@
                 </div>
             );
 
-            // Determinar los paquetes pendientes
             const pendingPackages = order.progreso?.filter(p => !p.finished) || [];
             const completedPackagesData = order.progreso?.filter(p => p.finished).reverse() || [];
             
-            // Función para calcular piezas por turno para la impresión
             const calculatePiecesPerShift = (timeInMin) => {
                 const shiftHours = Number(config.shiftHours) || 8;
                 const time = Number(timeInMin);
@@ -691,14 +724,13 @@
             const isFinished = pct === 100;
             const isArchived = order.status === 'ARCHIVADO';
             
-            // Función Asíncrona para Archivar
             const handleArchive = async () => {
                 await onUpdate(order.id, 'status', 'ARCHIVADO');
             };
 
             const buttonArchive = isFinished && !isArchived ? (
                 <button 
-                    onClick={handleArchive} // Llama a la nueva función asíncrona
+                    onClick={handleArchive} 
                     className="px-4 py-1 bg-green-600 text-white rounded font-bold flex gap-2 items-center text-xs ml-2 hover:bg-green-700"
                 >
                     <Icon name="archive" size={14}/> Archivar Orden
@@ -814,7 +846,6 @@
                                 {/* Columna Derecha: Imagen */}
                                 <div className="w-1/2 border border-black flex items-center justify-center p-1 bg-white relative">
                                     <div className="absolute top-0 left-0 bg-black text-white text-[9px] px-1">REF: {order.codigo}</div>
-                                    {/* Usa repoUrls en SmartImage */}
                                     <SmartImage repoUrls={config.repoUrls} codigo={order.codigo} className="max-w-full max-h-full object-contain" />
                                 </div>
                             </div>
@@ -842,13 +873,11 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {/* Paquetes no completados (vacíos para rellenar a mano) */}
                                     {order.progreso?.map((pkg, i) => (
                                         <tr key={pkg.id} className="production-row-h">
                                             <td className="border border-black font-bold">
                                                 {pkg.cantidad} pzs {pkg.paqueteNum}/{pkg.paquetesTotales} <span className="text-xs font-normal text-slate-600">({pkg.piezaNombre})</span>
                                             </td>
-                                            {/* Si ya está terminado, se llena el resto de los campos */}
                                             {pkg.finished ? (
                                                 <>
                                                     <td className="border border-black">{pkg.tejedor}</td>
@@ -894,7 +923,6 @@
                                 <input placeholder="Agujas (unid)" type="number" value={entry.agujas} onChange={e=>setEntry({...entry,agujas:e.target.value})} className="border p-2 rounded text-sm w-28"/>
                             </div>
                             
-                            {/* Lista de Paquetes Pendientes */}
                             <div className="max-h-60 overflow-y-auto border bg-white rounded">
                                 {pendingPackages.length === 0 ? (
                                     <div className="p-4 text-center text-slate-400 font-bold">🎉 ¡No hay paquetes pendientes!</div>
@@ -969,11 +997,9 @@
             const uniqueClients = [...new Set(orders.map(o => o.cliente))].sort();
 
             const lastFiveOrders = useMemo(() => {
-                // Filtra órdenes por código único y toma las últimas 5 (por ID)
                 const uniqueOrders = [];
                 const codes = new Set();
                 const allOrders = [...orders].sort((a, b) => {
-                    // Si el id es de Firestore (string) o local (number), intentamos ordenar por el ID si es numérico, si no, simplemente por el código.
                     const idA = typeof a.id === 'string' ? Date.parse(a.id.substring(0, 8)) || 0 : a.id;
                     const idB = typeof b.id === 'string' ? Date.parse(b.id.substring(0, 8)) || 0 : b.id;
                     return idB - idA;
@@ -993,9 +1019,7 @@
                 if (!searchTerm && !searchClient) return setSearchResults([]);
 
                 const results = orders.filter(o => 
-                    // Búsqueda por Código (parcial)
                     (searchTerm && o.codigo.includes(searchTerm.toUpperCase())) ||
-                    // Exploración por Cliente (exacto)
                     (searchClient && o.cliente === searchClient)
                 );
                 setSearchResults(results);
@@ -1013,7 +1037,6 @@
                     <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><Icon name="forklift" /> Selecciona Modo de Creación</h2>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Opción 1: Crear desde Cero */}
                         <div className="border p-4 rounded-lg bg-indigo-50 flex flex-col items-center">
                             <Icon name="file-plus" size={32} className="text-indigo-600 mb-2"/>
                             <h3 className="font-bold mb-3 text-center">FICHA DESDE CERO</h3>
@@ -1022,12 +1045,10 @@
                             </button>
                         </div>
 
-                        {/* Opción 2: Copiar Existente */}
                         <div className="border p-4 rounded-lg bg-slate-50 flex flex-col">
                             <Icon name="copy" size={32} className="text-slate-600 mb-2 self-center"/>
                             <h3 className="font-bold mb-3 text-center">COPIAR ORDEN EXISTENTE</h3>
 
-                            {/* Búsqueda */}
                             <div className="flex gap-2 mb-3">
                                 <button onClick={handleSearch} className="bg-slate-700 text-white p-2 rounded font-bold flex items-center"><Icon name="search" size={16}/></button>
                                 <input 
@@ -1049,7 +1070,6 @@
                             </select>
                             <button onClick={handleSearch} className="w-full bg-slate-200 text-slate-700 py-2 rounded font-bold mb-4 flex items-center justify-center gap-2"><Icon name="folder" size={16}/> Mostrar Resultados</button>
                             
-                            {/* Resultados de Búsqueda */}
                             {searchResults.length > 0 && (
                                 <div className="max-h-32 overflow-y-auto border rounded mb-3 p-2 bg-white">
                                     <p className="text-xs font-bold text-slate-600 mb-1">Resultados ({searchResults.length}):</p>
@@ -1062,7 +1082,6 @@
                                 </div>
                             )}
 
-                            {/* Miniaturas de las Últimas 5 */}
                             <h4 className="font-bold text-xs mt-3 mb-2 border-t pt-3">3. Últimas 5 Órdenes Únicas:</h4>
                             <div className="scroll-container">
                                 {lastFiveOrders.map(o => (
@@ -1084,7 +1103,7 @@
             );
         };
         
-        // --- COMPONENTE MODAL DE CONFIGURACIÓN (ADAPTADO) ---
+        // --- COMPONENTE MODAL DE CONFIGURACIÓN (Sin cambios sustanciales) ---
         const RepoUrlInput = ({ index, url, onChange, onRemove }) => (
             <div className="flex gap-2 mb-2 items-center">
                 <input 
@@ -1100,7 +1119,6 @@
         const SettingsModal = ({ config, onSave, onClose }) => {
             const [local, setLocal] = useState({ 
                 ...config, 
-                // Asegurar que repoUrls sea un array para edición
                 repoUrls: Array.isArray(config.repoUrls) ? config.repoUrls : (config.repoUrls ? [config.repoUrls] : ['']), 
             });
 
@@ -1166,7 +1184,7 @@
         // 3. APP PRINCIPAL (ADAPTADO A FIREBASE)
         // =================================================================
         const App = () => {
-            const [view, setView] = useState('loading'); // Nuevo estado de carga
+            const [view, setView] = useState('loading'); 
             const [orders, setOrders] = useState([]); 
             const [config, setConfig] = useState({}); 
             const [yarnInventory, setYarnInventory] = useState(initialYarnInventory);
@@ -1179,40 +1197,36 @@
             useEffect(() => {
                 const initializeData = async () => {
                     try {
-                        // 1. Cargar Configuración
                         const loadedConfig = await loadConfig();
                         setConfig(loadedConfig);
 
-                        // 2. Cargar Órdenes
                         const loadedOrders = await loadOrders();
                         setOrders(loadedOrders);
                         
-                        // 3. Cargar Inventario
                         const loadedInventory = await loadYarnInventory(initialYarnInventory);
                         setYarnInventory(loadedInventory);
 
-                        console.log("Datos cargados de Firebase.");
-                        setView('list'); // Mostrar la lista al terminar la carga
+                        setView('list'); 
                     } catch (error) {
                         console.error("Error al inicializar la app desde Firebase:", error);
-                        // Fallback a vista de lista, usando los datos iniciales/vacíos
+                        // Fallback de emergencia
                         setConfig({ repoUrls: [''], sequenceCounter: 1, shiftHours: 8 });
                         setOrders([]);
                         setYarnInventory(initialYarnInventory);
                         setView('list'); 
                         alert("Error de conexión con Firebase. Cargando datos por defecto.");
                     }
-                    // Siempre crear iconos al inicio
                     lucide.createIcons();
                 };
                 initializeData();
             }, []); 
             
             // --- GUARDADO DE CONFIGURACIÓN E INVENTARIO ---
-            // Este efecto ahora solo reacciona a los cambios en config e inventario
             useEffect(() => {
-                if(config.sequenceCounter) saveConfig(config);
-            }, [config]);
+                if(config.sequenceCounter && view !== 'loading') { // Solo guardar si ya cargamos y no estamos cargando
+                    saveConfig(config);
+                }
+            }, [config, view]);
 
             const handleUpdateInventory = async (newInventory) => {
                 setYarnInventory(newInventory);
@@ -1224,17 +1238,16 @@
             const handleSave = async (newOrders) => {
                 const savedOrders = [];
                 for (const order of newOrders) {
-                    // Guarda cada orden en Firebase y obtén el ID generado
                     const savedOrder = await saveOrder(order);
                     savedOrders.push(savedOrder);
                 }
 
-                // Actualizar el estado de React con las nuevas órdenes
+                // Actualizar el estado de órdenes, manteniendo el ID de Firestore
                 setOrders([...savedOrders, ...orders]);
                 
-                // Actualizar el contador de secuencia en la configuración y guardarla
+                // Actualizar y guardar el contador
                 const newConfig = {...config, sequenceCounter: (config.sequenceCounter || 0) + 1};
-                setConfig(newConfig); // El useEffect se encarga de llamar a saveConfig
+                setConfig(newConfig); 
 
                 setView('list');
                 setOrderToCopy(null); 
@@ -1251,15 +1264,12 @@
                     return o;
                 });
                 
-                // 1. Actualizar el estado local
                 setOrders(updatedOrders);
 
-                // 2. Persistir el cambio en Firestore
                 if (updatedOrder) {
                     await saveOrder(updatedOrder);
                 }
 
-                // 3. Si estamos en el detalle, actualizar el detalle para reflejar el cambio
                 if(selectedOrder?.id === orderId) {
                     setSelectedOrder(updatedOrder);
                 }
@@ -1271,8 +1281,16 @@
                 [...new Set(orders.flatMap(o => o.isMerged && o.subPiecesData ? o.subPiecesData.map(sp => sp.pieza) : [o.pieza]))].filter(p => p).sort(), 
             [orders]);
 
-            const pendingOrders = orders.filter(o => (filterClient === 'ALL' || o.cliente === filterClient) && o.status !== 'ARCHIVADO').sort((a,b)=>b.id-a.id);
-            const archivedOrders = orders.filter(o => (filterClient === 'ALL' || o.cliente === filterClient) && o.status === 'ARCHIVADO').sort((a,b)=>b.id-a.id);
+            // Ordenamos para que las más recientes (ID de Firestore o ID de Date.now) salgan primero
+            const sortedOrders = orders.slice().sort((a,b)=>{
+                // Intenta tratar los IDs de Firestore (string) como fechas para ordenar cronológicamente si es posible
+                const idA = typeof a.id === 'string' ? Date.parse(a.id.substring(0, 8)) || 0 : a.id;
+                const idB = typeof b.id === 'string' ? Date.parse(b.id.substring(0, 8)) || 0 : b.id;
+                return idB - idA;
+            });
+
+            const pendingOrders = sortedOrders.filter(o => (filterClient === 'ALL' || o.cliente === filterClient) && o.status !== 'ARCHIVADO');
+            const archivedOrders = sortedOrders.filter(o => (filterClient === 'ALL' || o.cliente === filterClient) && o.status === 'ARCHIVADO');
 
 
             if (view === 'loading') {
@@ -1319,7 +1337,7 @@
                                         const pct = o.totalPedido ? Math.min(100, Math.round((total/o.totalPedido)*100)) : 0;
                                         return (
                                             <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className="bg-white p-4 rounded shadow border cursor-pointer hover:shadow-lg">
-                                                <div className="flex justify-between mb-2"><span className="font-mono text-xs text-slate-400 font-bold">{o.displayId}</span><span className="bg-slate-100 text-xs px-2 rounded font-bold">MQ-{o.maquina}</span></div>
+                                                <div className="flex justify-between mb-2"><span className="font-mono text-xs text-slate-400 font-bold">{o.displayId || o.id}</span><span className="bg-slate-100 text-xs px-2 rounded font-bold">MQ-{o.maquina}</span></div>
                                                 <div className="font-bold">{o.cliente}</div>
                                                 <div className="text-sm text-slate-500 mb-2">{o.pieza} <span className="text-xs text-indigo-500">({o.codigo})</span></div>
                                                 <div className="w-full bg-slate-100 h-1.5 rounded-full mb-1"><div className="bg-green-500 h-full rounded-full" style={{width:`${pct}%`}}></div></div>
@@ -1338,7 +1356,7 @@
                                     archivedOrders.map(o => {
                                         return (
                                             <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className="bg-white p-4 rounded shadow border cursor-pointer hover:shadow-lg">
-                                                <div className="flex justify-between mb-2"><span className="font-mono text-xs text-slate-400 font-bold">{o.displayId}</span><span className="bg-slate-100 text-xs px-2 rounded font-bold">MQ-{o.maquina}</span></div>
+                                                <div className="flex justify-between mb-2"><span className="font-mono text-xs text-slate-400 font-bold">{o.displayId || o.id}</span><span className="bg-slate-100 text-xs px-2 rounded font-bold">MQ-{o.maquina}</span></div>
                                                 <div className="font-bold">{o.cliente}</div>
                                                 <div className="text-sm text-slate-500 mb-2">{o.pieza} <span className="text-xs text-indigo-500">({o.codigo})</span></div>
                                                 <div className="text-xs text-gray-500 font-bold">ARCHIVADO</div>
@@ -1353,7 +1371,7 @@
                     {view === 'inventory' && (
                         <YarnInventory 
                             inventory={yarnInventory}
-                            onUpdate={handleUpdateInventory} // Pasamos la función asíncrona adaptada
+                            onUpdate={handleUpdateInventory} 
                             onBack={() => setView('list')}
                         />
                     )}
@@ -1370,7 +1388,7 @@
                     {view === 'create' && (
                         <MultiOrderForm 
                             config={config} 
-                            onSave={handleSave} // onSave ahora es asíncrona
+                            onSave={handleSave} 
                             onCancel={()=>{setView('list'); setOrderToCopy(null);}} 
                             initialOrder={orderToCopy}
                             clientHistory={allClients}
@@ -1383,7 +1401,7 @@
                             order={selectedOrder} 
                             config={config} 
                             onBack={()=>{setView('list');setSelectedOrder(null)}} 
-                            onUpdate={updateOrder} // onUpdate ahora es asíncrona
+                            onUpdate={updateOrder} 
                         />
                     )}
                     
