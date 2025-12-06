@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Textil v8.1 - Control de Producción</title>
+    <title>Sistema Textil v8.1 - Control de Producción e Inventario</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -70,7 +70,47 @@
         };
         // console.log("Configuración de Firebase Cargada:", firebaseConfig.projectId);
         
-        // --- DATOS INICIALES DE EJEMPLO ---
+        // --- UTILIDADES ---
+        const generateID = (clientName, sequence, pieceName) => {
+            const clientInitial = clientName ? clientName.charAt(0).toUpperCase() : 'X';
+            const seqString = String(sequence).padStart(6, '0');
+            let suffix = 'XX';
+            if (pieceName) {
+                const lower = pieceName.toUpperCase();
+                if (lower.includes('+') || lower.includes('JUEGO')) suffix = 'SET';
+                else if (lower.includes('MANGA') && lower.includes('LARGA')) suffix = 'ML';
+                else if (lower.includes('MANGA') && lower.includes('CORTA')) suffix = 'MC'; 
+                else suffix = lower.substring(0, 2);
+            }
+            return `${clientInitial}-${seqString}-${suffix}`;
+        };
+
+        const Icon = ({ name, size = 18, className }) => <i data-lucide={name} width={size} height={size} className={className}></i>;
+
+        // Función para manejar mayúsculas automáticamente
+        const toUppercase = (handler) => (e) => {
+            e.target.value = e.target.value.toUpperCase();
+            handler(e);
+        };
+
+        // --- DATOS INICIALES DE EJEMPLO DE INVENTARIO ---
+        const initialYarnInventory = {
+            // Lycras (Composición/Estiraje/Kilos)
+            'ALEMANIA': { comp: '40/40/12', estiraje: 2500, bodega: 100, taller: 0 },
+            'PARÍS': { comp: '20/33/34', estiraje: 2050, bodega: 100, taller: 0 },
+            'YUKI': { comp: '20/70/68', estiraje: 1800, bodega: 100, taller: 0 },
+            'DUBAI': { comp: '20/70/68', estiraje: 2050, bodega: 100, taller: 0 },
+            'MIAMI': { comp: '20/40/24', estiraje: 1800, bodega: 100, taller: 0 },
+            'TEXAS': { comp: '20/40/24', estiraje: 2050, bodega: 100, taller: 0 },
+            'UCRANIA': { comp: '40/70/68', estiraje: 2500, bodega: 100, taller: 0 },
+            'RUSIA': { comp: '40/70/68', estiraje: 2600, bodega: 100, taller: 0 },
+            'GUATEMALA': { comp: '40/40/24', estiraje: 2800, bodega: 100, taller: 0 },
+            // Nylons
+            'NYLON CALIDAD A': { comp: '70/68', estiraje: '-', bodega: 0, taller: 0 },
+            'NYLON CALIDAD C': { comp: '70/68', estiraje: '-', bodega: 0, taller: 0 },
+        };
+        
+        // --- DATOS INICIALES DE EJEMPLO DE ORDENES ---
         const initialOrdersData = [
             {
                 id: 1700000001,
@@ -84,8 +124,8 @@
                 batchSequence: 1,
                 status: "EN PROCESO",
                 threading: [
-                    { id: 101, guia: '1', material: 'ALGODÓN PEINADO GRIS', sis: '30', porcentaje: '60' },
-                    { id: 102, guia: '2', material: 'ELASTANO NEGRO', sis: '40', porcentaje: '40' }
+                    { id: 101, guia: '1', material: 'LYCRA ALEMANIA', sis: '30', porcentaje: '60' },
+                    { id: 102, guia: '2', material: 'ALGODÓN NEGRO', sis: '40', porcentaje: '40' }
                 ],
                 pieza: "MANGA LARGA",
                 talla: "M/L",
@@ -111,7 +151,7 @@
                 batchSequence: 2,
                 status: "ARCHIVADO", // ARCHIVADO PARA PRUEBA
                 threading: [
-                    { id: 201, guia: 'A', material: 'LANA AZUL REY', sis: '60', porcentaje: '100' }
+                    { id: 201, guia: 'A', material: 'NYLON CALIDAD A', sis: '60', porcentaje: '100' }
                 ],
                 isMerged: true,
                 subPiecesData: [
@@ -129,27 +169,181 @@
             }
         ];
 
-        // --- UTILIDADES ---
-        const generateID = (clientName, sequence, pieceName) => {
-            const clientInitial = clientName ? clientName.charAt(0).toUpperCase() : 'X';
-            const seqString = String(sequence).padStart(6, '0');
-            let suffix = 'XX';
-            if (pieceName) {
-                const lower = pieceName.toUpperCase();
-                if (lower.includes('+') || lower.includes('JUEGO')) suffix = 'SET';
-                else if (lower.includes('MANGA') && lower.includes('LARGA')) suffix = 'ML';
-                else if (lower.includes('MANGA') && lower.includes('CORTA')) suffix = 'MC'; 
-                else suffix = lower.substring(0, 2);
-            }
-            return `${clientInitial}-${seqString}-${suffix}`;
-        };
 
-        const Icon = ({ name, size = 18, className }) => <i data-lucide={name} width={size} height={size} className={className}></i>;
+        // --- COMPONENTE GESTIÓN DE INVENTARIO DE HILATURAS ---
+        const YarnInventory = ({ inventory, onUpdate, onBack }) => {
+            const [selectedYarn, setSelectedYarn] = useState(null);
+            const [movementType, setMovementType] = useState('INGRESAR'); // INGRESAR | TRANSFERIR
+            const [amount, setAmount] = useState('');
+            
+            // Función para agrupar las hilaturas por tipo
+            const groupedInventory = useMemo(() => {
+                const groups = { Lycras: [], Nylon: [], Otros: [] };
+                
+                Object.entries(inventory).forEach(([name, data]) => {
+                    const entry = { name, ...data };
+                    if (name.startsWith('NYLON')) {
+                        groups.Nylon.push(entry);
+                    } else if (data.comp.includes('/') && data.estiraje !== '-') {
+                        groups.Lycras.push(entry);
+                    } else {
+                        groups.Otros.push(entry);
+                    }
+                });
+                return groups;
+            }, [inventory]);
 
-        // Función para manejar mayúsculas automáticamente
-        const toUppercase = (handler) => (e) => {
-            e.target.value = e.target.value.toUpperCase();
-            handler(e);
+            const handleUpdate = () => {
+                if (!selectedYarn || amount <= 0) {
+                    alert('Por favor, selecciona una hilatura e ingresa una cantidad válida.');
+                    return;
+                }
+                
+                const key = selectedYarn.name;
+                const numericAmount = Number(amount);
+                
+                if (movementType === 'INGRESAR') {
+                    // Ingreso de Lote (solo a Bodega)
+                    const confirmMsg = `¿Deseas ingresar ${numericAmount} kg de **${key}** a la Bodega?`;
+                    if (confirm(confirmMsg)) {
+                        const newInventory = { ...inventory, [key]: { ...inventory[key], bodega: inventory[key].bodega + numericAmount } };
+                        onUpdate(newInventory);
+                        alert(`¡Ingreso exitoso! ${numericAmount} kg de ${key} añadidos a Bodega.`);
+                    }
+
+                } else if (movementType === 'TRANSFERIR') {
+                    // Transferencia de Bodega a Taller
+                    if (inventory[key].bodega < numericAmount) {
+                        alert(`Error: Solo hay ${inventory[key].bodega} kg de ${key} en Bodega. No puedes transferir ${numericAmount} kg.`);
+                        return;
+                    }
+                    
+                    const confirmMsg = `¿Deseas transferir ${numericAmount} kg de **${key}** de Bodega a Taller?`;
+                    if (confirm(confirmMsg)) {
+                        const newInventory = { 
+                            ...inventory, 
+                            [key]: { 
+                                ...inventory[key], 
+                                bodega: inventory[key].bodega - numericAmount,
+                                taller: inventory[key].taller + numericAmount
+                            } 
+                        };
+                        onUpdate(newInventory);
+                        alert(`¡Transferencia exitosa! ${numericAmount} kg de ${key} movidos de Bodega a Taller.`);
+                    }
+                }
+                
+                // Limpiar formulario después de la operación
+                setAmount('');
+                setSelectedYarn(null);
+            };
+
+            const InventoryTable = ({ title, data }) => (
+                <div className="mb-8">
+                    <h3 className="text-xl font-bold mb-3 border-b pb-1 text-slate-700 flex items-center gap-2"><Icon name="box-select" size={20}/> {title} ({data.length})</h3>
+                    <div className="overflow-x-auto rounded border shadow">
+                        <table className="w-full text-sm">
+                            <thead className="bg-slate-800 text-white">
+                                <tr>
+                                    <th className="p-2 text-left w-1/4">NOMBRE</th>
+                                    <th className="p-2 w-1/6 text-center">COMPOSICIÓN</th>
+                                    <th className="p-2 w-1/6 text-center">ESTIRAJE</th>
+                                    <th className="p-2 w-1/6 text-center bg-green-700">EN BODEGA (kg)</th>
+                                    <th className="p-2 w-1/6 text-center bg-indigo-700">EN TALLER (kg)</th>
+                                    <th className="p-2 w-16"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.map((item) => (
+                                    <tr 
+                                        key={item.name} 
+                                        className={`border-b hover:bg-slate-50 cursor-pointer ${selectedYarn?.name === item.name ? 'bg-yellow-100' : 'bg-white'}`}
+                                        onClick={() => setSelectedYarn(item)}
+                                    >
+                                        <td className="p-2 font-bold">{item.name}</td>
+                                        <td className="p-2 text-center">{item.comp}</td>
+                                        <td className="p-2 text-center">{item.estiraje}</td>
+                                        <td className="p-2 text-center font-bold text-green-700">{item.bodega.toFixed(2)}</td>
+                                        <td className="p-2 text-center font-bold text-indigo-700">{item.taller.toFixed(2)}</td>
+                                        <td className="p-2 text-center">
+                                            {selectedYarn?.name === item.name ? <Icon name="check-circle" className="text-yellow-600 mx-auto"/> : ''}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+
+
+            return (
+                <div className="max-w-6xl mx-auto p-6">
+                    <button onClick={onBack} className="flex items-center gap-2 text-slate-600 font-bold mb-6"><Icon name="arrow-left"/> Volver a Producción</button>
+                    
+                    <h1 className="text-3xl font-black mb-6 flex items-center gap-2 text-slate-900"><Icon name="hard-hat"/> Inventario Global de Hilaturas</h1>
+
+                    {/* SECCIÓN DE OPERACIONES */}
+                    <div className="bg-white p-4 rounded-lg shadow-lg mb-8 border border-slate-200">
+                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-700"><Icon name="settings-2" size={20}/> Operaciones de Stock</h2>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {/* COLUMNA 1: SELECCIÓN Y TIPO */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">HILATURA SELECCIONADA</label>
+                                <div className={`p-3 border rounded text-lg font-bold truncate ${selectedYarn ? 'bg-yellow-100' : 'bg-slate-100 text-slate-400'}`}>
+                                    {selectedYarn ? selectedYarn.name : 'Selecciona una hilatura de la tabla'}
+                                </div>
+                            </div>
+
+                            {/* COLUMNA 2: TIPO DE MOVIMIENTO */}
+                            <div className="flex flex-col">
+                                <label className="block text-xs font-bold text-slate-700 mb-1">TIPO DE MOVIMIENTO (KG)</label>
+                                <select 
+                                    className="p-3 border rounded text-lg font-bold w-full" 
+                                    value={movementType} 
+                                    onChange={e => setMovementType(e.target.value)}
+                                >
+                                    <option value="INGRESAR">INGRESAR LOTE (A Bodega)</option>
+                                    <option value="TRANSFERIR">TRANSFERIR (Bodega a Taller)</option>
+                                </select>
+                            </div>
+
+                            {/* COLUMNA 3: CANTIDAD Y BOTÓN */}
+                            <div className="flex gap-2 items-end">
+                                <div className="flex-grow">
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">CANTIDAD (KG)</label>
+                                    <input 
+                                        type="number" 
+                                        className="p-3 border rounded text-lg font-bold w-full" 
+                                        placeholder="0.00 kg" 
+                                        value={amount} 
+                                        onChange={e => setAmount(e.target.value)} 
+                                        min="0.01"
+                                    />
+                                </div>
+                                <button 
+                                    onClick={handleUpdate} 
+                                    disabled={!selectedYarn || !amount || Number(amount) <= 0}
+                                    className="p-3 bg-indigo-600 text-white rounded font-bold hover:bg-indigo-700 disabled:opacity-50"
+                                >
+                                    {movementType === 'INGRESAR' ? <Icon name="download" size={20}/> : <Icon name="chevrons-right-left" size={20}/>}
+                                </button>
+                            </div>
+                        </div>
+                        {selectedYarn && movementType === 'TRANSFERIR' && (
+                            <div className="mt-3 text-sm text-red-600 font-bold">
+                                Nota: La transferencia descontará de **Bodega** y sumará a **Taller**. Bodega actual: {selectedYarn.bodega.toFixed(2)} kg.
+                            </div>
+                        )}
+                    </div>
+
+                    {/* TABLAS DE INVENTARIO */}
+                    <InventoryTable title="Lycras (Hilatura Elástica)" data={groupedInventory.Lycras} />
+                    <InventoryTable title="Nylon (Calidad A y C)" data={groupedInventory.Nylon} />
+                    {groupedInventory.Otros.length > 0 && <InventoryTable title="Otros Materiales" data={groupedInventory.Otros} />}
+                </div>
+            );
         };
         
         // --- COMPONENTE IMAGEN INTELIGENTE (Soporte Múltiples Repos) ---
@@ -225,7 +419,7 @@
                                 {data.map((row, i) => (
                                     <tr key={row.id}>
                                         <td className="p-1"><input className="w-full border rounded p-1" placeholder="#" value={row.guia} onChange={toUppercase(e=>updateRow(row.id,'guia',e.target.value))} /></td>
-                                        <td className="p-1"><input className="w-full border rounded p-1" placeholder="EJ: ALGODÓN NEGRO" value={row.material} onChange={toUppercase(e=>updateRow(row.id,'material',e.target.value))} /></td>
+                                        <td className="p-1"><input className="w-full border rounded p-1" placeholder="EJ: LYCRA UCRANIA" value={row.material} onChange={toUppercase(e=>updateRow(row.id,'material',e.target.value))} /></td>
                                         <td className="p-1 relative">
                                             <input className="w-full border rounded p-1 text-center" placeholder="FINO / 10" value={row.sis} onChange={toUppercase(e=>updateRow(row.id,'sis',e.target.value))} /> 
                                         </td>
@@ -1009,6 +1203,7 @@
                 sequenceCounter: 3,
                 shiftHours: 8, 
             }); 
+            const [yarnInventory, setYarnInventory] = useState(() => JSON.parse(localStorage.getItem('v8_yarnInventory')) || initialYarnInventory);
             const [selectedOrder, setSelectedOrder] = useState(null);
             const [orderToCopy, setOrderToCopy] = useState(null); 
             const [showSettings, setShowSettings] = useState(false);
@@ -1017,8 +1212,9 @@
             useEffect(() => {
                 localStorage.setItem('v8_orders', JSON.stringify(orders)); 
                 localStorage.setItem('v8_config', JSON.stringify(config)); 
+                localStorage.setItem('v8_yarnInventory', JSON.stringify(yarnInventory)); // Guardar inventario
                 lucide.createIcons();
-            }, [orders, config, view]);
+            }, [orders, config, view, yarnInventory]);
 
             const handleSave = (newOrders) => {
                 setOrders([...newOrders, ...orders]);
@@ -1045,7 +1241,12 @@
                 <div className="min-h-screen bg-slate-100 pb-10">
                     <nav className="bg-slate-900 text-white p-3 flex justify-between no-print">
                         <div className="font-bold flex gap-2"><Icon name="box"/> Producción v8.1</div>
-                        <button onClick={()=>setShowSettings(true)}><Icon name="settings"/></button>
+                        <div className="flex gap-4">
+                             <button onClick={()=>setView('inventory')} className="text-sm font-bold flex items-center gap-1 hover:text-indigo-400">
+                                <Icon name="warehouse" size={18}/> Inventario
+                            </button>
+                            <button onClick={()=>setShowSettings(true)}><Icon name="settings"/></button>
+                        </div>
                     </nav>
 
                     {view === 'list' && (
@@ -1098,6 +1299,14 @@
                                 )}
                             </div>
                         </div>
+                    )}
+
+                    {view === 'inventory' && (
+                        <YarnInventory 
+                            inventory={yarnInventory}
+                            onUpdate={setYarnInventory}
+                            onBack={() => setView('list')}
+                        />
                     )}
 
                     {view === 'creation-flow' && (
