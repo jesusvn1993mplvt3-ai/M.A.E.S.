@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Textil v7.0 - Diseño Optimizado</title>
+    <title>Sistema Textil v8.0 - Paquetes Detallados</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -37,6 +37,10 @@
 
              /* Altura de renglón en tabla de producción */
             .production-row-h { height: 21px; }
+            
+            /* Estilo específico para la tabla de paquetes */
+            .package-table-print { font-size: 10pt; }
+            .package-table-print td { padding: 2px 4px; }
         }
         .print-only { display: none; }
     </style>
@@ -90,9 +94,9 @@
             return <img src={imgSrc} alt={codigo} className={className} onError={handleError} />;
         };
 
-        // --- COMPONENTE EDITOR DE ENHEBRADO (AHORA CON SIS.) ---
+        // --- COMPONENTE EDITOR DE ENHEBRADO ---
         const ThreadingEditor = ({ data, onChange }) => {
-            const addRow = () => onChange([...data, { id: Date.now(), guia: '', material: '', sis: '', porcentaje: '' }]); // Cambiado tension a sis
+            const addRow = () => onChange([...data, { id: Date.now(), guia: '', material: '', sis: '', porcentaje: '' }]);
             const updateRow = (id, field, val) => onChange(data.map(r => r.id === id ? { ...r, [field]: val } : r));
             const removeRow = (id) => onChange(data.filter(r => r.id !== id));
 
@@ -113,7 +117,7 @@
                                 <tr>
                                     <th className="p-2 w-16">Guía/#</th>
                                     <th className="p-2">Material / Color</th>
-                                    <th className="p-2 w-16 text-center">SIS.</th> {/* Cambiado Tensión a SIS. */}
+                                    <th className="p-2 w-16 text-center">SIS.</th> 
                                     <th className="p-2 w-16 text-center">Porcentaje %</th>
                                     <th className="p-2 w-8"></th>
                                 </tr>
@@ -124,7 +128,7 @@
                                         <td className="p-1"><input className="w-full border rounded p-1" placeholder="#" value={row.guia} onChange={e=>updateRow(row.id,'guia',e.target.value)} /></td>
                                         <td className="p-1"><input className="w-full border rounded p-1" placeholder="Ej: Algodón Negro" value={row.material} onChange={e=>updateRow(row.id,'material',e.target.value)} /></td>
                                         <td className="p-1 relative">
-                                            <input className="w-full border rounded p-1 text-center" placeholder="Fino / 10" value={row.sis} onChange={e=>updateRow(row.id,'sis',e.target.value)} /> {/* Usando sis */}
+                                            <input className="w-full border rounded p-1 text-center" placeholder="Fino / 10" value={row.sis} onChange={e=>updateRow(row.id,'sis',e.target.value)} /> 
                                         </td>
                                         <td className="p-1 relative">
                                             <input type="number" className="w-full border rounded p-1 text-center" placeholder="30" value={row.porcentaje} onChange={e=>updateRow(row.id,'porcentaje',e.target.value)} />
@@ -158,14 +162,47 @@
             
             const [threadingData, setThreadingData] = useState([]);
 
-            // Estado de pieza sin 'porcentaje', agregado 'tecnica'
             const [pieces, setPieces] = useState([
-                { id: 1, pieza: 'Blusa', talla: 'Unitalla', totalPedido: '', peso: '', tiempo: '', tecnica: '' }
+                { id: 1, pieza: 'Blusa', talla: 'Unitalla', totalPedido: 100, peso: '', tiempo: '' }
             ]);
 
-            const addPiece = () => setPieces([...pieces, { id: Date.now(), pieza: '', talla: 'Unitalla', totalPedido: '', peso: '', tiempo: '', tecnica: '' }]);
+            const [packageSize, setPackageSize] = useState(50); // Nuevo estado para tamaño de paquete
+
+            const addPiece = () => setPieces([...pieces, { id: Date.now(), pieza: '', talla: 'Unitalla', totalPedido: '', peso: '', tiempo: '' }]);
             const updatePiece = (id, f, v) => setPieces(pieces.map(p => p.id === id ? { ...p, [f]: v } : p));
             const removePiece = (id) => pieces.length > 1 && setPieces(pieces.filter(p => p.id !== id));
+
+            // Genera la lista de paquetes para una orden fusionada
+            const generatePackageList = (pieces, packageSize) => {
+                const packages = [];
+                let packageIndex = 1;
+                let totalPieces = 0;
+
+                pieces.forEach(p => {
+                    const totalPiecesInOrder = Number(p.totalPedido) || 0;
+                    const size = Number(packageSize) || totalPiecesInOrder;
+                    const numPackages = Math.ceil(totalPiecesInOrder / size);
+                    
+                    for (let i = 1; i <= numPackages; i++) {
+                        const count = (i === numPackages) ? (totalPiecesInOrder % size || size) : size;
+                        packages.push({
+                            id: Date.now() + packages.length + totalPieces, // ID único para el paquete
+                            piezaNombre: p.pieza,
+                            cantidad: count, // Cantidad en este paquete
+                            totalPedido: totalPiecesInOrder, // Cantidad total de la pieza (para referencia)
+                            paqueteNum: i,
+                            paquetesTotales: numPackages,
+                            tejedor: '',
+                            fecha: '',
+                            defectos: '',
+                            agujas: '',
+                            finished: false
+                        });
+                        totalPieces += 1;
+                    }
+                });
+                return packages;
+            };
 
             const handleSubmit = () => {
                 if(!header.codigo || !header.cliente || !header.maquina) return alert("Falta Código, Cliente o Máquina");
@@ -177,35 +214,46 @@
                     cliente: header.cliente, maquina: header.maquina, codigo: header.codigo,
                     fechaInicio: header.fechaInicio, fechaFin: header.fechaEntrega,
                     batchSequence: config.sequenceCounter,
-                    status: 'En Proceso', progreso: [],
+                    status: 'En Proceso', 
                     threading: threadingData 
                 };
 
                 if (shouldMerge) {
-                    const subPieces = pieces.map(p => p.pieza); // Lista de piezas para la selección de producción
+                    const subPiecesData = pieces.map(p => ({
+                        pieza: p.pieza,
+                        talla: p.talla,
+                        totalPedido: Number(p.totalPedido) || 0,
+                        peso: p.peso,
+                        tiempo: p.tiempo,
+                    }));
 
                     finalOrders.push({
                         ...commonData,
                         id: Date.now(),
                         displayId: generateID(header.cliente, config.sequenceCounter, "Set"),
-                        pieza: `Juego: ${subPieces.join(' + ')}`,
-                        subPieces: subPieces, // Almacenar sub-piezas para el control de producción
-                        talla: pieces[0].talla,
-                        totalPedido: pieces[0].totalPedido,
-                        // Concatenamos datos técnicos
-                        peso: pieces.reduce((a,b)=> a + (Number(b.peso)||0), 0),
-                        tiempo: pieces.reduce((a,b)=> a + (Number(b.tiempo)||0), 0),
-                        tecnica: pieces.map(p => `${p.pieza}: ${p.tecnica || 'N/A'}`).join(' | '),
-                        isMerged: true
+                        pieza: `Juego: ${subPiecesData.map(p => p.pieza).join(' + ')}`,
+                        subPiecesData: subPiecesData, // Datos de las piezas individuales
+                        packageSize: Number(packageSize) || 0,
+                        // El progreso ahora es la lista de paquetes pregenerada
+                        progreso: generatePackageList(pieces, packageSize), 
+                        isMerged: true,
+                        // Suma total del pedido para el seguimiento general
+                        totalPedido: subPiecesData.reduce((sum, p) => sum + p.totalPedido, 0)
                     });
                 } else {
-                    finalOrders = pieces.map((p, index) => ({
-                        ...commonData,
-                        id: Date.now() + index,
-                        displayId: generateID(header.cliente, config.sequenceCounter, p.pieza),
-                        pieza: p.pieza, talla: p.talla, totalPedido: p.totalPedido,
-                        peso: p.peso, tiempo: p.tiempo, tecnica: p.tecnica
-                    }));
+                    finalOrders = pieces.map((p, index) => {
+                        const packageList = generatePackageList([p], packageSize);
+                        return {
+                            ...commonData,
+                            id: Date.now() + index,
+                            displayId: generateID(header.cliente, config.sequenceCounter, p.pieza),
+                            pieza: p.pieza, talla: p.talla, totalPedido: p.totalPedido,
+                            peso: p.peso, tiempo: p.tiempo,
+                            progreso: packageList, // El progreso es la lista de paquetes
+                            packageSize: Number(packageSize) || 0,
+                            isMerged: false,
+                        }
+                    });
                 }
                 onSave(finalOrders);
             };
@@ -230,32 +278,41 @@
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3 mb-6">
-                                <input value={header.cliente} onChange={e => setHeader({...header, cliente: e.target.value})} className="p-2 border rounded text-sm" placeholder="Cliente" />
+                            <div className="grid grid-cols-3 gap-3 mb-6">
+                                <input value={header.cliente} onChange={e => setHeader({...header, cliente: e.target.value})} className="p-2 border rounded text-sm col-span-2" placeholder="Cliente" />
                                 <input value={header.maquina} onChange={e => setHeader({...header, maquina: e.target.value})} className="p-2 border rounded text-sm font-bold" placeholder="Máquina #" />
+                            </div>
+
+                            <div className="mb-4">
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Cantidad por Paquete (Piezas)</label>
+                                <input 
+                                    type="number" 
+                                    value={packageSize} 
+                                    onChange={e => setPackageSize(Number(e.target.value) || 0)} 
+                                    className="p-2 border rounded text-lg font-bold w-full" 
+                                    placeholder="Ej: 50" 
+                                    min="1"
+                                />
                             </div>
 
                             <div className="space-y-4">
                                 <div className="text-xs font-bold text-slate-500 border-b pb-1">DETALLES DE PIEZAS</div>
                                 {pieces.map((p, idx) => (
                                     <div key={p.id} className="bg-slate-50 p-3 rounded border relative">
-                                        <div className="flex gap-2 mb-2">
-                                            <input list="parts" value={p.pieza} onChange={e => updatePiece(p.id, 'pieza', e.target.value)} className="flex-1 p-1 border rounded text-sm font-bold" placeholder="Nombre Pieza (Ej: Blusa)" />
-                                            <input value={p.talla} onChange={e => updatePiece(p.id, 'talla', e.target.value)} className="w-20 p-1 border rounded text-sm" placeholder="Talla" />
-                                            <input type="number" value={p.totalPedido} onChange={e => updatePiece(p.id, 'totalPedido', e.target.value)} className="w-20 p-1 border rounded text-sm font-bold" placeholder="Cant." />
+                                        <div className="grid grid-cols-4 gap-2 mb-2">
+                                            <input list="parts" value={p.pieza} onChange={e => updatePiece(p.id, 'pieza', e.target.value)} className="col-span-2 p-1 border rounded text-sm font-bold" placeholder="Nombre Pieza (Ej: Blusa)" />
+                                            <input value={p.talla} onChange={e => updatePiece(p.id, 'talla', e.target.value)} className="p-1 border rounded text-sm" placeholder="Talla" />
+                                            <input type="number" value={p.totalPedido} onChange={e => updatePiece(p.id, 'totalPedido', e.target.value)} className="p-1 border rounded text-sm font-bold" placeholder="Cant." />
                                         </div>
-                                        <div className="flex gap-2 mb-2">
-                                            <div className="flex-1 relative">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="relative">
                                                 <span className="absolute right-2 top-1.5 text-[10px] text-slate-400">g/kg</span>
                                                 <input type="number" value={p.peso} onChange={e => updatePiece(p.id, 'peso', e.target.value)} className="w-full p-1 border rounded text-xs" placeholder="Peso" />
                                             </div>
-                                            <div className="flex-1 relative">
+                                            <div className="relative">
                                                 <span className="absolute right-2 top-1.5 text-[10px] text-slate-400">min</span>
                                                 <input type="number" value={p.tiempo} onChange={e => updatePiece(p.id, 'tiempo', e.target.value)} className="w-full p-1 border rounded text-xs" placeholder="Tiempo" />
                                             </div>
-                                        </div>
-                                        <div className="relative">
-                                            <input value={p.tecnica} onChange={e => updatePiece(p.id, 'tecnica', e.target.value)} className="w-full p-1 border rounded text-xs" placeholder="Técnica / Mimbre (Ej: Trenzado 3/1)" />
                                         </div>
                                         {pieces.length > 1 && <button onClick={() => removePiece(p.id)} className="absolute -top-2 -right-2 bg-red-100 text-red-500 rounded-full p-1 border hover:bg-red-200"><Icon name="x" size={12} /></button>}
                                     </div>
@@ -282,40 +339,65 @@
 
         // --- VISTA DETALLE / IMPRESIÓN ---
         const OrderView = ({ order, config, onBack, onUpdate }) => {
-            const [entry, setEntry] = useState({ fecha: new Date().toISOString().split('T')[0], tejedor: '', produccion: '', subPieza: '' });
+            const [entry, setEntry] = useState({ tejedor: '', fecha: new Date().toISOString().split('T')[0], defectos: '', agujas: '' });
             
-            useEffect(() => {
-                if (order.isMerged && order.subPieces && !entry.subPieza) {
-                    setEntry(prev => ({ ...prev, subPieza: order.subPieces[0] || '' }));
+            // Calculamos totales
+            const totalProdPackages = order.progreso?.filter(p => p.finished).reduce((a, b) => a + (b.cantidad || 0), 0) || 0;
+            const totalPzOrdered = order.totalPedido || order.progreso?.reduce((a, b) => a + (b.cantidad || 0), 0) || 0;
+            const pct = totalPzOrdered ? Math.round((totalProdPackages / totalPzOrdered) * 100) : 0;
+            const totalPackages = order.progreso?.length || 0;
+            const completedPackages = order.progreso?.filter(p => p.finished).length || 0;
+            
+            // Función para marcar un paquete como terminado
+            const markPackageAsFinished = (packageId) => {
+                // Validación básica: Debe haber tejedor y fecha
+                if (!entry.tejedor || !entry.fecha) {
+                    alert("Por favor, ingresa el nombre del Tejedor y la Fecha.");
+                    return;
                 }
-            }, [order.isMerged, order.subPieces]);
-
-            const addProgress = () => {
-                if(!entry.produccion) return alert("Debe ingresar la cantidad producida.");
-                if(order.isMerged && !entry.subPieza) return alert("Esta es una orden compuesta. Debe especificar qué PIEZA produjo.");
-
-                const newP = [...(order.progreso||[]), { 
-                    ...entry, 
-                    id: Date.now(), 
-                    produccion: Number(entry.produccion),
-                    // Solo guarda subPieza si es una orden fusionada
-                    subPieza: order.isMerged ? entry.subPieza : undefined 
-                }];
                 
-                onUpdate(order.id, 'progreso', newP);
+                const updatedProgreso = order.progreso.map(pkg => {
+                    if (pkg.id === packageId) {
+                        return {
+                            ...pkg,
+                            tejedor: entry.tejedor,
+                            fecha: entry.fecha,
+                            defectos: entry.defectos,
+                            agujas: entry.agujas,
+                            finished: true,
+                        };
+                    }
+                    return pkg;
+                });
+                onUpdate(order.id, 'progreso', updatedProgreso);
+
+                // Limpiar campos de captura después de registrar
                 setEntry(prev => ({ 
                     ...prev, 
-                    produccion: '', 
-                    // Mantenemos fecha/tejedor/subPieza para captura rápida
+                    defectos: '', 
+                    agujas: '',
+                    // Mantener tejedor y fecha para la siguiente captura rápida
                 }));
             };
 
-            const totalProd = order.progreso?.reduce((a,b)=>a+b.produccion,0) || 0;
-            const pct = order.totalPedido ? Math.round((totalProd/order.totalPedido)*100) : 0;
-            
-            // Preparar el string de técnica, mostrando 'N/A' si está vacío
-            const tecnicaDisplay = order.tecnica || 'N/A';
-            const isMerged = order.isMerged;
+            // Componente para mostrar detalles de las piezas (solo para órdenes compuestas)
+            const PieceDetails = ({ data }) => (
+                <div className="border border-black p-1.5 text-xs">
+                    <div className="font-bold text-[9px] uppercase mb-1 border-b border-black pb-0.5">Detalles de Pieza</div>
+                    {data.map((p, i) => (
+                        <div key={i} className={`flex ${i < data.length - 1 ? 'border-b border-gray-200' : ''}`}>
+                            <div className="w-1/2 font-bold text-slate-700 truncate pr-1">{p.pieza} ({p.talla})</div>
+                            <div className="w-1/4 text-center">{p.totalPedido} pzs</div>
+                            <div className="w-1/4 text-right">{p.peso || '-'} g/kg</div>
+                        </div>
+                    ))}
+                </div>
+            );
+
+            // Determinar los paquetes pendientes
+            const pendingPackages = order.progreso?.filter(p => !p.finished) || [];
+            const completedPackagesData = order.progreso?.filter(p => p.finished).reverse() || [];
+
 
             return (
                 <div className="bg-white min-h-screen">
@@ -341,56 +423,60 @@
                             </div>
 
                             {/* Cuerpo de Datos (Optimizado) */}
-                            <div className="flex gap-1 flex-grow overflow-hidden"> {/* Reducido el gap a 1 */}
+                            <div className="flex gap-1 flex-grow overflow-hidden"> 
                                 {/* Columna Izquierda: Datos Técnicos y Tabla */}
-                                <div className="w-1/2 flex flex-col"> {/* Eliminado el gap para juntar bloques */}
+                                <div className="w-1/2 flex flex-col"> 
                                     
-                                    {/* Código, Pieza, Total (Más compacto) */}
+                                    {/* Código, Pieza, Total, Paquetes */}
                                     <div className="flex border border-black text-center divide-x divide-black bg-slate-100 print:bg-transparent">
                                         <div className="flex-1 p-1">
-                                            <div className="text-[10px] font-bold uppercase">Código</div> {/* Fuente ligeramente más grande */}
+                                            <div className="text-[10px] font-bold uppercase">Código</div>
                                             <div className="text-xl font-black">{order.codigo}</div>
                                         </div>
                                         <div className="flex-1 p-1">
-                                            <div className="text-[10px] font-bold uppercase">Pieza</div>
-                                            <div className="text-sm font-bold truncate">{order.pieza}</div>
+                                            <div className="text-[10px] font-bold uppercase">Pedido Total</div>
+                                            <div className="text-xl font-black">{totalPzOrdered} pzs</div>
                                         </div>
                                         <div className="flex-1 p-1">
-                                            <div className="text-[10px] font-bold uppercase">Total</div>
-                                            <div className="text-xl font-black">{order.totalPedido}</div>
+                                            <div className="text-[10px] font-bold uppercase">Paquetes</div>
+                                            <div className="text-xl font-black">{totalPackages}</div>
                                         </div>
                                     </div>
                                     
-                                    {/* Peso, Tiempo, Técnica/Mimbre (Más compacto) */}
-                                    <div className="border border-black p-1.5"> {/* Aumentado padding ligeramente para mejorar visibilidad */}
-                                        <div className="flex divide-x divide-black mb-1">
-                                            <div className="flex-1 text-center p-0.5">
-                                                <div className="text-[9px] font-bold uppercase text-slate-500 leading-none">Peso</div> {/* Fuente ligeramente más grande */}
-                                                <div className="text-base font-bold leading-none">{order.peso || '-'} <span className="text-[9px]">g/kg</span></div> {/* Fuente ligeramente más grande */}
-                                            </div>
-                                            <div className="flex-1 text-center p-0.5">
-                                                <div className="text-[9px] font-bold uppercase text-slate-500 leading-none">Tiempo</div> {/* Fuente ligeramente más grande */}
-                                                <div className="text-base font-bold leading-none">{order.tiempo || '-'} <span className="text-[9px]">min</span></div> {/* Fuente ligeramente más grande */}
+                                    {/* Detalles de Pieza / Peso / Tiempo */}
+                                    {order.isMerged ? (
+                                        <PieceDetails data={order.subPiecesData} />
+                                    ) : (
+                                        <div className="border border-black p-1.5">
+                                            <div className="flex divide-x divide-black mb-1">
+                                                <div className="flex-1 text-center p-0.5">
+                                                    <div className="text-[9px] font-bold uppercase text-slate-500 leading-none">Pieza</div>
+                                                    <div className="text-base font-bold leading-none">{order.pieza}</div>
+                                                </div>
+                                                <div className="flex-1 text-center p-0.5">
+                                                    <div className="text-[9px] font-bold uppercase text-slate-500 leading-none">Peso</div>
+                                                    <div className="text-base font-bold leading-none">{order.peso || '-'} <span className="text-[9px]">g/kg</span></div>
+                                                </div>
+                                                <div className="flex-1 text-center p-0.5">
+                                                    <div className="text-[9px] font-bold uppercase text-slate-500 leading-none">Tiempo</div> 
+                                                    <div className="text-base font-bold leading-none">{order.tiempo || '-'} <span className="text-[9px]">min</span></div> 
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className="border-t border-black pt-1">
-                                            <div className="text-[9px] font-bold uppercase text-slate-500 leading-none">Técnica / Mimbre</div> {/* Fuente ligeramente más grande */}
-                                            <div className="text-sm font-mono font-bold leading-tight">{tecnicaDisplay}</div> {/* Fuente ligeramente más grande */}
-                                        </div>
-                                    </div>
+                                    )}
 
 
                                     {/* Tabla de Enhebrado Impresa (Más grande) */}
-                                    <div className="flex-grow border border-black relative overflow-hidden flex flex-col">
+                                    <div className="flex-grow border border-black relative overflow-hidden flex flex-col mt-1">
                                         <div className="bg-black text-white text-[9px] font-bold px-1 text-center uppercase">Tabla de Enhebrado (Composición)</div>
                                         {order.threading && order.threading.length > 0 ? (
                                             <div className="flex-grow overflow-hidden">
-                                                <table className="threading-table-print text-[9pt] w-full text-left"> {/* Ajustado a 9pt */}
+                                                <table className="threading-table-print text-[9pt] w-full text-left"> 
                                                     <thead>
                                                         <tr className="bg-gray-200 border-b border-black">
                                                             <th className="p-0.5 w-8 border-r border-black">Pos.</th>
                                                             <th className="p-0.5 border-r border-black">Material / Color</th>
-                                                            <th className="p-0.5 w-10 text-center border-r border-black">SIS.</th> {/* Cambiado Tens. a SIS. */}
+                                                            <th className="p-0.5 w-10 text-center border-r border-black">SIS.</th> 
                                                             <th className="p-0.5 w-10 text-center">%</th>
                                                         </tr>
                                                     </thead>
@@ -399,7 +485,7 @@
                                                             <tr key={i} className="border-b border-black h-4">
                                                                 <td className="pl-1 border-r border-black font-bold">{row.guia}</td>
                                                                 <td className="pl-1 border-r border-black truncate">{row.material}</td>
-                                                                <td className="text-center border-r border-black">{row.sis}</td> {/* Usando sis */}
+                                                                <td className="text-center border-r border-black">{row.sis}</td> 
                                                                 <td className="text-center font-bold">{row.porcentaje}</td>
                                                             </tr>
                                                         ))}
@@ -420,28 +506,61 @@
                             </div>
                         </div>
 
-                        {/* --- SECCIÓN INFERIOR (TABLA MANUAL) --- */}
+                        {/* --- SECCIÓN INFERIOR (TABLA MANUAL - PAQUETES) --- */}
                         <div className="print-section-bottom print-only mt-2">
-                            <h3 className="text-center font-bold uppercase text-xs mb-1 bg-black text-white py-0.5">Control de Producción</h3>
-                            <table className="w-full text-xs border border-black">
+                            <div className="flex justify-between items-end border-b-2 border-black pb-1 mb-1">
+                                <h3 className="font-bold uppercase text-xs">Control de Paquetes ({completedPackages}/{totalPackages} Completados)</h3>
+                                <div className="text-xs font-mono">
+                                    <span>Prod. total: </span><span className="font-bold">{totalProdPackages} pzs</span> 
+                                    <span className="ml-2 font-bold text-green-700">{pct}%</span>
+                                </div>
+                            </div>
+                            
+                            <table className="w-full package-table-print border border-black">
                                 <thead>
                                     <tr className="bg-gray-200">
-                                        <th className="border border-black p-1 w-12">Fecha</th>
-                                        <th className="border border-black p-1 w-10">Turno</th>
-                                        <th className="border border-black p-1 w-20">Tejedor</th>
-                                        {/* Columna de Pieza visible si es una orden compuesta */}
-                                        <th className="border border-black p-1 w-20">{isMerged ? 'Pieza' : 'Obs.'}</th> 
-                                        <th className="border border-black p-1 w-12">Prod.</th>
-                                        <th className="border border-black p-1">Firma / Obs.</th>
+                                        <th className="border border-black p-1 w-1/4 text-left">Paquete (Pzs / #)</th>
+                                        <th className="border border-black p-1 w-1/4">Tejedor</th>
+                                        <th className="border border-black p-1 w-1/5">Fecha</th>
+                                        <th className="border border-black p-1 w-1/5">Defectos</th>
+                                        <th className="border border-black p-1 w-1/5">Agujas</th>
+                                        <th className="border border-black p-1 w-8">OK</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {[...Array(20)].map((_, i) => (
-                                        <tr key={i} className="production-row-h">
+                                    {/* Paquetes no completados (vacíos para rellenar a mano) */}
+                                    {order.progreso?.map((pkg, i) => (
+                                        <tr key={pkg.id} className="production-row-h">
+                                            <td className="border border-black font-bold">
+                                                {pkg.cantidad} pzs {pkg.paqueteNum}/{pkg.paquetesTotales} <span className="text-xs font-normal text-slate-600">({pkg.piezaNombre})</span>
+                                            </td>
+                                            {/* Si ya está terminado, se llena el resto de los campos */}
+                                            {pkg.finished ? (
+                                                <>
+                                                    <td className="border border-black">{pkg.tejedor}</td>
+                                                    <td className="border border-black">{pkg.fecha}</td>
+                                                    <td className="border border-black text-center">{pkg.defectos}</td>
+                                                    <td className="border border-black text-center">{pkg.agujas}</td>
+                                                    <td className="border border-black text-center bg-green-200 font-bold text-green-800">✓</td>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <td className="border border-black"></td>
+                                                    <td className="border border-black"></td>
+                                                    <td className="border border-black"></td>
+                                                    <td className="border border-black"></td>
+                                                    <td className="border border-black"></td>
+                                                </>
+                                            )}
+                                        </tr>
+                                    ))}
+                                    {/* Rellenar filas vacías hasta 20 */}
+                                    {[...Array(Math.max(0, 20 - totalPackages))].map((_, i) => (
+                                        <tr key={`empty-${i}`} className="production-row-h">
                                             <td className="border border-black"></td>
                                             <td className="border border-black"></td>
                                             <td className="border border-black"></td>
-                                            <td className="border border-black"></td> {/* Pieza / Obs */}
+                                            <td className="border border-black"></td> 
                                             <td className="border border-black"></td>
                                             <td className="border border-black"></td>
                                         </tr>
@@ -450,47 +569,76 @@
                             </table>
                         </div>
 
-                        {/* --- VISTA DIGITAL (PANTALLA) --- */}
+                        {/* --- VISTA DIGITAL (CAPTURA DE PAQUETES) --- */}
                         <div className="no-print mt-6 bg-slate-50 p-4 rounded border">
-                            <h3 className="font-bold mb-4">Captura Digital</h3>
-                            <div className="flex flex-wrap gap-2 items-end mb-4">
-                                <input type="date" value={entry.fecha} onChange={e=>setEntry({...entry,fecha:e.target.value})} className="border p-2 rounded text-sm w-32"/>
-                                <input placeholder="Tejedor" value={entry.tejedor} onChange={e=>setEntry({...entry,tejedor:e.target.value})} className="border p-2 rounded text-sm flex-1 min-w-[100px]"/>
-
-                                {/* Selector de Pieza si es Compuesta */}
-                                {order.isMerged && order.subPieces && (
-                                    <select value={entry.subPieza} onChange={e=>setEntry({...entry,subPieza:e.target.value})} className="border p-2 rounded text-sm w-32 font-bold bg-white">
-                                        <option value="">-- Pieza --</option>
-                                        {order.subPieces.map(p => <option key={p} value={p}>{p}</option>)}
-                                    </select>
-                                )}
-
-                                <input placeholder="Cant." type="number" value={entry.produccion} onChange={e=>setEntry({...entry,produccion:e.target.value})} className="border p-2 rounded text-sm w-20"/>
-                                <button onClick={addProgress} className="bg-indigo-600 text-white p-2 rounded"><Icon name="plus"/></button>
+                            <h3 className="font-bold mb-4">Captura Digital de Paquetes Pendientes ({pendingPackages.length} restantes)</h3>
+                            
+                            <div className="flex flex-wrap gap-2 items-end mb-4 bg-white p-3 rounded shadow">
+                                <input placeholder="Tejedor" value={entry.tejedor} onChange={e=>setEntry({...entry,tejedor:e.target.value})} className="border p-2 rounded text-sm flex-1 min-w-[100px]" required/>
+                                <input type="date" value={entry.fecha} onChange={e=>setEntry({...entry,fecha:e.target.value})} className="border p-2 rounded text-sm w-32" required/>
+                                <input placeholder="Defectos (unid)" type="number" value={entry.defectos} onChange={e=>setEntry({...entry,defectos:e.target.value})} className="border p-2 rounded text-sm w-28"/>
+                                <input placeholder="Agujas (unid)" type="number" value={entry.agujas} onChange={e=>setEntry({...entry,agujas:e.target.value})} className="border p-2 rounded text-sm w-28"/>
                             </div>
                             
-                            {/* Historial de Captura */}
+                            {/* Lista de Paquetes Pendientes */}
                             <div className="max-h-60 overflow-y-auto border bg-white rounded">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-slate-100 sticky top-0">
-                                        <tr>
-                                            <th className="text-left p-2 w-20">Fecha</th>
-                                            {order.isMerged && <th className="text-left p-2 w-20">Pieza</th>}
-                                            <th className="text-left p-2">Tejedor</th>
-                                            <th className="text-right p-2 w-16">Cant.</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {order.progreso?.slice().reverse().map(p => (
-                                            <tr key={p.id} className="border-t hover:bg-slate-50">
-                                                <td className="p-2">{p.fecha}</td>
-                                                {order.isMerged && <td className="p-2 font-bold text-xs">{p.subPieza}</td>}
-                                                <td className="p-2 text-sm">{p.tejedor}</td>
-                                                <td className="p-2 text-right font-bold">{p.produccion}</td>
+                                {pendingPackages.length === 0 ? (
+                                    <div className="p-4 text-center text-slate-400 font-bold">🎉 ¡No hay paquetes pendientes!</div>
+                                ) : (
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-slate-100 sticky top-0">
+                                            <tr>
+                                                <th className="text-left p-2 w-2/3">Paquete</th>
+                                                <th className="text-center p-2">Acción</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            {pendingPackages.map(pkg => (
+                                                <tr key={pkg.id} className="border-t hover:bg-indigo-50">
+                                                    <td className="p-2">
+                                                        <span className="font-bold">{pkg.cantidad} pzs</span> 
+                                                        <span className="text-xs text-slate-600"> ({pkg.piezaNombre} - {pkg.paqueteNum}/{pkg.paquetesTotales})</span>
+                                                    </td>
+                                                    <td className="p-1 text-center">
+                                                        <button 
+                                                            onClick={() => markPackageAsFinished(pkg.id)}
+                                                            className="bg-green-600 text-white p-1 rounded text-xs font-bold hover:bg-green-700 disabled:opacity-50"
+                                                            disabled={!entry.tejedor || !entry.fecha}
+                                                        >
+                                                            Registrar
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+
+                            <h4 className="font-bold mt-6 mb-2 text-sm border-b pb-1">Historial Completado ({completedPackagesData.length})</h4>
+                            <div className="max-h-40 overflow-y-auto border bg-white rounded">
+                                {completedPackagesData.length === 0 ? (
+                                    <div className="p-4 text-center text-slate-400 text-xs">Aún no hay paquetes terminados.</div>
+                                ) : (
+                                    <table className="w-full text-xs">
+                                        <thead className="bg-slate-100 sticky top-0">
+                                            <tr>
+                                                <th className="text-left p-1 w-1/3">Paquete</th>
+                                                <th className="text-left p-1 w-1/3">Tejedor</th>
+                                                <th className="text-center p-1 w-1/5">Fecha</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {completedPackagesData.map(p => (
+                                                <tr key={p.id} className="border-t">
+                                                    <td className="p-1 font-bold">{p.cantidad} pzs ({p.piezaNombre})</td>
+                                                    <td className="p-1">{p.tejedor}</td>
+                                                    <td className="p-1 text-center">{p.fecha}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -514,17 +662,17 @@
         };
 
         const App = () => {
-            // Cambiado 'v5' a 'v6' para no perder datos viejos si los hubiera
+            // Cambiado 'v7' a 'v8' para no perder datos viejos si los hubiera
             const [view, setView] = useState('list');
-            const [orders, setOrders] = useState(() => JSON.parse(localStorage.getItem('v7_orders')) || []); // Cambiado a v7
-            const [config, setConfig] = useState(() => JSON.parse(localStorage.getItem('v7_config')) || { repoUrl: '', sequenceCounter: 1 }); // Cambiado a v7
+            const [orders, setOrders] = useState(() => JSON.parse(localStorage.getItem('v8_orders')) || []); // Cambiado a v8
+            const [config, setConfig] = useState(() => JSON.parse(localStorage.getItem('v8_config')) || { repoUrl: '', sequenceCounter: 1 }); // Cambiado a v8
             const [selectedOrder, setSelectedOrder] = useState(null);
             const [showSettings, setShowSettings] = useState(false);
             const [filterClient, setFilterClient] = useState('ALL');
 
             useEffect(() => {
-                localStorage.setItem('v7_orders', JSON.stringify(orders)); // Cambiado a v7
-                localStorage.setItem('v7_config', JSON.stringify(config)); // Cambiado a v7
+                localStorage.setItem('v8_orders', JSON.stringify(orders)); // Cambiado a v8
+                localStorage.setItem('v8_config', JSON.stringify(config)); // Cambiado a v8
                 lucide.createIcons();
             }, [orders, config, view]);
 
@@ -548,7 +696,7 @@
             return (
                 <div className="min-h-screen bg-slate-100 pb-10">
                     <nav className="bg-slate-900 text-white p-3 flex justify-between no-print">
-                        <div className="font-bold flex gap-2"><Icon name="box"/> Producción v7.0</div>
+                        <div className="font-bold flex gap-2"><Icon name="box"/> Producción v8.0</div>
                         <button onClick={()=>setShowSettings(true)}><Icon name="settings"/></button>
                     </nav>
 
@@ -563,7 +711,7 @@
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 {filtered.map(o => {
-                                    const total = o.progreso?.reduce((a,b)=>a+b.produccion,0)||0;
+                                    const total = o.progreso?.filter(p => p.finished).reduce((a,b)=>a+(b.cantidad || 0),0)||0;
                                     const pct = o.totalPedido ? Math.min(100, Math.round((total/o.totalPedido)*100)) : 0;
                                     return (
                                         <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className="bg-white p-4 rounded shadow border cursor-pointer hover:shadow-lg">
