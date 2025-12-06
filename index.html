@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Textil v8.1 - Nube Firebase</title>
+    <title>Sistema Textil v8.1 - Conectado a maes2026</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -42,13 +42,6 @@
             .package-table-print td { padding: 2px 4px; }
         }
         .print-only { display: none; }
-        .scroll-container {
-            display: flex;
-            overflow-x: auto;
-            gap: 10px;
-            padding-bottom: 10px;
-        }
-        /* Loader simple */
         .loader {
             border: 5px solid #f3f3f3;
             border-top: 5px solid #3498db;
@@ -66,20 +59,34 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        // --- 1. INICIALIZACIÓN DE FIREBASE ---
+        // --- 1. CONFIGURACIÓN DE FIREBASE ---
+        // ¡ATENCIÓN!: Copia tu apiKey y appId desde la consola de Firebase -> Configuración del Proyecto
         const firebaseConfig = {
-            apiKey: "AIzaSyA3ntHBXbnFXTfF0x0-4gMcSOKvGsNlFIw",
-            authDomain: "maes26-72789961-b53d6.firebaseapp.com",
-            projectId: "maes26-72789961-b53d6",
-            storageBucket: "maes26-72789961-b53d6.firebasestorage.app",
-            messagingSenderId: "989842208576",
-            appId: "1:989842208576:web:d15ada960c6e49d0a5aca5"
+            // 1. Busca esto en tu consola y pégalo aquí abajo entre las comillas:
+            apiKey: "PEGAR_TU_API_KEY_AQUI", 
+            
+            authDomain: "maes2026-3ae20.firebaseapp.com",
+            
+            // Esta es la URL correcta sacada de tu enlace:
+            databaseURL: "https://maes2026-3ae20-default-rtdb.firebaseio.com/",
+            
+            projectId: "maes2026-3ae20",
+            storageBucket: "maes2026-3ae20.firebasestorage.app",
+            messagingSenderId: "989842208576", // Este suele cambiar poco, pero mejor verifica si tienes uno nuevo
+            
+            // 2. Busca esto en tu consola y pégalo aquí abajo:
+            appId: "PEGAR_TU_APP_ID_AQUI" 
         };
         
         // Inicializar App y Base de Datos
         if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
+            try {
+                firebase.initializeApp(firebaseConfig);
+            } catch (e) {
+                console.error("Error iniciando Firebase. Revisa la API KEY.", e);
+            }
         }
+        // Referencia a la base de datos
         const db = firebase.database();
 
         // --- UTILIDADES ---
@@ -147,13 +154,13 @@
                 
                 if (movementType === 'INGRESAR') {
                     if (confirm(`¿Ingresar ${numericAmount} kg de ${key} a Bodega?`)) {
-                        const newInventory = { ...inventory, [key]: { ...inventory[key], bodega: inventory[key].bodega + numericAmount } };
+                        const newInventory = { ...inventory, [key]: { ...inventory[key], bodega: (inventory[key].bodega || 0) + numericAmount } };
                         onUpdate(newInventory);
                     }
                 } else if (movementType === 'TRANSFERIR') {
-                    if (inventory[key].bodega < numericAmount) return alert('Stock insuficiente en Bodega.');
+                    if ((inventory[key].bodega || 0) < numericAmount) return alert('Stock insuficiente en Bodega.');
                     if (confirm(`¿Transferir ${numericAmount} kg de ${key} a Taller?`)) {
-                        const newInventory = { ...inventory, [key]: { ...inventory[key], bodega: inventory[key].bodega - numericAmount, taller: inventory[key].taller + numericAmount } };
+                        const newInventory = { ...inventory, [key]: { ...inventory[key], bodega: inventory[key].bodega - numericAmount, taller: (inventory[key].taller || 0) + numericAmount } };
                         onUpdate(newInventory);
                     }
                 }
@@ -181,8 +188,8 @@
                                         <td className="p-2 font-bold">{item.name}</td>
                                         <td className="p-2 text-center">{item.comp}</td>
                                         <td className="p-2 text-center">{item.estiraje}</td>
-                                        <td className="p-2 text-center font-bold text-green-700">{item.bodega.toFixed(2)}</td>
-                                        <td className="p-2 text-center font-bold text-indigo-700">{item.taller.toFixed(2)}</td>
+                                        <td className="p-2 text-center font-bold text-green-700">{(item.bodega || 0).toFixed(2)}</td>
+                                        <td className="p-2 text-center font-bold text-indigo-700">{(item.taller || 0).toFixed(2)}</td>
                                         <td className="p-2 text-center">{selectedYarn?.name === item.name ? <Icon name="check-circle" className="text-yellow-600 mx-auto"/> : ''}</td>
                                     </tr>
                                 ))}
@@ -514,20 +521,25 @@
             useEffect(() => {
                 lucide.createIcons();
                 
-                // Escuchar cambios en la DB
+                // Si la API KEY no está puesta, no intentamos conectar para evitar errores masivos en consola
+                if (firebaseConfig.apiKey === "PEGAR_TU_API_KEY_AQUI") {
+                    alert("¡FALTA CONFIGURACIÓN! Abre el archivo index.html y pega tu API KEY y APP ID de Firebase.");
+                    setLoading(false);
+                    return;
+                }
+
                 const ordersRef = db.ref('orders');
                 const configRef = db.ref('config');
                 const invRef = db.ref('inventory');
 
                 const fetchData = async () => {
-                    // Cargar todo al inicio
                     try {
                         const [ordersSnap, configSnap, invSnap] = await Promise.all([
                             ordersRef.once('value'), configRef.once('value'), invRef.once('value')
                         ]);
 
                         if (ordersSnap.exists()) setOrders(ordersSnap.val());
-                        else await ordersRef.set([]); // Iniciar si vacio
+                        else await ordersRef.set([]); 
 
                         if (configSnap.exists()) setConfig(configSnap.val());
                         else await configRef.set(initialConfig);
@@ -535,13 +547,15 @@
                         if (invSnap.exists()) setYarnInventory(invSnap.val());
                         else await invRef.set(initialYarnInventory);
 
-                    } catch (e) { console.error("Error cargando DB:", e); }
+                    } catch (e) { 
+                        console.error("Error cargando DB (Probablemente reglas o API Key):", e); 
+                        alert("Error de conexión. Revisa consola para detalles.");
+                    }
                     setLoading(false);
                 };
 
                 fetchData();
 
-                // Suscripciones en tiempo real
                 const unsubOrders = ordersRef.on('value', s => s.exists() && setOrders(s.val()));
                 const unsubConfig = configRef.on('value', s => s.exists() && setConfig(s.val()));
                 const unsubInv = invRef.on('value', s => s.exists() && setYarnInventory(s.val()));
@@ -553,9 +567,8 @@
                 };
             }, []);
 
-            // Wrappers para guardar en Firebase
             const saveOrdersToFirebase = (newOrdersList) => {
-                db.ref('orders').set(newOrdersList); // Optimista, se actualizará localmente por el listener también
+                db.ref('orders').set(newOrdersList); 
             };
             const saveConfigToFirebase = (newConfig) => db.ref('config').set(newConfig);
             const saveInventoryToFirebase = (newInv) => db.ref('inventory').set(newInv);
@@ -569,7 +582,6 @@
 
             const updateOrder = (id, field, value) => {
                 const updatedList = orders.map(o => o.id === id ? { ...o, [field]: value } : o);
-                // Si la orden seleccionada es la que cambia, actualizamos su vista
                 if(selectedOrder?.id === id) setSelectedOrder(updatedList.find(o => o.id === id));
                 saveOrdersToFirebase(updatedList);
             };
@@ -579,7 +591,7 @@
             const pendingOrders = orders.filter(o => (filterClient === 'ALL' || o.cliente === filterClient) && o.status !== 'ARCHIVADO').sort((a,b)=>b.id-a.id);
             const archivedOrders = orders.filter(o => (filterClient === 'ALL' || o.cliente === filterClient) && o.status === 'ARCHIVADO').sort((a,b)=>b.id-a.id);
 
-            if (loading) return <div className="min-h-screen flex flex-col items-center justify-center text-slate-500"><div className="loader mb-4"></div><p>Conectando a Base de Datos...</p></div>;
+            if (loading) return <div className="min-h-screen flex flex-col items-center justify-center text-slate-500"><div className="loader mb-4"></div><p>Conectando a {firebaseConfig.projectId}...</p></div>;
 
             return (
                 <div className="min-h-screen bg-slate-100 pb-10">
