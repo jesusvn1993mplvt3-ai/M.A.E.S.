@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Textil Cloud - Cirineo Pro</title>
+    <title>Sistema Textil Cloud - Cirineo Ultimate</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -58,7 +58,6 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // --- UTILIDADES ---
         const Icon = ({ name, size = 18, className }) => <i data-lucide={name} width={size} height={size} className={className}></i>;
         const toUppercase = (handler) => (e) => { e.target.value = e.target.value.toUpperCase(); handler(e); };
 
@@ -75,8 +74,94 @@
             return null;
         };
 
-        // --- COMPONENTES RESTAURADOS (INVENTARIO Y ENHEBRADO) ---
-        
+        // --- COMPONENTE IMAGEN INTELIGENTE (MULTI-REPO) ---
+        const SmartImage = ({ repoUrls, codigo, className }) => {
+            const [imgSrc, setImgSrc] = useState(null);
+            // Estado para controlar qué repo y extensión estamos probando
+            const [attempt, setAttempt] = useState({ urlIndex: 0, extension: 'jpg' });
+
+            useEffect(() => {
+                // Si cambian los repos o el código, reiniciamos la búsqueda
+                if (!repoUrls || !repoUrls.length || !codigo) { setImgSrc(null); return; }
+                setAttempt({ urlIndex: 0, extension: 'jpg' });
+                const base = repoUrls[0].endsWith('/') ? repoUrls[0] : repoUrls[0] + '/';
+                setImgSrc(`${base}${codigo}.jpg`);
+            }, [repoUrls, codigo]);
+
+            const handleError = () => {
+                const { urlIndex, extension } = attempt;
+                
+                // Estrategia: 
+                // 1. Probar JPG en Repo Actual
+                // 2. Si falla, probar PNG en Repo Actual
+                // 3. Si falla, pasar al Siguiente Repo (volver a JPG)
+                
+                if (extension === 'jpg') {
+                    // Intentar PNG en el mismo repo
+                    const base = repoUrls[urlIndex].endsWith('/') ? repoUrls[urlIndex] : repoUrls[urlIndex] + '/';
+                    setImgSrc(`${base}${codigo}.png`);
+                    setAttempt({ ...attempt, extension: 'png' });
+                } else if (urlIndex < repoUrls.length - 1) {
+                    // Pasar al siguiente repositorio, volver a JPG
+                    const nextIdx = urlIndex + 1;
+                    const base = repoUrls[nextIdx].endsWith('/') ? repoUrls[nextIdx] : repoUrls[nextIdx] + '/';
+                    setImgSrc(`${base}${codigo}.jpg`);
+                    setAttempt({ urlIndex: nextIdx, extension: 'jpg' });
+                } else {
+                    // Se acabaron las opciones
+                    setAttempt({ ...attempt, extension: 'fail' });
+                }
+            };
+
+            if (attempt.extension === 'fail' || !imgSrc) return <div className={`bg-slate-100 flex items-center justify-center text-slate-300 ${className}`}><Icon name="image-off"/></div>;
+            return <img src={imgSrc} onError={handleError} className={className} />;
+        };
+
+        // --- MODAL DE CONFIGURACIÓN (REPOS) ---
+        const SettingsModal = ({ config, onClose }) => {
+            const [localUrls, setLocalUrls] = useState(config.repoUrls || []);
+            const [newUrl, setNewUrl] = useState('');
+
+            const addUrl = () => { if(newUrl) { setLocalUrls([...localUrls, newUrl]); setNewUrl(''); } };
+            const removeUrl = (i) => setLocalUrls(localUrls.filter((_, idx) => idx !== i));
+            const save = async () => {
+                await db.collection('settings').doc('config').set({ ...config, repoUrls: localUrls });
+                onClose();
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+                    <div className="bg-white p-6 rounded shadow-lg w-96">
+                        <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Icon name="settings"/> Configuración</h3>
+                        
+                        <label className="block text-xs font-bold mb-1">Repositorios de Imágenes (GitHub Raw)</label>
+                        <p className="text-[10px] text-slate-500 mb-2">El sistema buscará la foto en el primer enlace, luego en el segundo, etc.</p>
+                        
+                        <div className="mb-3 max-h-40 overflow-y-auto border p-2 rounded bg-slate-50">
+                            {localUrls.length === 0 && <span className="text-xs text-slate-400">Sin repositorios...</span>}
+                            {localUrls.map((u, i) => (
+                                <div key={i} className="flex justify-between items-center text-xs mb-1 bg-white p-1 border rounded">
+                                    <span className="truncate w-64">{u}</span>
+                                    <button onClick={() => removeUrl(i)} className="text-red-500 font-bold px-2">X</button>
+                                </div>
+                            ))}
+                        </div>
+                        
+                        <div className="flex gap-2 mb-6">
+                            <input value={newUrl} onChange={e => setNewUrl(e.target.value)} className="border p-2 text-xs flex-1 rounded" placeholder="https://raw.githubusercontent.com/..."/>
+                            <button onClick={addUrl} className="bg-indigo-100 text-indigo-700 px-3 rounded font-bold">+</button>
+                        </div>
+                        
+                        <div className="flex justify-end gap-2">
+                            <button onClick={onClose} className="text-slate-500 text-sm font-bold">Cancelar</button>
+                            <button onClick={save} className="bg-slate-900 text-white px-4 py-2 rounded font-bold text-sm">Guardar Cambios</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- INVENTARIO Y ENHEBRADO ---
         const YarnInventory = ({ inventory, onBack }) => {
             const [selectedYarn, setSelectedYarn] = useState(null);
             const [movementType, setMovementType] = useState('INGRESAR');
@@ -99,24 +184,18 @@
                 const key = selectedYarn.name;
                 const numericAmount = Number(amount);
                 let newInventoryData = { ...inventory[key] };
-                
                 if (movementType === 'INGRESAR') newInventoryData.bodega += numericAmount;
                 else if (movementType === 'TRANSFERIR') {
                     if (inventory[key].bodega < numericAmount) return alert('No hay suficiente en bodega');
                     newInventoryData.bodega -= numericAmount;
                     newInventoryData.taller += numericAmount;
                 }
-                
-                try {
-                    await db.collection('inventory').doc('main').set({ ...inventory, [key]: newInventoryData });
-                    alert("Inventario actualizado");
-                    setAmount('');
-                } catch (e) { alert("Error"); }
+                try { await db.collection('inventory').doc('main').set({ ...inventory, [key]: newInventoryData }); alert("Actualizado"); setAmount(''); } catch (e) { alert("Error"); }
             };
 
             const InventoryTable = ({ title, data }) => (
                 <div className="mb-4">
-                    <h3 className="font-bold mb-1 flex items-center gap-2 text-indigo-900 text-sm">{title}</h3>
+                    <h3 className="font-bold mb-1 text-indigo-900 text-sm">{title}</h3>
                     <div className="overflow-x-auto rounded border shadow-sm">
                         <table className="w-full text-xs bg-white">
                             <thead className="bg-slate-800 text-white"><tr><th className="p-2 text-left">NOMBRE</th><th className="p-2 text-center bg-green-700">BODEGA</th><th className="p-2 text-center bg-indigo-700">TALLER</th></tr></thead>
@@ -132,21 +211,12 @@
 
             return (
                 <div className="h-full flex flex-col bg-white">
-                    <div className="p-4 bg-slate-100 border-b flex justify-between items-center">
-                        <h2 className="font-bold text-xl"><Icon name="package"/> Gestión de Inventario</h2>
-                        <button onClick={onBack} className="text-sm font-bold text-red-500">Cerrar</button>
-                    </div>
+                    <div className="p-4 bg-slate-100 border-b flex justify-between items-center"><h2 className="font-bold text-xl"><Icon name="package"/> Inventario</h2><button onClick={onBack} className="text-sm font-bold text-red-500">Cerrar</button></div>
                     <div className="p-4 overflow-y-auto">
                         <div className="bg-white p-4 rounded shadow mb-6 border">
                             <div className="flex gap-4 items-end">
-                                <div className="flex-1">
-                                    <label className="text-xs font-bold block mb-1">HILATURA</label>
-                                    <div className="font-bold text-indigo-600 border p-2 rounded bg-slate-50">{selectedYarn ? selectedYarn.name : 'Selecciona abajo...'}</div>
-                                </div>
-                                <select className="border p-2 rounded text-sm" value={movementType} onChange={e => setMovementType(e.target.value)}>
-                                    <option value="INGRESAR">INGRESAR (A Bodega)</option>
-                                    <option value="TRANSFERIR">TRANSFERIR (A Taller)</option>
-                                </select>
+                                <div className="flex-1"><label className="text-xs font-bold block mb-1">HILATURA</label><div className="font-bold text-indigo-600 border p-2 rounded bg-slate-50">{selectedYarn ? selectedYarn.name : 'Selecciona abajo...'}</div></div>
+                                <select className="border p-2 rounded text-sm" value={movementType} onChange={e => setMovementType(e.target.value)}><option value="INGRESAR">INGRESAR (A Bodega)</option><option value="TRANSFERIR">TRANSFERIR (A Taller)</option></select>
                                 <input type="number" className="border p-2 rounded w-24 text-sm" placeholder="Kg" value={amount} onChange={e => setAmount(e.target.value)}/>
                                 <button onClick={handleUpdate} className="bg-slate-800 text-white p-2 rounded"><Icon name="save"/></button>
                             </div>
@@ -164,25 +234,12 @@
             const updateRow = (id, field, val) => onChange(data.map(r => r.id === id ? { ...r, [field]: val } : r));
             const removeRow = (id) => onChange(data.filter(r => r.id !== id));
             const totalPercent = data.reduce((sum, row) => sum + (Number(row.porcentaje) || 0), 0);
-
             return (
                 <div className="border rounded bg-white overflow-hidden my-4">
-                    <div className="bg-slate-200 p-2 text-xs font-bold flex justify-between">
-                        <span>TABLA DE ENHEBRADO (Stock Cloud)</span>
-                        <button onClick={addRow} className="text-indigo-600 flex items-center gap-1 hover:underline"><Icon name="plus" size={14}/> Fila</button>
-                    </div>
+                    <div className="bg-slate-200 p-2 text-xs font-bold flex justify-between"><span>TABLA DE ENHEBRADO</span><button onClick={addRow} className="text-indigo-600 flex items-center gap-1 hover:underline"><Icon name="plus" size={14}/> Fila</button></div>
                     <table className="w-full text-xs text-left">
-                        <thead className="bg-slate-50 text-slate-500"><tr><th className="p-2 w-16">GUÍA</th><th className="p-2">MATERIAL (Del Inventario)</th><th className="p-2 w-16 text-center">%</th><th className="w-8"></th></tr></thead>
-                        <tbody className="divide-y">
-                            {data.map((row) => (
-                                <tr key={row.id}>
-                                    <td className="p-1"><input className="w-full border rounded p-1" placeholder="#" value={row.guia} onChange={toUppercase(e=>updateRow(row.id,'guia',e.target.value))} /></td>
-                                    <td className="p-1 relative"><input list="inventory-list" className="w-full border rounded p-1 font-bold text-indigo-700" placeholder="Buscar..." value={row.material} onChange={toUppercase(e=>updateRow(row.id,'material',e.target.value))} /></td>
-                                    <td className="p-1"><input type="number" className="w-full border rounded p-1 text-center" value={row.porcentaje} onChange={e=>updateRow(row.id,'porcentaje',e.target.value)} /></td>
-                                    <td className="p-1"><button onClick={()=>removeRow(row.id)} className="text-red-400"><Icon name="x" size={14}/></button></td>
-                                </tr>
-                            ))}
-                        </tbody>
+                        <thead className="bg-slate-50 text-slate-500"><tr><th className="p-2 w-16">GUÍA</th><th className="p-2">MATERIAL</th><th className="p-2 w-16 text-center">%</th><th className="w-8"></th></tr></thead>
+                        <tbody className="divide-y">{data.map((row) => (<tr key={row.id}><td className="p-1"><input className="w-full border rounded p-1" placeholder="#" value={row.guia} onChange={toUppercase(e=>updateRow(row.id,'guia',e.target.value))} /></td><td className="p-1 relative"><input list="inventory-list" className="w-full border rounded p-1 font-bold text-indigo-700" placeholder="Buscar..." value={row.material} onChange={toUppercase(e=>updateRow(row.id,'material',e.target.value))} /></td><td className="p-1"><input type="number" className="w-full border rounded p-1 text-center" value={row.porcentaje} onChange={e=>updateRow(row.id,'porcentaje',e.target.value)} /></td><td className="p-1"><button onClick={()=>removeRow(row.id)} className="text-red-400"><Icon name="x" size={14}/></button></td></tr>))}</tbody>
                         <tfoot className="bg-slate-100"><tr><td colSpan="2" className="p-2 text-right font-bold">TOTAL:</td><td className={`p-2 text-center font-bold ${totalPercent !== 100 ? 'text-red-500' : 'text-green-600'}`}>{totalPercent}%</td><td></td></tr></tfoot>
                     </table>
                     <datalist id="inventory-list">{inventoryKeys.map(key => <option key={key} value={key} />)}</datalist>
@@ -190,7 +247,7 @@
             );
         };
 
-        // --- DASHBOARD COMPONENTS ---
+        // --- DASHBOARD ---
         const MachineCard = ({ maquina, orders }) => {
             const [is24Hours, setIs24Hours] = useState(true);
             const pendingPackages = useMemo(() => {
@@ -205,7 +262,6 @@
                 });
                 return pkgs; 
             }, [orders]);
-
             const totalMinutesLeft = pendingPackages.reduce((sum, p) => sum + p.timeTotal, 0);
             const hoursPerDay = is24Hours ? 24 : 12;
             const daysLeft = totalMinutesLeft > 0 ? (totalMinutesLeft / 60 / hoursPerDay).toFixed(1) : 0;
@@ -215,19 +271,11 @@
                 <div className="machine-card shadow-lg border border-slate-600">
                     <div className="flex justify-between items-center border-b border-slate-500 pb-2 mb-2">
                         <div><div className="text-xs text-slate-400 font-bold uppercase">Máquina</div><div className="text-3xl font-black text-yellow-400">#{maquina}</div></div>
-                        <div className="text-right">
-                            <button onClick={()=>setIs24Hours(!is24Hours)} className="bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-[10px] font-bold mb-1 border border-slate-500 block w-full">{is24Hours ? '24 HORAS' : '12 HORAS'}</button>
-                            <div className="text-xs font-bold text-green-400">{daysLeft} días ({hoursLeft}h)</div>
-                        </div>
+                        <div className="text-right"><button onClick={()=>setIs24Hours(!is24Hours)} className="bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-[10px] font-bold mb-1 border border-slate-500 block w-full">{is24Hours ? '24 HORAS' : '12 HORAS'}</button><div className="text-xs font-bold text-green-400">{daysLeft} días ({hoursLeft}h)</div></div>
                     </div>
                     <div className="pkg-list space-y-1">
                         {pendingPackages.length === 0 && <div className="text-center text-slate-500 text-xs py-4">Máquina Libre</div>}
-                        {pendingPackages.map((p, i) => (
-                            <div key={i} className="bg-slate-800 p-2 rounded flex gap-2 items-center text-xs border border-slate-700">
-                                <div className="font-black text-white text-lg w-10 text-right">{p.cantidad}</div>
-                                <div className="flex-1 truncate"><div className="font-bold text-slate-300 truncate">{p.piezaNombre}</div><div className="text-[10px] text-yellow-600 font-mono">{p.orderCode}</div></div>
-                            </div>
-                        ))}
+                        {pendingPackages.map((p, i) => (<div key={i} className="bg-slate-800 p-2 rounded flex gap-2 items-center text-xs border border-slate-700"><div className="font-black text-white text-lg w-10 text-right">{p.cantidad}</div><div className="flex-1 truncate"><div className="font-bold text-slate-300 truncate">{p.piezaNombre}</div><div className="text-[10px] text-yellow-600 font-mono">{p.orderCode}</div></div></div>))}
                     </div>
                 </div>
             );
@@ -239,7 +287,6 @@
                 activeOrders.forEach(o => { if(!groups[o.maquina]) groups[o.maquina] = []; groups[o.maquina].push(o); });
                 return Object.keys(groups).sort((a,b) => parseInt(a)-parseInt(b)).map(k => ({ id: k, orders: groups[k] }));
             }, [activeOrders]);
-
             return (
                 <div className="bottom-pane shadow-inner">
                     {machineGroups.map(g => <MachineCard key={g.id} maquina={g.id} orders={g.orders} />)}
@@ -248,115 +295,73 @@
             );
         };
 
-        const SmartImage = ({ repoUrls, codigo, className }) => {
-            const [imgSrc, setImgSrc] = useState(null);
-            useEffect(() => {
-                if (!repoUrls?.length || !codigo) return setImgSrc(null);
-                setImgSrc(`${repoUrls[0].endsWith('/') ? repoUrls[0] : repoUrls[0] + '/'}${codigo}.jpg`);
-            }, [repoUrls, codigo]);
-            return imgSrc ? <img src={imgSrc} onError={(e)=>e.target.style.display='none'} className={className} /> : <div className={`bg-slate-100 flex items-center justify-center text-slate-300 ${className}`}><Icon name="image"/></div>;
-        };
-
-        // --- FORMULARIO PRINCIPAL (CON CONSUMO DE HILO) ---
+        // --- FORMULARIOS ---
         const MultiOrderForm = ({ config, onCancel, initialOrder, existingParentId, clientHistory, inventory }) => {
             const [header, setHeader] = useState(initialOrder ? { codigo: initialOrder.codigo, cliente: initialOrder.cliente, maquina: initialOrder.maquina, fechaInicio: new Date().toISOString().split('T')[0], fechaEntrega: '' } : { codigo: '', cliente: '', maquina: '', fechaInicio: new Date().toISOString().split('T')[0], fechaEntrega: '' });
             const isChildOrder = !!existingParentId;
             const [pieces, setPieces] = useState(initialOrder?.subPiecesData?.map(p=>({...p, id: Date.now()+Math.random()})) || [{ id: 1, pieza: 'BLUSA', programa: '', talla: 'UNITALLA', totalPedido: 100, peso: '', tiempo: '' }]);
             const [threadingData, setThreadingData] = useState(initialOrder?.threading || []);
             const [packageSize, setPackageSize] = useState(initialOrder?.packageSize || 50);
-
             const addPiece = () => setPieces([...pieces, { id: Date.now(), pieza: '', talla: 'UNITALLA', totalPedido: '', peso: '', tiempo: '' }]);
             const updatePiece = (id, f, v) => setPieces(pieces.map(p => p.id === id ? { ...p, [f]: v } : p));
             const removePiece = (id) => pieces.length > 1 && setPieces(pieces.filter(p => p.id !== id));
             const inventoryKeys = inventory ? Object.keys(inventory) : [];
 
             const handleSubmit = async () => {
-                if(!header.codigo || !header.cliente || !header.maquina) return alert("Faltan datos obligatorios.");
+                if(!header.codigo || !header.cliente || !header.maquina) return alert("Faltan datos.");
                 if (validatePrefixes(pieces)) return alert(validatePrefixes(pieces));
 
-                // 1. CÁLCULO DE CONSUMO DE MATERIA PRIMA
                 let totalGrams = 0;
                 pieces.forEach(p => { totalGrams += (Number(p.totalPedido) || 0) * (Number(p.peso) || 0); });
                 const totalKg = totalGrams / 1000;
-                
                 let consumptionReport = [];
                 let newInventory = { ...inventory };
-
                 if (totalKg > 0 && threadingData.length > 0) {
                     threadingData.forEach(thread => {
                         if (thread.material && thread.porcentaje) {
                             const kgNeeded = (totalKg * (Number(thread.porcentaje) / 100));
                             const matName = thread.material;
-                            if (newInventory[matName]) {
-                                newInventory[matName] = { ...newInventory[matName], bodega: newInventory[matName].bodega - kgNeeded };
-                                consumptionReport.push(`${matName}: -${kgNeeded.toFixed(2)}kg`);
-                            } else {
-                                consumptionReport.push(`ADVERTENCIA: ${matName} no encontrado.`);
-                            }
+                            if (newInventory[matName]) { newInventory[matName] = { ...newInventory[matName], bodega: newInventory[matName].bodega - kgNeeded }; consumptionReport.push(`${matName}: -${kgNeeded.toFixed(2)}kg`); }
+                            else consumptionReport.push(`ADVERTENCIA: ${matName} no encontrado.`);
                         }
                     });
                 }
-
-                if(!confirm(`Crear orden y descontar:\n\n${consumptionReport.join('\n') || 'Sin consumo calculado'}\n\n¿Continuar?`)) return;
+                if(!confirm(`Crear orden y descontar:\n\n${consumptionReport.join('\n') || 'Sin consumo'}\n\n¿Continuar?`)) return;
 
                 let batchSequence = existingParentId || config.sequenceCounter || 1;
                 const displayId = generateSmartID(batchSequence, pieces, header.maquina);
-
                 const generatePackages = () => {
                     const pkgs = [];
                     pieces.forEach(p => {
-                        const total = Number(p.totalPedido)||0;
-                        const size = Number(packageSize)||total;
-                        const n = Math.ceil(total/size);
-                        for(let i=1; i<=n; i++) {
-                            pkgs.push({
-                                id: Date.now()+Math.random(), piezaNombre: p.pieza, 
-                                cantidad: (i===n)?(total%size||size):size, 
-                                paqueteNum: i, paquetesDePieza: n, finished: false
-                            });
-                        }
+                        const total = Number(p.totalPedido)||0; const size = Number(packageSize)||total; const n = Math.ceil(total/size);
+                        for(let i=1; i<=n; i++) pkgs.push({ id: Date.now()+Math.random(), piezaNombre: p.pieza, cantidad: (i===n)?(total%size||size):size, paqueteNum: i, paquetesDePieza: n, finished: false });
                     });
                     return pkgs;
                 };
 
-                const orderPayload = {
-                    ...header, id: Date.now(), displayId, batchSequence,
-                    subPiecesData: pieces.map(p => ({...p, totalPedido: Number(p.totalPedido)})),
-                    progreso: generatePackages(), threading: threadingData, packageSize: Number(packageSize),
-                    status: 'EN PROCESO', isMerged: true, totalPedido: pieces.reduce((a,b)=>a+Number(b.totalPedido),0)
-                };
-
+                const orderPayload = { ...header, id: Date.now(), displayId, batchSequence, subPiecesData: pieces.map(p => ({...p, totalPedido: Number(p.totalPedido)})), progreso: generatePackages(), threading: threadingData, packageSize: Number(packageSize), status: 'EN PROCESO', isMerged: true, totalPedido: pieces.reduce((a,b)=>a+Number(b.totalPedido),0) };
                 try {
                     const batch = db.batch();
                     batch.set(db.collection('orders').doc(String(orderPayload.id)), orderPayload);
                     if (!isChildOrder) batch.set(db.collection('settings').doc('config'), { ...config, sequenceCounter: batchSequence + 1 });
-                    batch.set(db.collection('inventory').doc('main'), newInventory); // Actualizar Inventario
+                    batch.set(db.collection('inventory').doc('main'), newInventory);
                     await batch.commit();
-                    alert("Orden guardada e inventario actualizado.");
-                    onCancel();
-                } catch(e) { console.error(e); alert("Error guardando"); }
+                    alert("Guardado."); onCancel();
+                } catch(e) { console.error(e); alert("Error"); }
             };
 
             return (
                 <div className="bg-white p-6 rounded shadow-xl max-w-4xl mx-auto my-4 overflow-y-auto h-[90vh]">
-                    <div className="flex justify-between items-center mb-4 border-b pb-2">
-                        <h2 className="font-bold text-xl flex items-center gap-2"><Icon name="file-plus"/> {isChildOrder ? `Agregando a Lote #${existingParentId}` : 'Nueva Orden Maestra'}</h2>
-                        <button onClick={onCancel} className="text-red-500 font-bold">Cancelar</button>
-                    </div>
-
+                    <div className="flex justify-between items-center mb-4 border-b pb-2"><h2 className="font-bold text-xl flex items-center gap-2"><Icon name="file-plus"/> {isChildOrder ? `Agregando a Lote #${existingParentId}` : 'Nueva Orden Maestra'}</h2><button onClick={onCancel} className="text-red-500 font-bold">Cancelar</button></div>
                     <div className="grid grid-cols-2 gap-4 mb-4">
                         <div className="bg-indigo-50 p-2 rounded border border-indigo-200"><label className="text-xs font-bold text-indigo-900">CÓDIGO MODELO</label><input value={header.codigo} onChange={toUppercase(e=>setHeader({...header, codigo:e.target.value}))} className="w-full text-xl font-black p-1 bg-white border rounded uppercase"/></div>
-                        <div className="flex gap-2">
-                            <div className="flex-1"><label className="text-xs font-bold">CLIENTE</label><input list="clients" value={header.cliente} onChange={toUppercase(e=>setHeader({...header, cliente:e.target.value}))} className="w-full border p-2 rounded font-bold"/><datalist id="clients">{clientHistory.map(c=><option key={c} value={c}/>)}</datalist></div>
-                            <div className="w-24"><label className="text-xs font-bold bg-yellow-200 px-1">MÁQUINA</label><input value={header.maquina} onChange={toUppercase(e=>setHeader({...header, maquina:e.target.value}))} className="w-full border-2 border-yellow-400 p-2 rounded font-black text-center"/></div>
-                        </div>
+                        <div className="flex gap-2"><div className="flex-1"><label className="text-xs font-bold">CLIENTE</label><input list="clients" value={header.cliente} onChange={toUppercase(e=>setHeader({...header, cliente:e.target.value}))} className="w-full border p-2 rounded font-bold"/><datalist id="clients">{clientHistory.map(c=><option key={c} value={c}/>)}</datalist></div><div className="w-24"><label className="text-xs font-bold bg-yellow-200 px-1">MÁQUINA</label><input value={header.maquina} onChange={toUppercase(e=>setHeader({...header, maquina:e.target.value}))} className="w-full border-2 border-yellow-400 p-2 rounded font-black text-center"/></div></div>
                     </div>
-
                     <div className="mb-4 bg-slate-50 p-3 rounded">
                         <h3 className="font-bold text-sm mb-2 flex items-center gap-2"><Icon name="layers"/> Piezas</h3>
                         {pieces.map((p, i) => (
                             <div key={p.id} className="grid grid-cols-12 gap-2 mb-2 items-end border-b pb-2">
-                                <div className="col-span-3"><label className="text-[10px] font-bold">Nombre</label><input value={p.pieza} onChange={toUppercase(e=>updatePiece(p.id,'pieza',e.target.value))} className="w-full border p-1 rounded font-bold text-sm" placeholder="Ej: BLUSA"/></div>
+                                <div className="col-span-3"><label className="text-[10px] font-bold">Nombre</label><input value={p.pieza} onChange={toUppercase(e=>updatePiece(p.id,'pieza',e.target.value))} className="w-full border p-1 rounded font-bold text-sm"/></div>
                                 <div className="col-span-2"><label className="text-[10px] font-bold text-blue-600">Programa</label><input value={p.programa} onChange={toUppercase(e=>updatePiece(p.id,'programa',e.target.value))} className="w-full border p-1 rounded text-xs font-mono"/></div>
                                 <div className="col-span-2"><label className="text-[10px] font-bold">Cant.</label><input type="number" value={p.totalPedido} onChange={e=>updatePiece(p.id,'totalPedido',e.target.value)} className="w-full border p-1 font-bold text-indigo-700"/></div>
                                 <div className="col-span-2"><label className="text-[10px] font-bold">Peso(g)</label><input type="number" value={p.peso} onChange={e=>updatePiece(p.id,'peso',e.target.value)} className="w-full border p-1"/></div>
@@ -366,13 +371,8 @@
                         ))}
                         <button onClick={addPiece} className="text-xs font-bold text-indigo-600">+ Agregar Pieza</button>
                     </div>
-
                     <ThreadingEditor data={threadingData} onChange={setThreadingData} inventoryKeys={inventoryKeys} />
-
-                    <div className="flex gap-4 mt-4">
-                         <div className="w-32"><label className="text-xs font-bold">Pzs/Paquete</label><input type="number" value={packageSize} onChange={e=>setPackageSize(e.target.value)} className="border p-2 rounded w-full"/></div>
-                         <button onClick={handleSubmit} className="flex-1 bg-slate-900 text-white font-bold rounded shadow hover:bg-slate-800">GUARDAR ORDEN</button>
-                    </div>
+                    <div className="flex gap-4 mt-4"><div className="w-32"><label className="text-xs font-bold">Pzs/Paquete</label><input type="number" value={packageSize} onChange={e=>setPackageSize(e.target.value)} className="border p-2 rounded w-full"/></div><button onClick={handleSubmit} className="flex-1 bg-slate-900 text-white font-bold rounded shadow hover:bg-slate-800">GUARDAR ORDEN</button></div>
                 </div>
             );
         };
@@ -383,15 +383,10 @@
             const [splitQty, setSplitQty] = useState('');
             const [targetMachine, setTargetMachine] = useState('');
             const relatedOrders = allOrders.filter(o => o.batchSequence === order.batchSequence).sort((a,b) => a.id - b.id);
-
             const masterPackageList = useMemo(() => {
                 let allPkgs = [];
                 relatedOrders.forEach(o => {
-                    if (o.progreso) {
-                        o.progreso.forEach(p => {
-                            allPkgs.push({ ...p, uniqueId: p.id, parentOrderId: o.id, maquina: o.maquina, displayId: o.displayId, statusClass: p.finished ? 'bg-green-100 text-green-800' : 'bg-white text-slate-800' });
-                        });
-                    }
+                    if (o.progreso) o.progreso.forEach(p => allPkgs.push({ ...p, uniqueId: p.id, parentOrderId: o.id, maquina: o.maquina, displayId: o.displayId, statusClass: p.finished ? 'bg-green-100 text-green-800' : 'bg-white text-slate-800' }));
                 });
                 return allPkgs.sort((a,b) => a.piezaNombre.localeCompare(b.piezaNombre) || a.paqueteNum - b.paqueteNum);
             }, [relatedOrders]);
@@ -403,35 +398,20 @@
                 const packagesToMoveCount = Math.ceil(qty / pkgSize);
                 const currentProgreso = [...order.progreso];
                 const pendingPackages = currentProgreso.filter(p => !p.finished);
-                if (pendingPackages.length < packagesToMoveCount) return alert("No hay suficientes paquetes pendientes.");
-                
+                if (pendingPackages.length < packagesToMoveCount) return alert("No hay suficientes paquetes.");
                 const packagesToMove = pendingPackages.slice(-packagesToMoveCount);
                 const packageIdsToMove = new Set(packagesToMove.map(p => p.id));
                 const newSubPieces = order.subPiecesData.map(sp => ({ ...sp, totalPedido: sp.totalPedido > 0 ? qty : 0 }));
-
-                const newOrder = {
-                    ...order, id: Date.now(), maquina: targetMachine, displayId: generateSmartID(order.batchSequence, newSubPieces, targetMachine),
-                    totalPedido: qty, subPiecesData: newSubPieces,
-                    progreso: packagesToMove.map((p, idx) => ({ ...p, id: Date.now() + idx, paqueteNum: idx + 1, paquetesDePieza: packagesToMoveCount, finished: false }))
-                };
-
+                const newOrder = { ...order, id: Date.now(), maquina: targetMachine, displayId: generateSmartID(order.batchSequence, newSubPieces, targetMachine), totalPedido: qty, subPiecesData: newSubPieces, progreso: packagesToMove.map((p, idx) => ({ ...p, id: Date.now() + idx, paqueteNum: idx + 1, paquetesDePieza: packagesToMoveCount, finished: false })) };
                 const newOriginalTotal = order.totalPedido - qty;
-                if(!confirm(`Mover ${qty} pzs a MQ${targetMachine}?\nLa orden actual queda con ${newOriginalTotal} pzs.`)) return;
-
+                if(!confirm(`Mover ${qty} pzs a MQ${targetMachine}?`)) return;
                 try {
                     const batch = db.batch();
                     batch.set(db.collection('orders').doc(String(newOrder.id)), newOrder);
-                    batch.update(db.collection('orders').doc(String(order.id)), {
-                        totalPedido: newOriginalTotal,
-                        progreso: currentProgreso.filter(p => !packageIdsToMove.has(p.id)),
-                        subPiecesData: order.subPiecesData.map(sp => ({...sp, totalPedido: sp.totalPedido - qty}))
-                    });
-                    await batch.commit();
-                    setShowSplitModal(false);
-                    onBack();
-                } catch(e) { console.error(e); alert("Error"); }
+                    batch.update(db.collection('orders').doc(String(order.id)), { totalPedido: newOriginalTotal, progreso: currentProgreso.filter(p => !packageIdsToMove.has(p.id)), subPiecesData: order.subPiecesData.map(sp => ({...sp, totalPedido: sp.totalPedido - qty})) });
+                    await batch.commit(); setShowSplitModal(false); onBack();
+                } catch(e) { alert("Error"); }
             };
-            
             const markPackage = async (pkgId) => {
                 if(!entry.tejedor) return alert("Ingresa tejedor");
                 const newProgreso = order.progreso.map(p => p.id === pkgId ? {...p, finished: true, tejedor: entry.tejedor, fecha: entry.fecha, defectos: entry.defectos, agujas: entry.agujas} : p);
@@ -440,93 +420,26 @@
 
             return (
                 <div className="bg-white min-h-screen relative">
-                    {showSplitModal && (
-                        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-                            <div className="bg-white p-6 rounded shadow-lg w-96">
-                                <h3 className="font-bold text-lg mb-4">Dividir / Mover</h3>
-                                <label className="block text-xs font-bold mb-1">CANTIDAD</label><input type="number" className="border w-full p-2 mb-3 font-bold text-lg" value={splitQty} onChange={e=>setSplitQty(e.target.value)}/>
-                                <label className="block text-xs font-bold mb-1">A MÁQUINA #</label><input className="border w-full p-2 mb-6 font-bold text-lg bg-yellow-50" value={targetMachine} onChange={toUppercase(e=>setTargetMachine(e.target.value))}/>
-                                <div className="flex gap-2"><button onClick={()=>setShowSplitModal(false)} className="flex-1 py-2 border rounded">Cancelar</button><button onClick={handleSplit} className="flex-1 py-2 bg-indigo-600 text-white rounded font-bold">MOVER</button></div>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="no-print p-4 border-b flex justify-between bg-slate-50 sticky top-0 z-10 shadow-sm">
-                        <button onClick={onBack} className="flex items-center gap-2 text-slate-600 font-bold"><Icon name="arrow-left"/> Volver</button>
-                        <div className="flex gap-2">
-                            <button onClick={()=>setShowSplitModal(true)} className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded font-bold text-xs flex items-center gap-1"><Icon name="split"/> DIVIDIR</button>
-                            <button onClick={()=>window.print()} className="bg-slate-900 text-white px-3 py-1 rounded font-bold text-xs"><Icon name="printer"/> IMPRIMIR</button>
-                        </div>
-                    </div>
-
+                    {showSplitModal && <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-6 rounded shadow-lg w-96"><h3 className="font-bold text-lg mb-4">Dividir / Mover</h3><label className="block text-xs font-bold mb-1">CANTIDAD</label><input type="number" className="border w-full p-2 mb-3 font-bold text-lg" value={splitQty} onChange={e=>setSplitQty(e.target.value)}/><label className="block text-xs font-bold mb-1">A MÁQUINA #</label><input className="border w-full p-2 mb-6 font-bold text-lg bg-yellow-50" value={targetMachine} onChange={toUppercase(e=>setTargetMachine(e.target.value))}/><div className="flex gap-2"><button onClick={()=>setShowSplitModal(false)} className="flex-1 py-2 border rounded">Cancelar</button><button onClick={handleSplit} className="flex-1 py-2 bg-indigo-600 text-white rounded font-bold">MOVER</button></div></div></div>}
+                    <div className="no-print p-4 border-b flex justify-between bg-slate-50 sticky top-0 z-10 shadow-sm"><button onClick={onBack} className="flex items-center gap-2 text-slate-600 font-bold"><Icon name="arrow-left"/> Volver</button><div className="flex gap-2"><button onClick={()=>setShowSplitModal(true)} className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded font-bold text-xs flex items-center gap-1"><Icon name="split"/> DIVIDIR</button><button onClick={()=>window.print()} className="bg-slate-900 text-white px-3 py-1 rounded font-bold text-xs"><Icon name="printer"/> IMPRIMIR</button></div></div>
                     <div className="p-8 print:p-0">
                         <div className="print-section-top">
-                             <div className="flex justify-between items-start border-b-4 border-black pb-2 mb-2">
-                                <div><h1 className="text-4xl font-black uppercase tracking-tighter">{order.cliente}</h1><div className="text-xl font-bold font-mono">{order.displayId}</div></div>
-                                <div className="text-right"><span className="bg-black text-white px-2 py-1 text-sm font-bold uppercase">MÁQUINA</span><div className="text-6xl font-black leading-none">{order.maquina}</div></div>
-                            </div>
+                             <div className="flex justify-between items-start border-b-4 border-black pb-2 mb-2"><div><h1 className="text-4xl font-black uppercase tracking-tighter">{order.cliente}</h1><div className="text-xl font-bold font-mono">{order.displayId}</div></div><div className="text-right"><span className="bg-black text-white px-2 py-1 text-sm font-bold uppercase">MÁQUINA</span><div className="text-6xl font-black leading-none">{order.maquina}</div></div></div>
                             <div className="flex gap-2 flex-grow overflow-hidden">
                                 <div className="w-7/12 flex flex-col gap-2">
-                                    <div className="border-2 border-black">
-                                        <div className="flex bg-gray-200 border-b border-black font-bold text-xs uppercase p-1"><div className="flex-1">Detalle Piezas</div><div className="w-20 text-center">Cant</div></div>
-                                        {order.subPiecesData.map((p,i)=>(<div key={i} className="flex text-sm p-1 border-b last:border-0"><div className="flex-1">{p.pieza} <span className="text-blue-600 font-mono text-xs">{p.programa}</span></div><div className="w-20 text-center">{p.totalPedido}</div></div>))}
-                                    </div>
-                                    <div className="flex-grow border-2 border-black relative">
-                                        <div className="bg-black text-white text-xs font-bold text-center">ENHEBRADO</div>
-                                        <div className="p-1">
-                                            <table className="threading-table-print text-left"> 
-                                                <thead><tr className="bg-gray-200 border-b border-black"><th className="p-1 w-10">Pos.</th><th className="p-1">Material / Color</th><th className="p-1 w-10 text-center">%</th></tr></thead>
-                                                <tbody>{order.threading && order.threading.map((row, i) => (<tr key={i} className="border-b border-gray-300"><td className="pl-1 border-r border-gray-300 font-bold">{row.guia}</td><td className="pl-1 border-r border-gray-300 truncate">{row.material}</td><td className="text-center font-bold">{row.porcentaje}</td></tr>))}</tbody>
-                                            </table>
-                                        </div>
-                                    </div>
+                                    <div className="border-2 border-black"><div className="flex bg-gray-200 border-b border-black font-bold text-xs uppercase p-1"><div className="flex-1">Detalle Piezas</div><div className="w-20 text-center">Cant</div></div>{order.subPiecesData.map((p,i)=>(<div key={i} className="flex text-sm p-1 border-b last:border-0"><div className="flex-1">{p.pieza} <span className="text-blue-600 font-mono text-xs">{p.programa}</span></div><div className="w-20 text-center">{p.totalPedido}</div></div>))}</div>
+                                    <div className="flex-grow border-2 border-black relative"><div className="bg-black text-white text-xs font-bold text-center">ENHEBRADO</div><div className="p-1"><table className="threading-table-print text-left"><thead><tr className="bg-gray-200 border-b border-black"><th className="p-1 w-10">Pos.</th><th className="p-1">Material / Color</th><th className="p-1 w-10 text-center">%</th></tr></thead><tbody>{order.threading && order.threading.map((row, i) => (<tr key={i} className="border-b border-gray-300"><td className="pl-1 border-r border-gray-300 font-bold">{row.guia}</td><td className="pl-1 border-r border-gray-300 truncate">{row.material}</td><td className="text-center font-bold">{row.porcentaje}</td></tr>))}</tbody></table></div></div>
                                 </div>
                                 <div className="w-5/12 border-2 border-black flex items-center justify-center relative"><SmartImage repoUrls={config.repoUrls} codigo={order.codigo} className="max-h-full object-contain"/></div>
                             </div>
                         </div>
-
                         <div className="print-section-bottom print-only">
                              <div className="border-b border-black font-bold mb-1">CONTROL PAQUETES - {order.displayId}</div>
-                             <table className="package-table-print border-2 border-black">
-                                <thead><tr><th>Paquete</th><th>Tejedor</th><th>Fecha</th><th>Def</th><th>Agj</th><th>OK</th></tr></thead>
-                                <tbody>
-                                    {order.progreso?.map(p => (
-                                        <tr key={p.id}>
-                                            <td className="border border-black font-bold">{p.cantidad} pzs {p.paqueteNum}/{p.paquetesDePieza} ({p.piezaNombre})</td>
-                                            {p.finished ? <><td className="border text-center text-xs">{p.tejedor}</td><td className="border text-center text-xs">{p.fecha?.slice(5)}</td><td className="border text-center">{p.defectos}</td><td className="border text-center">{p.agujas}</td><td className="border text-center">OK</td></> : 
-                                            <><td className="manual-input border">_</td><td className="manual-input border">_</td><td className="manual-input border">_</td><td className="manual-input border">_</td><td className="manual-input border">_</td></>}
-                                        </tr>
-                                    ))}
-                                </tbody>
-                             </table>
+                             <table className="package-table-print border-2 border-black"><thead><tr><th>Paquete</th><th>Tejedor</th><th>Fecha</th><th>Def</th><th>Agj</th><th>OK</th></tr></thead><tbody>{order.progreso?.map(p => (<tr key={p.id}><td className="border border-black font-bold">{p.cantidad} pzs {p.paqueteNum}/{p.paquetesDePieza} ({p.piezaNombre})</td>{p.finished ? <><td className="border text-center text-xs">{p.tejedor}</td><td className="border text-center text-xs">{p.fecha?.slice(5)}</td><td className="border text-center">{p.defectos}</td><td className="border text-center">{p.agujas}</td><td className="border text-center">OK</td></> : <><td className="manual-input border">_</td><td className="manual-input border">_</td><td className="manual-input border">_</td><td className="manual-input border">_</td><td className="manual-input border">_</td></>}</tr>))}</tbody></table>
                         </div>
-
                         <div className="no-print mt-4">
-                            <div className="bg-white p-4 rounded shadow border mb-6">
-                                <h3 className="font-bold text-lg mb-2">Captura de Avance</h3>
-                                <div className="flex gap-2 items-end mb-2">
-                                    <input placeholder="TEJEDOR" value={entry.tejedor} onChange={toUppercase(e=>setEntry({...entry,tejedor:e.target.value}))} className="border p-2 rounded"/>
-                                    <input type="date" value={entry.fecha} onChange={e=>setEntry({...entry,fecha:e.target.value})} className="border p-2 rounded"/>
-                                </div>
-                                <div className="max-h-40 overflow-y-auto border">
-                                    {order.progreso.filter(p=>!p.finished).map(p=>(
-                                        <div key={p.id} className="flex justify-between p-2 border-b hover:bg-slate-50 items-center">
-                                            <span className="text-sm font-bold">{p.cantidad} pzs ({p.piezaNombre})</span>
-                                            <button onClick={()=>markPackage(p.id)} className="bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">Registrar</button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="bg-slate-100 p-4 rounded border-2 border-slate-300">
-                                <h3 className="font-bold text-lg mb-4 text-slate-700 flex items-center gap-2"><Icon name="table"/> TABLA MAESTRA DEL LOTE (Secuencia #{order.batchSequence})</h3>
-                                <div className="overflow-x-auto bg-white rounded shadow">
-                                    <table className="w-full text-xs text-left">
-                                        <thead className="bg-slate-800 text-white sticky top-0"><tr><th className="p-2">Pieza / Paquete</th><th className="p-2">Máquina</th><th className="p-2">Estado</th><th className="p-2">Info</th></tr></thead>
-                                        <tbody className="divide-y">{masterPackageList.map(p => (<tr key={p.uniqueId} className={p.statusClass}><td className="p-2 font-bold">{p.piezaNombre} - Paq {p.paqueteNum} ({p.cantidad} pzs)</td><td className="p-2 font-mono">{p.maquina} ({p.displayId})</td><td className="p-2">{p.finished ? 'TERMINADO' : 'PENDIENTE'}</td><td className="p-2 text-gray-500">{p.finished ? `${p.tejedor} - ${p.fecha}` : '-'}</td></tr>))}</tbody>
-                                    </table>
-                                </div>
-                            </div>
+                            <div className="bg-white p-4 rounded shadow border mb-6"><h3 className="font-bold text-lg mb-2">Captura de Avance</h3><div className="flex gap-2 items-end mb-2"><input placeholder="TEJEDOR" value={entry.tejedor} onChange={toUppercase(e=>setEntry({...entry,tejedor:e.target.value}))} className="border p-2 rounded"/><input type="date" value={entry.fecha} onChange={e=>setEntry({...entry,fecha:e.target.value})} className="border p-2 rounded"/></div><div className="max-h-40 overflow-y-auto border">{order.progreso.filter(p=>!p.finished).map(p=>(<div key={p.id} className="flex justify-between p-2 border-b hover:bg-slate-50 items-center"><span className="text-sm font-bold">{p.cantidad} pzs ({p.piezaNombre})</span><button onClick={()=>markPackage(p.id)} className="bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">Registrar</button></div>))}</div></div>
+                            <div className="bg-slate-100 p-4 rounded border-2 border-slate-300"><h3 className="font-bold text-lg mb-4 text-slate-700 flex items-center gap-2"><Icon name="table"/> TABLA MAESTRA DEL LOTE</h3><div className="overflow-x-auto bg-white rounded shadow"><table className="w-full text-xs text-left"><thead className="bg-slate-800 text-white sticky top-0"><tr><th className="p-2">Pieza / Paquete</th><th className="p-2">Máquina</th><th className="p-2">Estado</th><th className="p-2">Info</th></tr></thead><tbody className="divide-y">{masterPackageList.map(p => (<tr key={p.uniqueId} className={p.statusClass}><td className="p-2 font-bold">{p.piezaNombre} - Paq {p.paqueteNum} ({p.cantidad} pzs)</td><td className="p-2 font-mono">{p.maquina} ({p.displayId})</td><td className="p-2">{p.finished ? 'TERMINADO' : 'PENDIENTE'}</td><td className="p-2 text-gray-500">{p.finished ? `${p.tejedor} - ${p.fecha}` : '-'}</td></tr>))}</tbody></table></div></div>
                         </div>
                     </div>
                 </div>
@@ -535,25 +448,10 @@
 
         const CreationFlow = ({ orders, onAction }) => {
             const [searchTerm, setSearchTerm] = useState('');
-            const uniqueBatches = useMemo(() => {
-                const map = new Map();
-                orders.forEach(o => { if(!map.has(o.batchSequence)) map.set(o.batchSequence, o); });
-                return Array.from(map.values()).sort((a,b)=>b.batchSequence - a.batchSequence);
-            }, [orders]);
+            const uniqueBatches = useMemo(() => { const map = new Map(); orders.forEach(o => { if(!map.has(o.batchSequence)) map.set(o.batchSequence, o); }); return Array.from(map.values()).sort((a,b)=>b.batchSequence - a.batchSequence); }, [orders]);
             const filtered = uniqueBatches.filter(o => o.codigo.includes(searchTerm.toUpperCase()));
-
             return (
-                <div className="bg-white p-6 m-4 rounded shadow-lg max-w-4xl mx-auto">
-                    <h2 className="font-bold text-xl mb-6">Gestión de Órdenes</h2>
-                    <div className="grid grid-cols-2 gap-6 mb-8">
-                        <div onClick={()=>onAction('new', null)} className="border-2 border-dashed border-blue-300 bg-blue-50 p-6 rounded flex flex-col items-center justify-center cursor-pointer hover:bg-blue-100"><Icon name="plus-circle" size={48} className="text-blue-500 mb-2"/><span className="font-bold text-blue-900">NUEVA ORDEN MAESTRA</span></div>
-                        <div className="border border-slate-300 p-4 rounded bg-slate-50">
-                            <h3 className="font-bold text-sm mb-2">Agregar a Lote Existente</h3>
-                            <input placeholder="Buscar Código..." value={searchTerm} onChange={toUppercase(e=>setSearchTerm(e.target.value))} className="w-full border p-2 rounded mb-2"/>
-                            <div className="h-40 overflow-y-auto bg-white border rounded">{filtered.map(o => (<div key={o.id} onClick={()=>onAction('copy', o)} className="p-2 border-b hover:bg-indigo-50 cursor-pointer text-xs flex justify-between"><span className="font-bold">{o.codigo}</span><span className="text-slate-500">Lote #{o.batchSequence}</span></div>))}</div>
-                        </div>
-                    </div>
-                </div>
+                <div className="bg-white p-6 m-4 rounded shadow-lg max-w-4xl mx-auto"><h2 className="font-bold text-xl mb-6">Gestión de Órdenes</h2><div className="grid grid-cols-2 gap-6 mb-8"><div onClick={()=>onAction('new', null)} className="border-2 border-dashed border-blue-300 bg-blue-50 p-6 rounded flex flex-col items-center justify-center cursor-pointer hover:bg-blue-100"><Icon name="plus-circle" size={48} className="text-blue-500 mb-2"/><span className="font-bold text-blue-900">NUEVA ORDEN MAESTRA</span></div><div className="border border-slate-300 p-4 rounded bg-slate-50"><h3 className="font-bold text-sm mb-2">Agregar a Lote Existente</h3><input placeholder="Buscar Código..." value={searchTerm} onChange={toUppercase(e=>setSearchTerm(e.target.value))} className="w-full border p-2 rounded mb-2"/><div className="h-40 overflow-y-auto bg-white border rounded">{filtered.map(o => (<div key={o.id} onClick={()=>onAction('copy', o)} className="p-2 border-b hover:bg-indigo-50 cursor-pointer text-xs flex justify-between"><span className="font-bold">{o.codigo}</span><span className="text-slate-500">Lote #{o.batchSequence}</span></div>))}</div></div></div></div>
             );
         };
 
@@ -564,6 +462,7 @@
             const [yarnInventory, setInventory] = useState({});
             const [selectedOrder, setSelectedOrder] = useState(null);
             const [formProps, setFormProps] = useState(null); 
+            const [showSettings, setShowSettings] = useState(false);
 
             useEffect(() => {
                 const u1 = db.collection('orders').onSnapshot(s => setOrders(s.docs.map(d=>d.data())));
@@ -576,13 +475,9 @@
 
             const activeOrders = orders.filter(o => o.status !== 'ARCHIVADO');
             const allClients = [...new Set(orders.map(o => o.cliente))].sort();
-
             const handleCreateAction = (type, refOrder) => {
                 if(type === 'new') setFormProps({ initialOrder: null, existingParentId: null });
-                else {
-                    const answer = confirm(`¿AGREGAR a Lote #${refOrder.batchSequence}?\n\n(Cancelar = Copia Independiente)`);
-                    setFormProps({ initialOrder: refOrder, existingParentId: answer ? refOrder.batchSequence : null });
-                }
+                else { const answer = confirm(`¿AGREGAR a Lote #${refOrder.batchSequence}?\n\n(Cancelar = Copia Independiente)`); setFormProps({ initialOrder: refOrder, existingParentId: answer ? refOrder.batchSequence : null }); }
                 setView('create');
             };
 
@@ -591,13 +486,15 @@
                     {view === 'create' && <div className="absolute inset-0 z-50 bg-black/50 flex items-center justify-center"><MultiOrderForm config={config} onCancel={()=>setView('dashboard')} initialOrder={formProps.initialOrder} existingParentId={formProps.existingParentId} clientHistory={allClients} inventory={yarnInventory}/></div>}
                     {view === 'detail' && selectedOrder && <div className="absolute inset-0 z-40 bg-white overflow-y-auto"><OrderView order={orders.find(o=>o.id===selectedOrder.id) || selectedOrder} allOrders={orders} config={config} onBack={()=>setView('dashboard')}/></div>}
                     {view === 'inventory' && <div className="absolute inset-0 z-50 bg-white overflow-y-auto"><YarnInventory inventory={yarnInventory} onBack={()=>setView('dashboard')} /></div>}
+                    {showSettings && <SettingsModal config={config} onClose={()=>setShowSettings(false)} />}
 
                     <div className="dashboard-grid">
                         <div className="top-pane bg-slate-100 p-4">
                             <div className="flex justify-between items-center mb-4">
                                 <h1 className="text-2xl font-black text-slate-800 flex gap-2 items-center"><Icon name="layout-dashboard"/> PLANTA</h1>
                                 <div className="flex gap-2">
-                                    <button onClick={()=>setView('inventory')} className="bg-slate-700 text-white px-3 py-2 rounded font-bold shadow flex gap-2 items-center"><Icon name="package"/> INVENTARIO</button>
+                                    <button onClick={()=>setView('inventory')} className="bg-slate-700 text-white px-3 py-2 rounded font-bold shadow flex gap-2 items-center text-xs"><Icon name="package"/> INVENTARIO</button>
+                                    <button onClick={()=>setShowSettings(true)} className="bg-slate-300 hover:bg-slate-400 text-slate-800 p-2 rounded shadow"><Icon name="settings"/></button>
                                     <button onClick={()=>setView('creation-flow')} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2"><Icon name="plus"/> NUEVA ORDEN</button>
                                 </div>
                             </div>
