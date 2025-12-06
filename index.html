@@ -51,6 +51,88 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
+        // --- CONFIGURACIÓN DE FIREBASE (Datos proporcionados por el usuario) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBqHgV4vDat1-VmZfKbiPg7nuiX-ROcexw",
+            authDomain: "cirineo-cec21.firebaseapp.com",
+            projectId: "cirineo-cec21",
+            storageBucket: "cirineo-cec21.firebasestorage.app",
+            messagingSenderId: "620210618284",
+            appId: "1:620210618284:web:f35f762490712013f18409",
+            measurementId: "G-P5L30GXJGD"
+        };
+        console.log("Configuración de Firebase Cargada:", firebaseConfig.projectId);
+        
+        // --- DATOS INICIALES DE EJEMPLO ---
+        // ¡ADVERTENCIA! Reemplaza este array con tu base de datos real.
+        const initialOrdersData = [
+            {
+                id: 1700000001,
+                displayId: "C-000001-ml",
+                cliente: "Circulo Textil",
+                maquina: "2A",
+                codigo: "M026",
+                fechaInicio: "2025-12-01",
+                fechaFin: "2025-12-15",
+                batchSequence: 1,
+                status: "En Proceso",
+                threading: [
+                    { id: 101, guia: '1', material: 'Algodón Peinado Gris', sis: '30', porcentaje: '60' },
+                    { id: 102, guia: '2', material: 'Elastano Negro', sis: '40', porcentaje: '40' }
+                ],
+                pieza: "Manga Larga",
+                talla: "M/L",
+                totalPedido: 500,
+                peso: "120",
+                tiempo: "25",
+                packageSize: 50,
+                isMerged: false,
+                progreso: [
+                    // Paquete completado
+                    { id: 1, piezaNombre: "Manga Larga", cantidad: 50, totalPedido: 500, paqueteNum: 1, paquetesTotales: 10, tejedor: 'Juan Pérez', fecha: '2025-12-03', defectos: '1', agujas: '0', finished: true },
+                    // Paquete pendiente
+                    { id: 2, piezaNombre: "Manga Larga", cantidad: 50, totalPedido: 500, paqueteNum: 2, paquetesTotales: 10, tejedor: '', fecha: '', defectos: '', agujas: '', finished: false },
+                    { id: 3, piezaNombre: "Manga Larga", cantidad: 50, totalPedido: 500, paqueteNum: 3, paquetesTotales: 10, tejedor: '', fecha: '', defectos: '', agujas: '', finished: false },
+                    { id: 4, piezaNombre: "Manga Larga", cantidad: 50, totalPedido: 500, paqueteNum: 4, paquetesTotales: 10, tejedor: '', fecha: '', defectos: '', agujas: '', finished: false },
+                    { id: 5, piezaNombre: "Manga Larga", cantidad: 50, totalPedido: 500, paqueteNum: 5, paquetesTotales: 10, tejedor: '', fecha: '', defectos: '', agujas: '', finished: false },
+                    { id: 6, piezaNombre: "Manga Larga", cantidad: 50, totalPedido: 500, paqueteNum: 6, paquetesTotales: 10, tejedor: '', fecha: '', defectos: '', agujas: '', finished: false },
+                    { id: 7, piezaNombre: "Manga Larga", cantidad: 50, totalPedido: 500, paqueteNum: 7, paquetesTotales: 10, tejedor: '', fecha: '', defectos: '', agujas: '', finished: false },
+                    { id: 8, piezaNombre: "Manga Larga", cantidad: 50, totalPedido: 500, paqueteNum: 8, paquetesTotales: 10, tejedor: '', fecha: '', defectos: '', agujas: '', finished: false },
+                    { id: 9, piezaNombre: "Manga Larga", cantidad: 50, totalPedido: 500, paqueteNum: 9, paquetesTotales: 10, tejedor: '', fecha: '', defectos: '', agujas: '', finished: false },
+                    { id: 10, piezaNombre: "Manga Larga", cantidad: 50, totalPedido: 500, paqueteNum: 10, paquetesTotales: 10, tejedor: '', fecha: '', defectos: '', agujas: '', finished: false },
+                ]
+            },
+            {
+                id: 1700000002,
+                displayId: "R-000002-SET",
+                cliente: "Ropa Bonita",
+                maquina: "5B",
+                codigo: "P101",
+                fechaInicio: "2025-12-05",
+                fechaFin: "2025-12-20",
+                batchSequence: 2,
+                status: "En Proceso",
+                threading: [
+                    { id: 201, guia: 'A', material: 'Lana Azul Rey', sis: '60', porcentaje: '100' }
+                ],
+                isMerged: true,
+                subPiecesData: [
+                    { pieza: "Blusa", talla: "G", totalPedido: 300, peso: "150", tiempo: "30" },
+                    { pieza: "Cuello", talla: "Unitalla", totalPedido: 300, peso: "30", tiempo: "5" }
+                ],
+                totalPedido: 600, // 300 + 300
+                packageSize: 60,
+                progreso: [
+                    // Paquetes Blusa
+                    { id: 11, piezaNombre: "Blusa", cantidad: 60, totalPedido: 300, paqueteNum: 1, paquetesTotales: 5, tejedor: 'Ana García', fecha: '2025-12-05', defectos: '0', agujas: '0', finished: true },
+                    { id: 12, piezaNombre: "Blusa", cantidad: 60, totalPedido: 300, paqueteNum: 2, paquetesTotales: 5, tejedor: '', fecha: '', defectos: '', agujas: '', finished: false },
+                    // Paquetes Cuello
+                    { id: 13, piezaNombre: "Cuello", cantidad: 60, totalPedido: 300, paqueteNum: 1, paquetesTotales: 5, tejedor: '', fecha: '', defectos: '', agujas: '', finished: false },
+                    { id: 14, piezaNombre: "Cuello", cantidad: 60, totalPedido: 300, paqueteNum: 2, paquetesTotales: 5, tejedor: '', fecha: '', defectos: '', agujas: '', finished: false },
+                ]
+            }
+        ];
+
         // --- UTILIDADES ---
         const generateID = (clientName, sequence, pieceName) => {
             const clientInitial = clientName ? clientName.charAt(0).toUpperCase() : 'X';
@@ -175,7 +257,6 @@
             // Genera la lista de paquetes para una orden fusionada
             const generatePackageList = (pieces, packageSize) => {
                 const packages = [];
-                let packageIndex = 1;
                 let totalPieces = 0;
 
                 pieces.forEach(p => {
@@ -662,17 +743,18 @@
         };
 
         const App = () => {
-            // Cambiado 'v7' a 'v8' para no perder datos viejos si los hubiera
             const [view, setView] = useState('list');
-            const [orders, setOrders] = useState(() => JSON.parse(localStorage.getItem('v8_orders')) || []); // Cambiado a v8
-            const [config, setConfig] = useState(() => JSON.parse(localStorage.getItem('v8_config')) || { repoUrl: '', sequenceCounter: 1 }); // Cambiado a v8
+            // Inicializa orders con los datos de localStorage O los datos iniciales de ejemplo.
+            const [orders, setOrders] = useState(() => JSON.parse(localStorage.getItem('v8_orders')) || initialOrdersData); 
+            // Inicializa config con una URL de repositorio de ejemplo para las imágenes.
+            const [config, setConfig] = useState(() => JSON.parse(localStorage.getItem('v8_config')) || { repoUrl: 'https://raw.githubusercontent.com/TuUsuario/TuRepo/main/img/', sequenceCounter: 3 }); 
             const [selectedOrder, setSelectedOrder] = useState(null);
             const [showSettings, setShowSettings] = useState(false);
             const [filterClient, setFilterClient] = useState('ALL');
 
             useEffect(() => {
-                localStorage.setItem('v8_orders', JSON.stringify(orders)); // Cambiado a v8
-                localStorage.setItem('v8_config', JSON.stringify(config)); // Cambiado a v8
+                localStorage.setItem('v8_orders', JSON.stringify(orders)); 
+                localStorage.setItem('v8_config', JSON.stringify(config)); 
                 lucide.createIcons();
             }, [orders, config, view]);
 
