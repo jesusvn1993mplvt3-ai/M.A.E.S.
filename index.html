@@ -3,17 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Textil v8.1 - Conectado a maes2026</title>
-    
+    <title>Sistema Textil v8.1 - Firebase Cloud</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-
     <style>
         /* ESTILOS DE IMPRESIÓN */
         @media print {
@@ -31,64 +26,58 @@
                 flex-direction: column;
             }
             .print-section-bottom { height: 48vh; display: block; }
-            
             table, th, td { border: 1px solid black !important; border-collapse: collapse; }
-            
             .threading-table-print { font-size: 9pt; width: 100%; }
             .threading-table-print th { background-color: #ddd !important; }
-
             .production-row-h { height: 21px; }
             .package-table-print { font-size: 10pt; }
             .package-table-print td { padding: 2px 4px; }
         }
         .print-only { display: none; }
-        .loader {
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #3498db;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
+        .scroll-container {
+            display: flex;
+            overflow-x: auto;
+            gap: 10px;
+            padding-bottom: 10px;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, onValue, set, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyALlErn39YN4EoLgiE2joM9NWO9ckxVQ6I",
+            authDomain: "maes2026-3ae20.firebaseapp.com",
+            databaseURL: "https://maes2026-3ae20-default-rtdb.firebaseio.com",
+            projectId: "maes2026-3ae20",
+            storageBucket: "maes2026-3ae20.firebasestorage.app",
+            messagingSenderId: "96221881670",
+            appId: "1:96221881670:web:2bf8b5ac90c75cc62db147",
+            measurementId: "G-YDRYJ0FQ08"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Expose Firebase functions to window so React (Babel) can access them
+        window.db = db;
+        window.dbRef = ref;
+        window.dbOnValue = onValue;
+        window.dbSet = set;
+        window.dbUpdate = update;
+        window.dbGet = get;
+
+        console.log("Firebase conectado correctamente a: " + firebaseConfig.projectId);
+    </script>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef } = React;
-
-        // --- 1. CONFIGURACIÓN DE FIREBASE ---
-        // ¡ATENCIÓN!: Copia tu apiKey y appId desde la consola de Firebase -> Configuración del Proyecto
-        const firebaseConfig = {
-            // 1. Busca esto en tu consola y pégalo aquí abajo entre las comillas:
-            apiKey: "AIzaSyALlErn39YN4EoLgiE2joM9NWO9ckxVQ6I", 
-            
-            authDomain: "maes2026-3ae20.firebaseapp.com",
-            
-            // Esta es la URL correcta sacada de tu enlace:
-            databaseURL: "https://maes2026-3ae20-default-rtdb.firebaseio.com/",
-            
-            projectId: "maes2026-3ae20",
-            storageBucket: "maes2026-3ae20.firebasestorage.app",
-            messagingSenderId: "96221881670", // Este suele cambiar poco, pero mejor verifica si tienes uno nuevo
-            
-            // 2. Busca esto en tu consola y pégalo aquí abajo:
-            appId:"1:96221881670:web:2bf8b5ac90c75cc62db147", "PEGAR_TU_APP_ID_AQUI" 
-        };
+        const { useState, useEffect, useMemo } = React;
         
-        // Inicializar App y Base de Datos
-        if (!firebase.apps.length) {
-            try {
-                firebase.initializeApp(firebaseConfig);
-            } catch (e) {
-                console.error("Error iniciando Firebase. Revisa la API KEY.", e);
-            }
-        }
-        // Referencia a la base de datos
-        const db = firebase.database();
-
         // --- UTILIDADES ---
         const generateID = (clientName, sequence, pieceName) => {
             const clientInitial = clientName ? clientName.charAt(0).toUpperCase() : 'X';
@@ -105,32 +94,25 @@
         };
 
         const Icon = ({ name, size = 18, className }) => <i data-lucide={name} width={size} height={size} className={className}></i>;
-        const toUppercase = (handler) => (e) => { e.target.value = e.target.value.toUpperCase(); handler(e); };
 
-        // --- DATOS INICIALES (Plantilla para BD nueva) ---
-        const initialYarnInventory = {
+        const toUppercase = (handler) => (e) => {
+            e.target.value = e.target.value.toUpperCase();
+            handler(e);
+        };
+
+        // --- DATOS INICIALES (SOLO SI LA BD ESTÁ VACÍA) ---
+        const defaultInventory = {
             'ALEMANIA': { comp: '40/40/12', estiraje: 2500, bodega: 100, taller: 0 },
             'PARÍS': { comp: '20/33/34', estiraje: 2050, bodega: 100, taller: 0 },
-            'YUKI': { comp: '20/70/68', estiraje: 1800, bodega: 100, taller: 0 },
-            'DUBAI': { comp: '20/70/68', estiraje: 2050, bodega: 100, taller: 0 },
-            'MIAMI': { comp: '20/40/24', estiraje: 1800, bodega: 100, taller: 0 },
-            'TEXAS': { comp: '20/40/24', estiraje: 2050, bodega: 100, taller: 0 },
-            'UCRANIA': { comp: '40/70/68', estiraje: 2500, bodega: 100, taller: 0 },
-            'RUSIA': { comp: '40/70/68', estiraje: 2600, bodega: 100, taller: 0 },
-            'GUATEMALA': { comp: '40/40/24', estiraje: 2800, bodega: 100, taller: 0 },
-            'NYLON CALIDAD A': { comp: '70/68', estiraje: '-', bodega: 0, taller: 0 },
-            'NYLON CALIDAD C': { comp: '70/68', estiraje: '-', bodega: 0, taller: 0 },
+            'NYLON A': { comp: '70/68', estiraje: '-', bodega: 50, taller: 0 },
         };
-        
-        const initialConfig = {
+        const defaultConfig = { 
             repoUrls: ['https://raw.githubusercontent.com/TuUsuario/TuRepo/main/img/'], 
             sequenceCounter: 1,
-            shiftHours: 8,
+            shiftHours: 8, 
         };
 
-        // --- COMPONENTES DEL SISTEMA ---
-
-        // 1. INVENTARIO
+        // --- COMPONENTE GESTIÓN DE INVENTARIO ---
         const YarnInventory = ({ inventory, onUpdate, onBack }) => {
             const [selectedYarn, setSelectedYarn] = useState(null);
             const [movementType, setMovementType] = useState('INGRESAR');
@@ -138,7 +120,9 @@
             
             const groupedInventory = useMemo(() => {
                 const groups = { Lycras: [], Nylon: [], Otros: [] };
-                Object.entries(inventory || {}).forEach(([name, data]) => {
+                if(!inventory) return groups;
+
+                Object.entries(inventory).forEach(([name, data]) => {
                     const entry = { name, ...data };
                     if (name.startsWith('NYLON')) groups.Nylon.push(entry);
                     else if (data.comp.includes('/') && data.estiraje !== '-') groups.Lycras.push(entry);
@@ -148,20 +132,28 @@
             }, [inventory]);
 
             const handleUpdate = () => {
-                if (!selectedYarn || amount <= 0) return alert('Datos inválidos.');
+                if (!selectedYarn || amount <= 0) {
+                    alert('Selecciona hilatura y cantidad válida.');
+                    return;
+                }
                 const key = selectedYarn.name;
                 const numericAmount = Number(amount);
+                let newEntry = { ...inventory[key] };
                 
                 if (movementType === 'INGRESAR') {
                     if (confirm(`¿Ingresar ${numericAmount} kg de ${key} a Bodega?`)) {
-                        const newInventory = { ...inventory, [key]: { ...inventory[key], bodega: (inventory[key].bodega || 0) + numericAmount } };
-                        onUpdate(newInventory);
+                        newEntry.bodega += numericAmount;
+                        onUpdate(key, newEntry);
                     }
                 } else if (movementType === 'TRANSFERIR') {
-                    if ((inventory[key].bodega || 0) < numericAmount) return alert('Stock insuficiente en Bodega.');
+                    if (inventory[key].bodega < numericAmount) {
+                        alert(`Error: Solo hay ${inventory[key].bodega} kg en Bodega.`);
+                        return;
+                    }
                     if (confirm(`¿Transferir ${numericAmount} kg de ${key} a Taller?`)) {
-                        const newInventory = { ...inventory, [key]: { ...inventory[key], bodega: inventory[key].bodega - numericAmount, taller: (inventory[key].taller || 0) + numericAmount } };
-                        onUpdate(newInventory);
+                        newEntry.bodega -= numericAmount;
+                        newEntry.taller += numericAmount;
+                        onUpdate(key, newEntry);
                     }
                 }
                 setAmount(''); setSelectedYarn(null);
@@ -169,28 +161,24 @@
 
             const InventoryTable = ({ title, data }) => (
                 <div className="mb-8">
-                    <h3 className="text-xl font-bold mb-3 border-b pb-1 text-slate-700 flex items-center gap-2"><Icon name="box-select" size={20}/> {title} ({data.length})</h3>
+                    <h3 className="text-xl font-bold mb-3 border-b pb-1 text-slate-700">{title} ({data.length})</h3>
                     <div className="overflow-x-auto rounded border shadow">
                         <table className="w-full text-sm">
                             <thead className="bg-slate-800 text-white">
                                 <tr>
-                                    <th className="p-2 text-left w-1/4">NOMBRE</th>
-                                    <th className="p-2 w-1/6 text-center">COMPOSICIÓN</th>
-                                    <th className="p-2 w-1/6 text-center">ESTIRAJE</th>
-                                    <th className="p-2 w-1/6 text-center bg-green-700">EN BODEGA (kg)</th>
-                                    <th className="p-2 w-1/6 text-center bg-indigo-700">EN TALLER (kg)</th>
-                                    <th className="p-2 w-16"></th>
+                                    <th className="p-2 text-left">NOMBRE</th>
+                                    <th className="p-2 text-center">COMPOSICIÓN</th>
+                                    <th className="p-2 text-center bg-green-700">EN BODEGA</th>
+                                    <th className="p-2 text-center bg-indigo-700">EN TALLER</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {data.map((item) => (
-                                    <tr key={item.name} className={`border-b hover:bg-slate-50 cursor-pointer ${selectedYarn?.name === item.name ? 'bg-yellow-100' : 'bg-white'}`} onClick={() => setSelectedYarn(item)}>
+                                    <tr key={item.name} className={`border-b cursor-pointer ${selectedYarn?.name === item.name ? 'bg-yellow-100' : 'bg-white'}`} onClick={() => setSelectedYarn(item)}>
                                         <td className="p-2 font-bold">{item.name}</td>
                                         <td className="p-2 text-center">{item.comp}</td>
-                                        <td className="p-2 text-center">{item.estiraje}</td>
-                                        <td className="p-2 text-center font-bold text-green-700">{(item.bodega || 0).toFixed(2)}</td>
-                                        <td className="p-2 text-center font-bold text-indigo-700">{(item.taller || 0).toFixed(2)}</td>
-                                        <td className="p-2 text-center">{selectedYarn?.name === item.name ? <Icon name="check-circle" className="text-yellow-600 mx-auto"/> : ''}</td>
+                                        <td className="p-2 text-center font-bold text-green-700">{item.bodega.toFixed(2)}</td>
+                                        <td className="p-2 text-center font-bold text-indigo-700">{item.taller.toFixed(2)}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -201,32 +189,46 @@
 
             return (
                 <div className="max-w-6xl mx-auto p-6">
-                    <button onClick={onBack} className="flex items-center gap-2 text-slate-600 font-bold mb-6"><Icon name="arrow-left"/> Volver a Producción</button>
-                    <h1 className="text-3xl font-black mb-6 flex items-center gap-2 text-slate-900"><Icon name="hard-hat"/> Inventario Global (En Nube)</h1>
+                    <button onClick={onBack} className="flex items-center gap-2 text-slate-600 font-bold mb-6"><Icon name="arrow-left"/> Volver</button>
+                    <h1 className="text-3xl font-black mb-6 text-slate-900">Inventario (Firebase)</h1>
+
                     <div className="bg-white p-4 rounded-lg shadow-lg mb-8 border border-slate-200">
-                        <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-indigo-700"><Icon name="settings-2" size={20}/> Operaciones</h2>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div><label className="block text-xs font-bold text-slate-700 mb-1">HILATURA</label><div className={`p-3 border rounded text-lg font-bold truncate ${selectedYarn ? 'bg-yellow-100' : 'bg-slate-100 text-slate-400'}`}>{selectedYarn ? selectedYarn.name : 'Selecciona de tabla'}</div></div>
-                            <div className="flex flex-col"><label className="block text-xs font-bold text-slate-700 mb-1">ACCIÓN</label><select className="p-3 border rounded text-lg font-bold w-full" value={movementType} onChange={e => setMovementType(e.target.value)}><option value="INGRESAR">INGRESAR (A Bodega)</option><option value="TRANSFERIR">TRANSFERIR (A Taller)</option></select></div>
-                            <div className="flex gap-2 items-end"><div className="flex-grow"><label className="block text-xs font-bold text-slate-700 mb-1">KG</label><input type="number" className="p-3 border rounded text-lg font-bold w-full" value={amount} onChange={e => setAmount(e.target.value)} min="0.01"/></div><button onClick={handleUpdate} disabled={!selectedYarn || !amount} className="p-3 bg-indigo-600 text-white rounded font-bold hover:bg-indigo-700 disabled:opacity-50"><Icon name="save" size={20}/></button></div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">HILATURA</label>
+                                <div className={`p-3 border rounded font-bold ${selectedYarn ? 'bg-yellow-100' : 'bg-slate-100 text-slate-400'}`}>{selectedYarn ? selectedYarn.name : 'Selecciona de tabla'}</div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">ACCIÓN</label>
+                                <select className="p-3 border rounded font-bold w-full" value={movementType} onChange={e => setMovementType(e.target.value)}>
+                                    <option value="INGRESAR">INGRESAR (A Bodega)</option>
+                                    <option value="TRANSFERIR">TRANSFERIR (A Taller)</option>
+                                </select>
+                            </div>
+                            <div className="flex gap-2 items-end">
+                                <div className="flex-grow">
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">CANTIDAD (KG)</label>
+                                    <input type="number" className="p-3 border rounded w-full" value={amount} onChange={e => setAmount(e.target.value)} />
+                                </div>
+                                <button onClick={handleUpdate} className="p-3 bg-indigo-600 text-white rounded font-bold"><Icon name="check" size={20}/></button>
+                            </div>
                         </div>
                     </div>
+
                     <InventoryTable title="Lycras" data={groupedInventory.Lycras} />
                     <InventoryTable title="Nylon" data={groupedInventory.Nylon} />
-                    {groupedInventory.Otros.length > 0 && <InventoryTable title="Otros" data={groupedInventory.Otros} />}
                 </div>
             );
         };
-        
-        // 2. IMAGEN INTELIGENTE
+
+        // --- COMPONENTE IMAGEN ---
         const SmartImage = ({ repoUrls, codigo, className }) => {
             const [imgSrc, setImgSrc] = useState(null);
             const [attempt, setAttempt] = useState({ urlIndex: 0, extension: 'jpg' });
 
             useEffect(() => {
                 if (!repoUrls || !codigo || repoUrls.length === 0) {
-                    setImgSrc(null); setAttempt({ urlIndex: 0, extension: 'fail' });
-                    return;
+                    setImgSrc(null); setAttempt({ urlIndex: 0, extension: 'fail' }); return;
                 }
                 setAttempt({ urlIndex: 0, extension: 'jpg' });
                 const cleanBase = repoUrls[0].endsWith('/') ? repoUrls[0] : repoUrls[0] + '/';
@@ -249,41 +251,45 @@
                 }
             };
 
-            if (attempt.extension === 'fail' || !repoUrls || repoUrls.length === 0) return <div className={`flex flex-col items-center justify-center bg-slate-100 text-slate-400 border-2 border-dashed ${className}`}><Icon name="image-off" size={32} /><span className="text-[10px] font-bold mt-1">NO IMG</span></div>;
+            if (attempt.extension === 'fail') return <div className={`flex flex-col items-center justify-center bg-slate-100 text-slate-400 border border-dashed ${className}`}><Icon name="image-off" size={24} /></div>;
             return <img src={imgSrc} alt={codigo} className={className} onError={handleError} />;
         };
 
-        // 3. EDITOR DE ENHEBRADO
+        // --- EDITOR DE ENHEBRADO ---
         const ThreadingEditor = ({ data, onChange }) => {
             const addRow = () => onChange([...data, { id: Date.now(), guia: '', material: '', sis: '', porcentaje: '' }]);
-            const updateRow = (id, field, val) => onChange(data.map(r => r.id === id ? { ...r, [field]: val } : r));
+            const updateRow = (id, f, v) => onChange(data.map(r => r.id === id ? { ...r, [f]: v } : r));
             const removeRow = (id) => onChange(data.filter(r => r.id !== id));
             const totalPercent = data.reduce((sum, row) => sum + (Number(row.porcentaje) || 0), 0);
 
             return (
                 <div className="border rounded bg-white overflow-hidden">
-                    <div className="bg-slate-200 p-2 text-xs font-bold flex justify-between items-center"><span>ENHEBRADO</span><button onClick={addRow} className="text-indigo-600 flex items-center gap-1 hover:underline"><Icon name="plus" size={14}/> Agregar</button></div>
-                    <table className="w-full text-xs text-left">
-                        <thead className="bg-slate-50 text-slate-500"><tr><th className="p-2 w-16">GUÍA</th><th className="p-2">MATERIAL</th><th className="p-2 w-16 text-center">SIS</th><th className="p-2 w-16 text-center">%</th><th className="p-2 w-8"></th></tr></thead>
-                        <tbody className="divide-y">
-                            {data.map((row) => (
-                                <tr key={row.id}>
-                                    <td className="p-1"><input className="w-full border rounded p-1" value={row.guia} onChange={toUppercase(e=>updateRow(row.id,'guia',e.target.value))} /></td>
-                                    <td className="p-1"><input className="w-full border rounded p-1" value={row.material} onChange={toUppercase(e=>updateRow(row.id,'material',e.target.value))} /></td>
-                                    <td className="p-1"><input className="w-full border rounded p-1 text-center" value={row.sis} onChange={toUppercase(e=>updateRow(row.id,'sis',e.target.value))} /></td>
-                                    <td className="p-1"><input type="number" className="w-full border rounded p-1 text-center" value={row.porcentaje} onChange={e=>updateRow(row.id,'porcentaje',e.target.value)} /></td>
-                                    <td className="p-1 text-center"><button onClick={()=>removeRow(row.id)} className="text-red-400"><Icon name="x" size={14}/></button></td>
-                                </tr>
-                            ))}
-                        </tbody>
-                        <tfoot className="bg-slate-100"><tr><td colSpan="3" className="p-2 text-right font-bold">TOTAL:</td><td className={`p-2 text-center font-bold ${totalPercent !== 100 ? 'text-red-500' : 'text-green-600'}`}>{totalPercent}%</td><td></td></tr></tfoot>
-                    </table>
+                    <div className="bg-slate-200 p-2 text-xs font-bold flex justify-between"><span>TABLA DE ENHEBRADO</span> <button onClick={addRow} className="text-indigo-600">+ Agregar</button></div>
+                    {data.length === 0 ? <div className="p-4 text-center text-xs text-slate-400 cursor-pointer" onClick={addRow}>+ Click para agregar</div> : (
+                        <table className="w-full text-xs text-left">
+                            <thead className="bg-slate-50 text-slate-500">
+                                <tr><th className="p-2 w-16">GUÍA</th><th className="p-2">MATERIAL</th><th className="p-2 w-16">SIS</th><th className="p-2 w-16 text-center">%</th><th className="w-8"></th></tr>
+                            </thead>
+                            <tbody className="divide-y">
+                                {data.map(r => (
+                                    <tr key={r.id}>
+                                        <td className="p-1"><input className="w-full border rounded p-1" value={r.guia} onChange={toUppercase(e=>updateRow(r.id,'guia',e.target.value))}/></td>
+                                        <td className="p-1"><input className="w-full border rounded p-1" value={r.material} onChange={toUppercase(e=>updateRow(r.id,'material',e.target.value))}/></td>
+                                        <td className="p-1"><input className="w-full border rounded p-1" value={r.sis} onChange={toUppercase(e=>updateRow(r.id,'sis',e.target.value))}/></td>
+                                        <td className="p-1"><input type="number" className="w-full border rounded p-1 text-center" value={r.porcentaje} onChange={e=>updateRow(r.id,'porcentaje',e.target.value)}/></td>
+                                        <td className="p-1 text-center"><button onClick={()=>removeRow(r.id)} className="text-red-400"><Icon name="x" size={14}/></button></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                            <tfoot className="bg-slate-100"><tr><td colSpan="3" className="p-2 text-right font-bold">Total:</td><td className={`p-2 text-center font-bold ${totalPercent!==100?'text-red-500':'text-green-600'}`}>{totalPercent}%</td><td></td></tr></tfoot>
+                        </table>
+                    )}
                 </div>
             );
         };
 
-        // 4. FORMULARIO DE LOTE
-        const MultiOrderForm = ({ config, onSave, onCancel, initialOrder = null, clientHistory, pieceHistory }) => {
+        // --- FORMULARIO NUEVA ORDEN ---
+        const MultiOrderForm = ({ config, onSave, onCancel, initialOrder, clientHistory, pieceHistory }) => {
             const defaultHeader = initialOrder ? {
                 codigo: initialOrder.codigo || '', cliente: initialOrder.cliente || '', maquina: initialOrder.maquina || '', 
                 fechaInicio: new Date().toISOString().split('T')[0], fechaEntrega: initialOrder.fechaFin || ''
@@ -295,28 +301,28 @@
 
             const [header, setHeader] = useState(defaultHeader);
             const [threadingData, setThreadingData] = useState(initialOrder?.threading || []);
-            const [pieces, setPieces] = useState(defaultPieces.map(p => ({...p, totalPedido: p.totalPedido || 0, programa: p.programa || ''})));
+            const [pieces, setPieces] = useState(defaultPieces.map(p => ({...p, totalPedido: p.totalPedido||0, programa: p.programa||''})));
             const [packageSize, setPackageSize] = useState(initialOrder?.packageSize || 50);
 
             const addPiece = () => setPieces([...pieces, { id: Date.now(), pieza: '', programa: '', talla: 'UNITALLA', totalPedido: '', peso: '', tiempo: '' }]);
             const updatePiece = (id, f, v) => setPieces(pieces.map(p => p.id === id ? { ...p, [f]: v } : p));
             const removePiece = (id) => pieces.length > 1 && setPieces(pieces.filter(p => p.id !== id));
-            
+
             const generatePackageList = (pieces, packageSize) => {
                 const packages = [];
                 let totalPieces = 0;
                 pieces.forEach(p => {
-                    const totalPiecesInOrder = Number(p.totalPedido) || 0;
-                    const size = Number(packageSize) || totalPiecesInOrder;
-                    const numPackages = Math.ceil(totalPiecesInOrder / size);
-                    for (let i = 1; i <= numPackages; i++) {
-                        const count = (i === numPackages) ? (totalPiecesInOrder % size || size) : size;
+                    const totalPz = Number(p.totalPedido) || 0;
+                    const size = Number(packageSize) || totalPz;
+                    const numPkgs = Math.ceil(totalPz / size);
+                    for (let i = 1; i <= numPkgs; i++) {
                         packages.push({
-                            id: Date.now() + packages.length + totalPieces + Math.random(), 
-                            piezaNombre: p.pieza, cantidad: count, totalPedido: totalPiecesInOrder, paqueteNum: i, paquetesTotales: numPackages,
+                            id: Date.now() + packages.length + Math.random(), 
+                            piezaNombre: p.pieza,
+                            cantidad: (i === numPkgs) ? (totalPz % size || size) : size, 
+                            totalPedido: totalPz, paqueteNum: i, paquetesTotales: numPkgs,
                             tejedor: '', fecha: '', defectos: '', agujas: '', finished: false
                         });
-                        totalPieces += 1;
                     }
                 });
                 return packages;
@@ -324,27 +330,28 @@
 
             const handleSubmit = () => {
                 if(!header.codigo || !header.cliente || !header.maquina || pieces.some(p => !p.pieza || !p.programa)) return alert("Faltan datos obligatorios.");
-                
-                const shouldMerge = pieces.length > 1 && confirm(`¿Juntar ${pieces.length} piezas en un Set?`);
+
+                const shouldMerge = pieces.length > 1 && confirm(`¿Juntar ${pieces.length} piezas en una orden?`);
                 let finalOrders = [];
                 const commonData = {
                     cliente: header.cliente, maquina: header.maquina, codigo: header.codigo,
-                    fechaInicio: header.fechaInicio, fechaFin: header.fechaEntrega, batchSequence: config.sequenceCounter,
-                    status: 'EN PROCESO', threading: threadingData 
+                    fechaInicio: header.fechaInicio, fechaFin: header.fechaEntrega,
+                    batchSequence: config.sequenceCounter, status: 'EN PROCESO', threading: threadingData 
                 };
 
                 if (shouldMerge) {
-                    const subPiecesData = pieces.map(p => ({ pieza: p.pieza, talla: p.talla, totalPedido: Number(p.totalPedido), peso: p.peso, tiempo: p.tiempo, programa: p.programa }));
                     finalOrders.push({
                         ...commonData, id: Date.now(),
                         displayId: generateID(header.cliente, config.sequenceCounter, "Set"),
-                        pieza: `JUEGO: ${subPiecesData.map(p => p.pieza).join(' + ')}`,
-                        subPiecesData, packageSize: Number(packageSize), progreso: generatePackageList(pieces, packageSize), isMerged: true,
-                        totalPedido: subPiecesData.reduce((sum, p) => sum + p.totalPedido, 0)
+                        pieza: `JUEGO: ${pieces.map(p => p.pieza).join('+')}`,
+                        subPiecesData: pieces.map(p=>({pieza:p.pieza, talla:p.talla, totalPedido:Number(p.totalPedido), peso:p.peso, tiempo:p.tiempo, programa:p.programa})), 
+                        packageSize: Number(packageSize),
+                        progreso: generatePackageList(pieces, packageSize), isMerged: true,
+                        totalPedido: pieces.reduce((sum, p) => sum + Number(p.totalPedido), 0)
                     });
                 } else {
-                    finalOrders = pieces.map((p, index) => ({
-                        ...commonData, id: Date.now() + index,
+                    finalOrders = pieces.map((p, idx) => ({
+                        ...commonData, id: Date.now() + idx,
                         displayId: generateID(header.cliente, config.sequenceCounter, p.pieza),
                         pieza: p.pieza, talla: p.talla, totalPedido: p.totalPedido, peso: p.peso, tiempo: p.tiempo, programa: p.programa,
                         progreso: generatePackageList([p], packageSize), packageSize: Number(packageSize), isMerged: false,
@@ -355,126 +362,141 @@
 
             return (
                 <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-xl my-6 overflow-hidden">
-                    <div className="bg-slate-800 text-white p-4 flex justify-between items-center"><h2 className="font-bold flex gap-2"><Icon name="file-plus" /> Nuevo Lote</h2><button onClick={onCancel} className="text-sm underline">Cancelar</button></div>
+                    <div className="bg-slate-800 text-white p-4 flex justify-between items-center"><h2 className="font-bold flex gap-2"><Icon name="file-plus" /> Nueva Orden</h2><button onClick={onCancel} className="underline">Cancelar</button></div>
                     <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <div>
-                            <div className="bg-indigo-50 p-4 rounded-lg mb-6 flex gap-4">
-                                <input value={header.codigo} onChange={toUppercase(e => setHeader({...header, codigo: e.target.value}))} className="flex-1 text-2xl font-black p-2 border-2 border-indigo-300 rounded uppercase" placeholder="CÓDIGO (EJ: M026)" autoFocus />
+                            <div className="bg-indigo-50 p-4 rounded mb-6 flex gap-4">
+                                <input value={header.codigo} onChange={toUppercase(e => setHeader({...header, codigo: e.target.value}))} className="flex-1 text-2xl font-black p-2 border-2 border-indigo-300 rounded uppercase" placeholder="CÓDIGO (M026)" />
                                 <div className="w-16 h-16 bg-white border rounded overflow-hidden"><SmartImage repoUrls={config.repoUrls} codigo={header.codigo} className="w-full h-full object-cover" /></div>
                             </div>
                             <div className="grid grid-cols-3 gap-3 mb-6">
-                                <input list="client-history" value={header.cliente} onChange={toUppercase(e => setHeader({...header, cliente: e.target.value}))} className="p-2 border rounded text-sm col-span-2" placeholder="CLIENTE" />
-                                <input value={header.maquina} onChange={toUppercase(e => setHeader({...header, maquina: e.target.value}))} className="p-2 border rounded text-sm font-bold" placeholder="MÁQUINA" />
+                                <input list="client-list" value={header.cliente} onChange={toUppercase(e => setHeader({...header, cliente: e.target.value}))} className="p-2 border rounded col-span-2" placeholder="CLIENTE" />
+                                <datalist id="client-list">{clientHistory.map(c => <option key={c} value={c} />)}</datalist>
+                                <input value={header.maquina} onChange={toUppercase(e => setHeader({...header, maquina: e.target.value}))} className="p-2 border rounded font-bold" placeholder="MÁQUINA" />
                             </div>
-                            <datalist id="client-history">{clientHistory.map(c => <option key={c} value={c} />)}</datalist>
-                            <input type="number" value={packageSize} onChange={e => setPackageSize(Number(e.target.value))} className="p-2 border rounded text-lg font-bold w-full mb-4" placeholder="Tamaño Paquete" />
+                            <div className="mb-4">
+                                <label className="text-xs font-bold text-slate-700">TAMAÑO PAQUETE</label>
+                                <input type="number" value={packageSize} onChange={e => setPackageSize(Number(e.target.value))} className="p-2 border rounded w-full font-bold" />
+                            </div>
                             <div className="space-y-4">
                                 {pieces.map((p) => (
                                     <div key={p.id} className="bg-slate-50 p-3 rounded border relative">
-                                        <div className="grid grid-cols-3 gap-2 mb-2"><input list="piece-history" value={p.pieza} onChange={toUppercase(e => updatePiece(p.id, 'pieza', e.target.value))} className="col-span-2 p-1 border rounded text-sm font-bold" placeholder="PIEZA" /><input value={p.talla} onChange={toUppercase(e => updatePiece(p.id, 'talla', e.target.value))} className="p-1 border rounded text-sm" placeholder="TALLA" /></div>
-                                        <datalist id="piece-history">{pieceHistory.map(p => <option key={p} value={p} />)}</datalist>
-                                        <div className="grid grid-cols-3 gap-2 mb-2"><input value={p.programa} onChange={toUppercase(e => updatePiece(p.id, 'programa', e.target.value))} className="col-span-2 p-1 border rounded text-sm" placeholder="PROGRAMA" /><input type="number" value={p.totalPedido} onChange={e => updatePiece(p.id, 'totalPedido', e.target.value)} className="p-1 border rounded text-sm font-bold" placeholder="CANT." /></div>
-                                        <div className="grid grid-cols-2 gap-2"><input type="number" value={p.peso} onChange={e => updatePiece(p.id, 'peso', e.target.value)} className="w-full p-1 border rounded text-xs" placeholder="PESO (g)" /><input type="number" value={p.tiempo} onChange={e => updatePiece(p.id, 'tiempo', e.target.value)} className="w-full p-1 border rounded text-xs" placeholder="TIEMPO (min)" /></div>
+                                        <div className="grid grid-cols-3 gap-2 mb-2">
+                                            <input list="pieces-list" value={p.pieza} onChange={toUppercase(e => updatePiece(p.id, 'pieza', e.target.value))} className="col-span-2 p-1 border rounded font-bold" placeholder="PIEZA" />
+                                            <datalist id="pieces-list">{pieceHistory.map(ph => <option key={ph} value={ph} />)}</datalist>
+                                            <input value={p.talla} onChange={toUppercase(e => updatePiece(p.id, 'talla', e.target.value))} className="p-1 border rounded" placeholder="TALLA" />
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2 mb-2">
+                                            <input value={p.programa} onChange={toUppercase(e => updatePiece(p.id, 'programa', e.target.value))} className="col-span-2 p-1 border rounded" placeholder="PROGRAMA" />
+                                            <input type="number" value={p.totalPedido} onChange={e => updatePiece(p.id, 'totalPedido', e.target.value)} className="p-1 border rounded font-bold" placeholder="CANTIDAD" />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <input type="number" value={p.peso} onChange={e => updatePiece(p.id, 'peso', e.target.value)} className="p-1 border rounded text-xs" placeholder="PESO (g)" />
+                                            <input type="number" value={p.tiempo} onChange={e => updatePiece(p.id, 'tiempo', e.target.value)} className="p-1 border rounded text-xs" placeholder="TIEMPO (min)" />
+                                        </div>
                                         {pieces.length > 1 && <button onClick={() => removePiece(p.id)} className="absolute -top-2 -right-2 bg-red-100 text-red-500 rounded-full p-1 border"><Icon name="x" size={12} /></button>}
                                     </div>
                                 ))}
-                                <button onClick={addPiece} className="w-full py-2 border-2 border-dashed text-slate-500 text-xs font-bold rounded">+ AGREGAR PIEZA</button>
+                                <button onClick={addPiece} className="w-full py-2 border-dashed border-2 text-slate-500 text-xs font-bold rounded">+ OTRA PIEZA</button>
                             </div>
                         </div>
                         <div className="flex flex-col h-full">
                             <ThreadingEditor data={threadingData} onChange={setThreadingData} />
-                            <button onClick={handleSubmit} className="mt-6 w-full bg-slate-900 text-white py-3 rounded-lg font-bold shadow hover:bg-slate-800 flex items-center justify-center gap-2"><Icon name="save" /> GUARDAR EN NUBE</button>
+                            <button onClick={handleSubmit} className="mt-6 w-full bg-slate-900 text-white py-3 rounded-lg font-bold shadow hover:bg-slate-800 flex items-center justify-center gap-2"><Icon name="save" /> GUARDAR EN CLOUD</button>
                         </div>
                     </div>
                 </div>
             );
         };
 
-        // 5. VISTA DE ORDEN
+        // --- VISTA DETALLE ORDEN ---
         const OrderView = ({ order, config, onBack, onUpdate }) => {
             const [entry, setEntry] = useState({ tejedor: '', fecha: new Date().toISOString().split('T')[0], defectos: '', agujas: '' });
             
-            const totalProdPackages = order.progreso?.filter(p => p.finished).reduce((a, b) => a + (b.cantidad || 0), 0) || 0;
-            const totalPzOrdered = order.totalPedido || 0;
-            const pct = totalPzOrdered ? Math.round((totalProdPackages / totalPzOrdered) * 100) : 0;
-            const pendingPackages = order.progreso?.filter(p => !p.finished) || [];
-            const completedPackagesData = order.progreso?.filter(p => p.finished).reverse() || [];
-
-            const markPackageAsFinished = (packageId) => {
-                if (!entry.tejedor || !entry.fecha) return alert("Falta Tejedor o Fecha");
-                const updatedProgreso = order.progreso.map(pkg => pkg.id === packageId ? { ...pkg, tejedor: entry.tejedor.toUpperCase(), fecha: entry.fecha, defectos: entry.defectos, agujas: entry.agujas, finished: true } : pkg);
-                onUpdate(order.id, 'progreso', updatedProgreso);
+            const markFinished = (pkgId) => {
+                if (!entry.tejedor || !entry.fecha) return alert("Falta Tejedor o Fecha.");
+                const updatedProgreso = order.progreso.map(pkg => pkg.id === pkgId ? { ...pkg, tejedor: entry.tejedor.toUpperCase(), fecha: entry.fecha, defectos: entry.defectos, agujas: entry.agujas, finished: true } : pkg);
+                onUpdate(order.id, { progreso: updatedProgreso });
                 setEntry(prev => ({ ...prev, defectos: '', agujas: '' }));
             };
+
+            const pending = order.progreso?.filter(p => !p.finished) || [];
+            const done = order.progreso?.filter(p => p.finished).reverse() || [];
+            const completedCount = done.length;
+            const totalCount = order.progreso?.length || 0;
+            const pct = totalCount ? Math.round((completedCount/totalCount)*100) : 0;
 
             return (
                 <div className="bg-white min-h-screen">
                     <div className="no-print p-4 border-b flex justify-between bg-slate-50 sticky top-0 z-10">
                         <button onClick={onBack} className="flex items-center gap-2 text-slate-600 font-bold"><Icon name="arrow-left"/> Volver</button>
-                        <div className="flex items-center gap-2">
-                            {pct === 100 && order.status !== 'ARCHIVADO' && <button onClick={() => onUpdate(order.id, 'status', 'ARCHIVADO')} className="px-3 py-1 bg-green-600 text-white rounded font-bold text-xs">Archivar</button>}
-                            <button onClick={() => window.print()} className="px-4 py-1 bg-slate-800 text-white rounded font-bold flex gap-2 items-center text-xs"><Icon name="printer" size={14}/> Imprimir</button>
+                        <div className="flex gap-2">
+                            {pct === 100 && order.status !== 'ARCHIVADO' && (
+                                <button onClick={() => onUpdate(order.id, { status: 'ARCHIVADO' })} className="bg-green-600 text-white px-3 py-1 rounded font-bold text-xs flex gap-2 items-center"><Icon name="archive" size={14}/> Archivar</button>
+                            )}
+                            <button onClick={() => window.print()} className="bg-slate-800 text-white px-3 py-1 rounded font-bold text-xs flex gap-2 items-center"><Icon name="printer" size={14}/> Imprimir</button>
                         </div>
                     </div>
                     <div className="p-8 print:p-0">
                         <div className="print-section-top">
                             <div className="flex justify-between items-start border-b-2 border-black pb-1 mb-2">
-                                <div className="w-2/3"><h1 className="text-4xl font-black uppercase leading-none">{order.cliente}</h1><div className="text-lg font-bold font-mono mt-1">{order.displayId}</div></div>
-                                <div className="w-1/3 text-right"><div className="bg-black text-white inline-block px-3 py-0.5 text-xs font-bold uppercase mb-1">Máquina</div><div className="text-5xl font-black leading-none">{order.maquina}</div></div>
+                                <div><h1 className="text-4xl font-black uppercase tracking-tighter">{order.cliente}</h1><div className="text-lg font-bold font-mono">{order.displayId}</div></div>
+                                <div className="text-right"><div className="bg-black text-white px-3 text-xs font-bold uppercase mb-1">Máquina</div><div className="text-5xl font-black leading-none">{order.maquina}</div></div>
                             </div>
                             <div className="flex gap-1 flex-grow overflow-hidden"> 
                                 <div className="w-1/2 flex flex-col"> 
                                     <div className="flex border border-black text-center divide-x divide-black bg-slate-100 print:bg-transparent">
-                                        <div className="flex-1 p-1"><div className="text-[10px] font-bold uppercase">Ref</div><div className="text-xl font-black">{order.codigo}</div></div>
-                                        <div className="flex-1 p-1"><div className="text-[10px] font-bold uppercase">Total</div><div className="text-xl font-black">{totalPzOrdered}</div></div>
+                                        <div className="flex-1 p-1"><div className="text-[10px] font-bold uppercase">Código</div><div className="text-xl font-black">{order.codigo}</div></div>
+                                        <div className="flex-1 p-1"><div className="text-[10px] font-bold uppercase">Total</div><div className="text-xl font-black">{order.totalPedido}</div></div>
                                         <div className="flex-1 p-1"><div className="text-[10px] font-bold uppercase">Paquetes</div><div className="text-xl font-black">{order.progreso?.length}</div></div>
                                     </div>
-                                    <div className="border border-black p-1.5 mt-1">
-                                        {order.isMerged ? order.subPiecesData.map((p,i)=><div key={i} className="text-xs font-bold">{p.pieza} ({p.talla}) - {p.totalPedido}pz - {p.programa}</div>) : <div className="text-sm font-bold">{order.pieza} <span className="text-xs font-normal">({order.programa})</span></div>}
-                                    </div>
+                                    <div className="border border-black p-1 mt-1 font-bold text-center text-sm">{order.pieza} {order.isMerged && '(SET)'}</div>
                                     <div className="flex-grow border border-black relative overflow-hidden flex flex-col mt-1">
-                                        <div className="bg-black text-white text-[9px] font-bold px-1 text-center uppercase">Enhebrado</div>
-                                        <table className="threading-table-print text-[9pt] w-full text-left"> 
-                                            <tbody>{order.threading?.map((row, i) => (<tr key={i} className="border-b border-black h-4"><td className="pl-1 border-r border-black font-bold w-6">{row.guia}</td><td className="pl-1 border-r border-black truncate">{row.material}</td><td className="text-center font-bold w-8">{row.porcentaje}</td></tr>))}</tbody>
+                                        <div className="bg-black text-white text-[9px] font-bold text-center uppercase">Enhebrado</div>
+                                        <table className="threading-table-print text-left">
+                                            <thead><tr className="bg-gray-200 border-b border-black"><th className="p-0.5 border-r border-black">Pos</th><th className="p-0.5 border-r border-black">Material</th><th className="p-0.5 text-center">%</th></tr></thead>
+                                            <tbody>{order.threading?.map((r,i)=><tr key={i} className="border-b border-black"><td className="pl-1 border-r border-black font-bold">{r.guia}</td><td className="pl-1 border-r border-black truncate">{r.material}</td><td className="text-center font-bold">{r.porcentaje}</td></tr>))}</tbody>
                                         </table>
                                     </div>
                                 </div>
-                                <div className="w-1/2 border border-black flex items-center justify-center p-1 bg-white relative">
-                                    <SmartImage repoUrls={config.repoUrls} codigo={order.codigo} className="max-w-full max-h-full object-contain" />
-                                </div>
+                                <div className="w-1/2 border border-black flex items-center justify-center relative"><span className="absolute top-0 left-0 bg-black text-white text-[9px] px-1">{order.codigo}</span><SmartImage repoUrls={config.repoUrls} codigo={order.codigo} className="max-w-full max-h-full object-contain" /></div>
                             </div>
                         </div>
                         <div className="print-section-bottom print-only mt-2">
-                            <table className="w-full package-table-print border border-black">
-                                <thead><tr className="bg-gray-200"><th className="border border-black p-1">Paquete</th><th className="border border-black p-1">Tejedor</th><th className="border border-black p-1">Fecha</th><th className="border border-black p-1">Defectos</th><th className="border border-black p-1">Agujas</th></tr></thead>
+                             <h3 className="font-bold uppercase text-xs border-b mb-1">Control Paquetes</h3>
+                             <table className="w-full package-table-print border border-black">
+                                <thead><tr className="bg-gray-200"><th>Paquete</th><th>Tejedor</th><th>Fecha</th><th>Def.</th><th>OK</th></tr></thead>
                                 <tbody>
-                                    {order.progreso?.map((pkg) => (
-                                        <tr key={pkg.id} className="production-row-h">
-                                            <td className="border border-black font-bold">{pkg.cantidad} pzs ({pkg.paqueteNum}/{pkg.paquetesTotales})</td>
-                                            <td className="border border-black">{pkg.finished ? pkg.tejedor : ''}</td>
-                                            <td className="border border-black">{pkg.finished ? pkg.fecha : ''}</td>
-                                            <td className="border border-black text-center">{pkg.finished ? pkg.defectos : ''}</td>
-                                            <td className="border border-black text-center">{pkg.finished ? pkg.agujas : ''}</td>
+                                    {order.progreso?.map(p => (
+                                        <tr key={p.id} className="production-row-h">
+                                            <td className="border border-black font-bold">{p.cantidad} pzs ({p.paqueteNum}/{p.paquetesTotales})</td>
+                                            <td className="border border-black">{p.tejedor}</td>
+                                            <td className="border border-black">{p.fecha}</td>
+                                            <td className="border border-black text-center">{p.defectos}</td>
+                                            <td className="border border-black text-center">{p.finished?'✓':''}</td>
                                         </tr>
                                     ))}
                                 </tbody>
-                            </table>
+                             </table>
                         </div>
                         <div className="no-print mt-6 bg-slate-50 p-4 rounded border">
-                            <h3 className="font-bold mb-4">Captura Digital</h3>
-                            <div className="flex gap-2 mb-4 bg-white p-3 rounded shadow">
+                            <h3 className="font-bold mb-4">Captura Digital ({pending.length} pendientes)</h3>
+                            <div className="flex gap-2 mb-4">
                                 <input placeholder="Tejedor" value={entry.tejedor} onChange={toUppercase(e=>setEntry({...entry,tejedor:e.target.value}))} className="border p-2 rounded flex-1"/>
                                 <input type="date" value={entry.fecha} onChange={e=>setEntry({...entry,fecha:e.target.value})} className="border p-2 rounded"/>
-                                <input placeholder="Def." type="number" value={entry.defectos} onChange={e=>setEntry({...entry,defectos:e.target.value})} className="border p-2 rounded w-20"/>
-                                <input placeholder="Ag." type="number" value={entry.agujas} onChange={e=>setEntry({...entry,agujas:e.target.value})} className="border p-2 rounded w-20"/>
+                                <input placeholder="Def." type="number" value={entry.defectos} onChange={e=>setEntry({...entry,defectos:e.target.value})} className="border p-2 w-20 rounded"/>
                             </div>
                             <div className="max-h-60 overflow-y-auto border bg-white rounded">
-                                {pendingPackages.map(pkg => (
-                                    <div key={pkg.id} className="p-2 border-b flex justify-between items-center hover:bg-indigo-50">
-                                        <span className="text-sm font-bold">{pkg.cantidad} pzs ({pkg.piezaNombre} - {pkg.paqueteNum}/{pkg.paquetesTotales})</span>
-                                        <button onClick={() => markPackageAsFinished(pkg.id)} disabled={!entry.tejedor} className="bg-green-600 text-white px-2 py-1 rounded text-xs font-bold disabled:opacity-50">Registrar</button>
-                                    </div>
-                                ))}
+                                <table className="w-full text-sm">
+                                    <tbody>
+                                        {pending.map(pkg => (
+                                            <tr key={pkg.id} className="border-t hover:bg-indigo-50">
+                                                <td className="p-2 font-bold">{pkg.cantidad} pzs ({pkg.piezaNombre} #{pkg.paqueteNum})</td>
+                                                <td className="p-1 text-center"><button onClick={() => markFinished(pkg.id)} className="bg-green-600 text-white p-1 rounded text-xs font-bold">Registrar</button></td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -482,124 +504,109 @@
             );
         };
 
-        const SettingsModal = ({ config, onSave, onClose }) => {
-            const [local, setLocal] = useState({ ...config, repoUrls: config.repoUrls || [''] });
+        // --- FLUJO DE CREACIÓN ---
+        const CreationFlow = ({ orders, onSelectOrder, onStartNew, config }) => {
+            const [filter, setFilter] = useState('');
+            const filtered = orders.filter(o => filter && (o.codigo.includes(filter.toUpperCase()) || o.cliente.includes(filter.toUpperCase()))).slice(0, 5);
+
             return (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white p-6 rounded w-11/12 max-w-lg">
-                        <h2 className="font-bold mb-4 flex gap-2"><Icon name="settings"/> Configuración</h2>
-                        <label className="text-xs font-bold">REPOSITORIOS IMÁGENES</label>
-                        {local.repoUrls.map((url, i) => (
-                            <div key={i} className="flex gap-2 mb-2">
-                                <input className="flex-1 border p-2 text-sm rounded" value={url} onChange={e=>{const n=[...local.repoUrls];n[i]=e.target.value;setLocal({...local,repoUrls:n})}} />
-                                <button onClick={()=>{const n=local.repoUrls.filter((_,x)=>x!==i);setLocal({...local,repoUrls:n})}} className="text-red-500"><Icon name="x" size={16}/></button>
-                            </div>
-                        ))}
-                        <button onClick={()=>setLocal({...local,repoUrls:[...local.repoUrls,'']})} className="text-indigo-600 text-xs font-bold mb-4">+ Agregar URL</button>
-                        <label className="text-xs font-bold block">CONSECUTIVO LOTE</label>
-                        <input className="border p-2 w-full rounded mb-4" type="number" value={local.sequenceCounter} onChange={e=>setLocal({...local,sequenceCounter:Number(e.target.value)})}/>
-                        <div className="flex justify-end gap-2"><button onClick={onClose} className="px-3">Cancelar</button><button onClick={()=>onSave(local)} className="bg-indigo-600 text-white px-3 py-1 rounded font-bold">Guardar</button></div>
+                <div className="max-w-4xl mx-auto bg-white rounded-xl shadow p-6 my-6">
+                    <h2 className="font-bold text-xl mb-4">Crear Nueva Orden</h2>
+                    <div className="grid grid-cols-2 gap-6">
+                        <div className="border p-6 rounded bg-indigo-50 text-center cursor-pointer hover:bg-indigo-100" onClick={onStartNew}>
+                            <Icon name="file-plus" size={40} className="mx-auto text-indigo-600 mb-2"/>
+                            <div className="font-bold">DESDE CERO</div>
+                        </div>
+                        <div className="border p-6 rounded bg-slate-50">
+                            <div className="font-bold mb-2 text-center flex gap-2 justify-center"><Icon name="copy"/> COPIAR EXISTENTE</div>
+                            <input placeholder="Buscar Código o Cliente..." className="w-full p-2 border rounded mb-2" value={filter} onChange={toUppercase(e=>setFilter(e.target.value))} />
+                            {filtered.map(o => (
+                                <div key={o.id} onClick={() => onSelectOrder(o)} className="text-xs p-2 border-b bg-white hover:bg-blue-50 cursor-pointer flex justify-between">
+                                    <span>{o.codigo} - {o.cliente}</span><span className="font-bold text-indigo-500">COPIAR</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             );
         };
 
-        // --- APP PRINCIPAL CON SINCRONIZACIÓN FIREBASE ---
+        // --- APP PRINCIPAL ---
         const App = () => {
-            const [loading, setLoading] = useState(true);
             const [view, setView] = useState('list');
             const [orders, setOrders] = useState([]); 
-            const [config, setConfig] = useState(initialConfig); 
-            const [yarnInventory, setYarnInventory] = useState(initialYarnInventory);
-            
+            const [config, setConfig] = useState(defaultConfig); 
+            const [yarnInventory, setYarnInventory] = useState(defaultInventory);
             const [selectedOrder, setSelectedOrder] = useState(null);
             const [orderToCopy, setOrderToCopy] = useState(null); 
-            const [showSettings, setShowSettings] = useState(false);
             const [filterClient, setFilterClient] = useState('ALL');
+            const [loading, setLoading] = useState(true);
 
-            // --- SINCRONIZACIÓN CON FIREBASE ---
+            // --- FIREBASE LISTENERS ---
             useEffect(() => {
                 lucide.createIcons();
                 
-                // Si la API KEY no está puesta, no intentamos conectar para evitar errores masivos en consola
-                if (firebaseConfig.apiKey === "PEGAR_TU_API_KEY_AQUI") {
-                    alert("¡FALTA CONFIGURACIÓN! Abre el archivo index.html y pega tu API KEY y APP ID de Firebase.");
+                // 1. Escuchar Configuración
+                const configRef = window.dbRef(window.db, 'config');
+                const unsubConfig = window.dbOnValue(configRef, (snap) => {
+                    const data = snap.val();
+                    if (data) setConfig(data);
+                    else window.dbSet(configRef, defaultConfig); // Inicializar si vacío
+                });
+
+                // 2. Escuchar Inventario
+                const invRef = window.dbRef(window.db, 'inventory');
+                const unsubInv = window.dbOnValue(invRef, (snap) => {
+                    const data = snap.val();
+                    if (data) setYarnInventory(data);
+                    else window.dbSet(invRef, defaultInventory); // Inicializar si vacío
+                });
+
+                // 3. Escuchar Órdenes
+                const ordersRef = window.dbRef(window.db, 'orders');
+                const unsubOrders = window.dbOnValue(ordersRef, (snap) => {
+                    const data = snap.val();
+                    if (data) setOrders(Object.values(data));
+                    else setOrders([]);
                     setLoading(false);
-                    return;
-                }
+                });
 
-                const ordersRef = db.ref('orders');
-                const configRef = db.ref('config');
-                const invRef = db.ref('inventory');
-
-                const fetchData = async () => {
-                    try {
-                        const [ordersSnap, configSnap, invSnap] = await Promise.all([
-                            ordersRef.once('value'), configRef.once('value'), invRef.once('value')
-                        ]);
-
-                        if (ordersSnap.exists()) setOrders(ordersSnap.val());
-                        else await ordersRef.set([]); 
-
-                        if (configSnap.exists()) setConfig(configSnap.val());
-                        else await configRef.set(initialConfig);
-
-                        if (invSnap.exists()) setYarnInventory(invSnap.val());
-                        else await invRef.set(initialYarnInventory);
-
-                    } catch (e) { 
-                        console.error("Error cargando DB (Probablemente reglas o API Key):", e); 
-                        alert("Error de conexión. Revisa consola para detalles.");
-                    }
-                    setLoading(false);
-                };
-
-                fetchData();
-
-                const unsubOrders = ordersRef.on('value', s => s.exists() && setOrders(s.val()));
-                const unsubConfig = configRef.on('value', s => s.exists() && setConfig(s.val()));
-                const unsubInv = invRef.on('value', s => s.exists() && setYarnInventory(s.val()));
-
-                return () => {
-                    ordersRef.off('value', unsubOrders);
-                    configRef.off('value', unsubConfig);
-                    invRef.off('value', unsubInv);
-                };
+                return () => { unsubConfig(); unsubInv(); unsubOrders(); };
             }, []);
 
-            const saveOrdersToFirebase = (newOrdersList) => {
-                db.ref('orders').set(newOrdersList); 
-            };
-            const saveConfigToFirebase = (newConfig) => db.ref('config').set(newConfig);
-            const saveInventoryToFirebase = (newInv) => db.ref('inventory').set(newInv);
-
+            // --- FIREBASE ACTIONS ---
             const handleSaveOrder = (newOrders) => {
-                const updatedList = [...newOrders, ...orders];
-                saveOrdersToFirebase(updatedList);
-                saveConfigToFirebase({...config, sequenceCounter: config.sequenceCounter + 1});
+                newOrders.forEach(order => {
+                    const newOrderRef = window.dbRef(window.db, 'orders/' + order.id);
+                    window.dbSet(newOrderRef, order);
+                });
+                // Actualizar contador
+                window.dbUpdate(window.dbRef(window.db, 'config'), { sequenceCounter: config.sequenceCounter + 1 });
                 setView('list'); setOrderToCopy(null);
             };
 
-            const updateOrder = (id, field, value) => {
-                const updatedList = orders.map(o => o.id === id ? { ...o, [field]: value } : o);
-                if(selectedOrder?.id === id) setSelectedOrder(updatedList.find(o => o.id === id));
-                saveOrdersToFirebase(updatedList);
+            const updateOrder = (id, changes) => {
+                window.dbUpdate(window.dbRef(window.db, 'orders/' + id), changes);
+                // Actualización local optimista para la UI
+                if(selectedOrder?.id === id) setSelectedOrder(prev => ({...prev, ...changes}));
+            };
+
+            const updateInventory = (key, newData) => {
+                window.dbSet(window.dbRef(window.db, 'inventory/' + key), newData);
             };
 
             const allClients = [...new Set(orders.map(o => o.cliente))].sort();
-            const allPieces = [...new Set(orders.flatMap(o => o.isMerged && o.subPiecesData ? o.subPiecesData.map(sp => sp.pieza) : [o.pieza]))].filter(p => p).sort();
-            const pendingOrders = orders.filter(o => (filterClient === 'ALL' || o.cliente === filterClient) && o.status !== 'ARCHIVADO').sort((a,b)=>b.id-a.id);
-            const archivedOrders = orders.filter(o => (filterClient === 'ALL' || o.cliente === filterClient) && o.status === 'ARCHIVADO').sort((a,b)=>b.id-a.id);
+            const allPieces = [...new Set(orders.flatMap(o => o.isMerged ? o.subPiecesData.map(p=>p.pieza) : [o.pieza]))].sort();
+            const pendingOrders = orders.filter(o => (filterClient==='ALL' || o.cliente===filterClient) && o.status!=='ARCHIVADO').sort((a,b)=>b.id-a.id);
 
-            if (loading) return <div className="min-h-screen flex flex-col items-center justify-center text-slate-500"><div className="loader mb-4"></div><p>Conectando a {firebaseConfig.projectId}...</p></div>;
+            if(loading) return <div className="h-screen flex items-center justify-center font-bold text-slate-500">Cargando datos de Firebase...</div>;
 
             return (
                 <div className="min-h-screen bg-slate-100 pb-10">
-                    <nav className="bg-slate-900 text-white p-3 flex justify-between no-print sticky top-0 z-50 shadow-md">
-                        <div className="font-bold flex gap-2 items-center"><Icon name="cloud-lightning" className="text-yellow-400"/> Producción Online v8.1</div>
+                    <nav className="bg-slate-900 text-white p-3 flex justify-between no-print">
+                        <div className="font-bold flex gap-2"><Icon name="cloud"/> Producción v8.1 (Cloud)</div>
                         <div className="flex gap-4">
-                             <button onClick={()=>setView('inventory')} className="text-sm font-bold flex items-center gap-1 hover:text-indigo-400"><Icon name="warehouse" size={18}/> Inventario</button>
-                            <button onClick={()=>setShowSettings(true)}><Icon name="settings"/></button>
+                             <button onClick={()=>setView('inventory')} className="text-sm font-bold flex items-center gap-1 hover:text-indigo-400"><Icon name="warehouse" size={18}/> Stock</button>
                         </div>
                     </nav>
 
@@ -610,58 +617,30 @@
                                     <button onClick={()=>setFilterClient('ALL')} className={`px-3 py-1 rounded-full text-xs font-bold border ${filterClient==='ALL'?'bg-indigo-600 text-white':'bg-white'}`}>TODOS</button>
                                     {allClients.map(c=><button key={c} onClick={()=>setFilterClient(c)} className={`px-3 py-1 rounded-full text-xs font-bold border ${filterClient===c?'bg-indigo-600 text-white':'bg-white'}`}>{c}</button>)}
                                 </div>
-                                <button onClick={()=>{ setOrderToCopy(null); setView('create'); }} className="bg-indigo-600 text-white px-4 py-2 rounded font-bold shadow flex gap-2"><Icon name="plus"/> NUEVO LOTE</button>
+                                <button onClick={()=>setView('creation-flow')} className="bg-indigo-600 text-white px-4 py-2 rounded font-bold shadow flex gap-2"><Icon name="plus"/> NUEVO</button>
                             </div>
                             
-                            <h3 className="text-lg font-bold text-slate-700 mb-3 border-b pb-1 flex items-center gap-2"><Icon name="loader-2" size={18}/> En Proceso ({pendingOrders.length})</h3>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                                 {pendingOrders.map(o => {
-                                    const total = o.progreso?.filter(p => p.finished).reduce((a,b)=>a+(b.cantidad || 0),0)||0;
+                                    const total = o.progreso?.filter(p => p.finished).reduce((a,b)=>a+(b.cantidad||0),0)||0;
                                     const pct = o.totalPedido ? Math.min(100, Math.round((total/o.totalPedido)*100)) : 0;
                                     return (
-                                        <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className="bg-white p-4 rounded shadow border cursor-pointer hover:shadow-lg relative">
+                                        <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className="bg-white p-4 rounded shadow border cursor-pointer hover:shadow-lg">
                                             <div className="flex justify-between mb-2"><span className="font-mono text-xs text-slate-400 font-bold">{o.displayId}</span><span className="bg-slate-100 text-xs px-2 rounded font-bold">MQ-{o.maquina}</span></div>
                                             <div className="font-bold">{o.cliente}</div>
-                                            <div className="text-sm text-slate-500 mb-2">{o.pieza}</div>
+                                            <div className="text-sm text-slate-500 mb-2">{o.pieza} <span className="text-xs text-indigo-500">({o.codigo})</span></div>
                                             <div className="w-full bg-slate-100 h-1.5 rounded-full mb-1"><div className="bg-green-500 h-full rounded-full" style={{width:`${pct}%`}}></div></div>
-                                            <button className="absolute bottom-2 right-2 text-indigo-200 hover:text-indigo-600" onClick={(e)=>{e.stopPropagation();setOrderToCopy(o);setView('create');}} title="Copiar Orden"><Icon name="copy" size={16}/></button>
                                         </div>
                                     )
                                 })}
                             </div>
-
-                            {archivedOrders.length > 0 && (
-                                <>
-                                <h3 className="text-lg font-bold text-slate-700 mb-3 border-b pb-1 flex items-center gap-2"><Icon name="archive" size={18}/> Historial ({archivedOrders.length})</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 opacity-70">
-                                    {archivedOrders.map(o => (
-                                        <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className="bg-white p-4 rounded shadow border cursor-pointer hover:shadow-lg">
-                                            <div className="font-bold">{o.cliente}</div>
-                                            <div className="text-sm text-slate-500">{o.pieza}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                                </>
-                            )}
                         </div>
                     )}
 
-                    {view === 'inventory' && <YarnInventory inventory={yarnInventory} onUpdate={saveInventoryToFirebase} onBack={() => setView('list')} />}
-                    
-                    {view === 'create' && (
-                        <MultiOrderForm 
-                            config={config} 
-                            onSave={handleSaveOrder} 
-                            onCancel={()=>{setView('list'); setOrderToCopy(null);}} 
-                            initialOrder={orderToCopy}
-                            clientHistory={allClients}
-                            pieceHistory={allPieces}
-                        />
-                    )}
-                    
+                    {view === 'inventory' && <YarnInventory inventory={yarnInventory} onUpdate={updateInventory} onBack={() => setView('list')} />}
+                    {view === 'creation-flow' && <CreationFlow orders={orders} config={config} onSelectOrder={(o) => { setOrderToCopy(o); setView('create'); }} onStartNew={() => setView('create')} />}
+                    {view === 'create' && <MultiOrderForm config={config} onSave={handleSaveOrder} onCancel={()=>{setView('list'); setOrderToCopy(null);}} initialOrder={orderToCopy} clientHistory={allClients} pieceHistory={allPieces}/>}
                     {view === 'detail' && selectedOrder && <OrderView order={selectedOrder} config={config} onBack={()=>{setView('list');setSelectedOrder(null)}} onUpdate={updateOrder} />}
-                    
-                    {showSettings && <SettingsModal config={config} onSave={c=>{saveConfigToFirebase(c);setShowSettings(false)}} onClose={()=>setShowSettings(false)} />}
                 </div>
             );
         };
