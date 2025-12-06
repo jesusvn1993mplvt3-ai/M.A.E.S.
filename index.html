@@ -3,12 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Textil v8.1 - Firebase Cloud</title>
+    <title>Sistema Textil Cloud v8.2</title>
+    
+    <!-- 1. Estilos y Librerías Base -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- 2. FIREBASE COMPAT (Versión Global Segura) -->
+    <!-- Estas versiones crean una variable global 'firebase' que no falla -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
     <style>
         /* ESTILOS DE IMPRESIÓN */
         @media print {
@@ -26,9 +34,11 @@
                 flex-direction: column;
             }
             .print-section-bottom { height: 48vh; display: block; }
+            
             table, th, td { border: 1px solid black !important; border-collapse: collapse; }
             .threading-table-print { font-size: 9pt; width: 100%; }
             .threading-table-print th { background-color: #ddd !important; }
+
             .production-row-h { height: 21px; }
             .package-table-print { font-size: 10pt; }
             .package-table-print td { padding: 2px 4px; }
@@ -42,10 +52,8 @@
         }
     </style>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, onValue, set, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
+    <!-- 3. INICIALIZACIÓN DE FIREBASE (Antes de React) -->
+    <script>
         const firebaseConfig = {
             apiKey: "AIzaSyALlErn39YN4EoLgiE2joM9NWO9ckxVQ6I",
             authDomain: "maes2026-3ae20.firebaseapp.com",
@@ -57,19 +65,14 @@
             measurementId: "G-YDRYJ0FQ08"
         };
 
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-
-        // Expose Firebase functions to window so React (Babel) can access them
-        window.db = db;
-        window.dbRef = ref;
-        window.dbOnValue = onValue;
-        window.dbSet = set;
-        window.dbUpdate = update;
-        window.dbGet = get;
-
-        console.log("Firebase conectado correctamente a: " + firebaseConfig.projectId);
+        // Inicializar Firebase Globalmente
+        try {
+            firebase.initializeApp(firebaseConfig);
+            console.log("Firebase conectado exitosamente.");
+        } catch (error) {
+            console.error("Error al inicializar Firebase:", error);
+            alert("Error de conexión con la base de datos.");
+        }
     </script>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans">
@@ -77,7 +80,10 @@
 
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
-        
+
+        // --- REFERENCIA RÁPIDA A LA BASE DE DATOS ---
+        const db = firebase.database();
+
         // --- UTILIDADES ---
         const generateID = (clientName, sequence, pieceName) => {
             const clientInitial = clientName ? clientName.charAt(0).toUpperCase() : 'X';
@@ -100,27 +106,27 @@
             handler(e);
         };
 
-        // --- DATOS INICIALES (SOLO SI LA BD ESTÁ VACÍA) ---
+        // --- DATOS POR DEFECTO (Si la BD está vacía) ---
         const defaultInventory = {
-            'ALEMANIA': { comp: '40/40/12', estiraje: 2500, bodega: 100, taller: 0 },
-            'PARÍS': { comp: '20/33/34', estiraje: 2050, bodega: 100, taller: 0 },
-            'NYLON A': { comp: '70/68', estiraje: '-', bodega: 50, taller: 0 },
+            'ALEMANIA': { comp: '40/40/12', estiraje: 2500, bodega: 0, taller: 0 },
+            'PARÍS': { comp: '20/33/34', estiraje: 2050, bodega: 0, taller: 0 },
         };
+
         const defaultConfig = { 
             repoUrls: ['https://raw.githubusercontent.com/TuUsuario/TuRepo/main/img/'], 
             sequenceCounter: 1,
             shiftHours: 8, 
         };
 
-        // --- COMPONENTE GESTIÓN DE INVENTARIO ---
-        const YarnInventory = ({ inventory, onUpdate, onBack }) => {
+        // --- COMPONENTE: INVENTARIO (Conectado a Firebase) ---
+        const YarnInventory = ({ inventory, onBack }) => {
             const [selectedYarn, setSelectedYarn] = useState(null);
             const [movementType, setMovementType] = useState('INGRESAR');
             const [amount, setAmount] = useState('');
             
             const groupedInventory = useMemo(() => {
                 const groups = { Lycras: [], Nylon: [], Otros: [] };
-                if(!inventory) return groups;
+                if (!inventory) return groups;
 
                 Object.entries(inventory).forEach(([name, data]) => {
                     const entry = { name, ...data };
@@ -132,28 +138,23 @@
             }, [inventory]);
 
             const handleUpdate = () => {
-                if (!selectedYarn || amount <= 0) {
-                    alert('Selecciona hilatura y cantidad válida.');
-                    return;
-                }
+                if (!selectedYarn || amount <= 0) return alert('Datos inválidos.');
+                
                 const key = selectedYarn.name;
-                const numericAmount = Number(amount);
-                let newEntry = { ...inventory[key] };
+                const val = Number(amount);
+                const current = inventory[key] || { bodega: 0, taller: 0 };
                 
                 if (movementType === 'INGRESAR') {
-                    if (confirm(`¿Ingresar ${numericAmount} kg de ${key} a Bodega?`)) {
-                        newEntry.bodega += numericAmount;
-                        onUpdate(key, newEntry);
+                    if(confirm(`¿Ingresar ${val}kg a Bodega?`)) {
+                        db.ref(`inventory/${key}/bodega`).set((current.bodega || 0) + val);
                     }
-                } else if (movementType === 'TRANSFERIR') {
-                    if (inventory[key].bodega < numericAmount) {
-                        alert(`Error: Solo hay ${inventory[key].bodega} kg en Bodega.`);
-                        return;
-                    }
-                    if (confirm(`¿Transferir ${numericAmount} kg de ${key} a Taller?`)) {
-                        newEntry.bodega -= numericAmount;
-                        newEntry.taller += numericAmount;
-                        onUpdate(key, newEntry);
+                } else {
+                    if ((current.bodega || 0) < val) return alert('No hay suficiente en bodega.');
+                    if(confirm(`¿Transferir ${val}kg a Taller?`)) {
+                        db.ref(`inventory/${key}`).update({
+                            bodega: (current.bodega || 0) - val,
+                            taller: (current.taller || 0) + val
+                        });
                     }
                 }
                 setAmount(''); setSelectedYarn(null);
@@ -177,8 +178,8 @@
                                     <tr key={item.name} className={`border-b cursor-pointer ${selectedYarn?.name === item.name ? 'bg-yellow-100' : 'bg-white'}`} onClick={() => setSelectedYarn(item)}>
                                         <td className="p-2 font-bold">{item.name}</td>
                                         <td className="p-2 text-center">{item.comp}</td>
-                                        <td className="p-2 text-center font-bold text-green-700">{item.bodega.toFixed(2)}</td>
-                                        <td className="p-2 text-center font-bold text-indigo-700">{item.taller.toFixed(2)}</td>
+                                        <td className="p-2 text-center font-bold text-green-700">{(item.bodega || 0).toFixed(2)}</td>
+                                        <td className="p-2 text-center font-bold text-indigo-700">{(item.taller || 0).toFixed(2)}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -190,7 +191,7 @@
             return (
                 <div className="max-w-6xl mx-auto p-6">
                     <button onClick={onBack} className="flex items-center gap-2 text-slate-600 font-bold mb-6"><Icon name="arrow-left"/> Volver</button>
-                    <h1 className="text-3xl font-black mb-6 text-slate-900">Inventario (Firebase)</h1>
+                    <h1 className="text-3xl font-black mb-6 text-slate-900">Inventario Cloud</h1>
 
                     <div className="bg-white p-4 rounded-lg shadow-lg mb-8 border border-slate-200">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -207,21 +208,20 @@
                             </div>
                             <div className="flex gap-2 items-end">
                                 <div className="flex-grow">
-                                    <label className="block text-xs font-bold text-slate-700 mb-1">CANTIDAD (KG)</label>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">KG</label>
                                     <input type="number" className="p-3 border rounded w-full" value={amount} onChange={e => setAmount(e.target.value)} />
                                 </div>
                                 <button onClick={handleUpdate} className="p-3 bg-indigo-600 text-white rounded font-bold"><Icon name="check" size={20}/></button>
                             </div>
                         </div>
                     </div>
-
                     <InventoryTable title="Lycras" data={groupedInventory.Lycras} />
                     <InventoryTable title="Nylon" data={groupedInventory.Nylon} />
                 </div>
             );
         };
 
-        // --- COMPONENTE IMAGEN ---
+        // --- COMPONENTE: IMAGEN ---
         const SmartImage = ({ repoUrls, codigo, className }) => {
             const [imgSrc, setImgSrc] = useState(null);
             const [attempt, setAttempt] = useState({ urlIndex: 0, extension: 'jpg' });
@@ -255,7 +255,7 @@
             return <img src={imgSrc} alt={codigo} className={className} onError={handleError} />;
         };
 
-        // --- EDITOR DE ENHEBRADO ---
+        // --- COMPONENTE: EDITOR DE ENHEBRADO ---
         const ThreadingEditor = ({ data, onChange }) => {
             const addRow = () => onChange([...data, { id: Date.now(), guia: '', material: '', sis: '', porcentaje: '' }]);
             const updateRow = (id, f, v) => onChange(data.map(r => r.id === id ? { ...r, [f]: v } : r));
@@ -288,7 +288,7 @@
             );
         };
 
-        // --- FORMULARIO NUEVA ORDEN ---
+        // --- COMPONENTE: FORMULARIO ---
         const MultiOrderForm = ({ config, onSave, onCancel, initialOrder, clientHistory, pieceHistory }) => {
             const defaultHeader = initialOrder ? {
                 codigo: initialOrder.codigo || '', cliente: initialOrder.cliente || '', maquina: initialOrder.maquina || '', 
@@ -409,31 +409,44 @@
             );
         };
 
-        // --- VISTA DETALLE ORDEN ---
-        const OrderView = ({ order, config, onBack, onUpdate }) => {
+        // --- COMPONENTE: VISTA DETALLE ORDEN ---
+        const OrderView = ({ order, config, onBack }) => {
             const [entry, setEntry] = useState({ tejedor: '', fecha: new Date().toISOString().split('T')[0], defectos: '', agujas: '' });
             
             const markFinished = (pkgId) => {
                 if (!entry.tejedor || !entry.fecha) return alert("Falta Tejedor o Fecha.");
-                const updatedProgreso = order.progreso.map(pkg => pkg.id === pkgId ? { ...pkg, tejedor: entry.tejedor.toUpperCase(), fecha: entry.fecha, defectos: entry.defectos, agujas: entry.agujas, finished: true } : pkg);
-                onUpdate(order.id, { progreso: updatedProgreso });
+                
+                // Actualizar solo el paquete específico en Firebase
+                const pkgIndex = order.progreso.findIndex(p => p.id === pkgId);
+                if (pkgIndex === -1) return;
+
+                const updates = {};
+                updates[`orders/${order.id}/progreso/${pkgIndex}/tejedor`] = entry.tejedor.toUpperCase();
+                updates[`orders/${order.id}/progreso/${pkgIndex}/fecha`] = entry.fecha;
+                updates[`orders/${order.id}/progreso/${pkgIndex}/defectos`] = entry.defectos;
+                updates[`orders/${order.id}/progreso/${pkgIndex}/agujas`] = entry.agujas;
+                updates[`orders/${order.id}/progreso/${pkgIndex}/finished`] = true;
+
+                db.ref().update(updates);
                 setEntry(prev => ({ ...prev, defectos: '', agujas: '' }));
+            };
+
+            const toggleArchive = () => {
+                db.ref(`orders/${order.id}/status`).set(order.status === 'ARCHIVADO' ? 'EN PROCESO' : 'ARCHIVADO');
             };
 
             const pending = order.progreso?.filter(p => !p.finished) || [];
             const done = order.progreso?.filter(p => p.finished).reverse() || [];
-            const completedCount = done.length;
-            const totalCount = order.progreso?.length || 0;
-            const pct = totalCount ? Math.round((completedCount/totalCount)*100) : 0;
+            const pct = order.totalPedido ? Math.round((done.length / (order.progreso?.length || 1)) * 100) : 0;
 
             return (
                 <div className="bg-white min-h-screen">
                     <div className="no-print p-4 border-b flex justify-between bg-slate-50 sticky top-0 z-10">
                         <button onClick={onBack} className="flex items-center gap-2 text-slate-600 font-bold"><Icon name="arrow-left"/> Volver</button>
                         <div className="flex gap-2">
-                            {pct === 100 && order.status !== 'ARCHIVADO' && (
-                                <button onClick={() => onUpdate(order.id, { status: 'ARCHIVADO' })} className="bg-green-600 text-white px-3 py-1 rounded font-bold text-xs flex gap-2 items-center"><Icon name="archive" size={14}/> Archivar</button>
-                            )}
+                            <button onClick={toggleArchive} className={`px-3 py-1 rounded font-bold text-xs flex gap-2 items-center text-white ${order.status==='ARCHIVADO' ? 'bg-orange-500' : 'bg-green-600'}`}>
+                                <Icon name="archive" size={14}/> {order.status === 'ARCHIVADO' ? 'Desarchivar' : 'Archivar'}
+                            </button>
                             <button onClick={() => window.print()} className="bg-slate-800 text-white px-3 py-1 rounded font-bold text-xs flex gap-2 items-center"><Icon name="printer" size={14}/> Imprimir</button>
                         </div>
                     </div>
@@ -505,7 +518,7 @@
         };
 
         // --- FLUJO DE CREACIÓN ---
-        const CreationFlow = ({ orders, onSelectOrder, onStartNew, config }) => {
+        const CreationFlow = ({ orders, onSelectOrder, onStartNew }) => {
             const [filter, setFilter] = useState('');
             const filtered = orders.filter(o => filter && (o.codigo.includes(filter.toUpperCase()) || o.cliente.includes(filter.toUpperCase()))).slice(0, 5);
 
@@ -531,6 +544,32 @@
             );
         };
 
+        // --- COMPONENTE: AJUSTES ---
+        const SettingsModal = ({ config, onClose }) => {
+            const [local, setLocal] = useState({ ...config });
+            
+            const handleSave = () => {
+                db.ref('config').set(local);
+                onClose();
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white p-6 rounded w-11/12 max-w-lg">
+                        <h2 className="font-bold mb-4">Configuración Cloud</h2>
+                        <label className="block text-xs font-bold mb-1">Repositorio Imágenes</label>
+                        <input className="w-full border p-2 mb-4 text-sm" value={local.repoUrls[0]} onChange={e=>setLocal({...local,repoUrls:[e.target.value]})}/>
+                        <label className="block text-xs font-bold mb-1">Consecutivo</label>
+                        <input className="w-full border p-2 mb-4 text-sm" type="number" value={local.sequenceCounter} onChange={e=>setLocal({...local,sequenceCounter:parseInt(e.target.value)})}/>
+                        <div className="flex justify-end gap-2">
+                            <button onClick={onClose} className="px-3 py-1">Cancelar</button>
+                            <button onClick={handleSave} className="bg-indigo-600 text-white px-3 py-1 rounded font-bold">Guardar</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         // --- APP PRINCIPAL ---
         const App = () => {
             const [view, setView] = useState('list');
@@ -541,72 +580,65 @@
             const [orderToCopy, setOrderToCopy] = useState(null); 
             const [filterClient, setFilterClient] = useState('ALL');
             const [loading, setLoading] = useState(true);
+            const [showSettings, setShowSettings] = useState(false);
 
-            // --- FIREBASE LISTENERS ---
+            // --- ESCUCHAS DE FIREBASE (REALTIME) ---
             useEffect(() => {
                 lucide.createIcons();
+
+                const dbRef = firebase.database().ref();
                 
-                // 1. Escuchar Configuración
-                const configRef = window.dbRef(window.db, 'config');
-                const unsubConfig = window.dbOnValue(configRef, (snap) => {
-                    const data = snap.val();
-                    if (data) setConfig(data);
-                    else window.dbSet(configRef, defaultConfig); // Inicializar si vacío
-                });
-
-                // 2. Escuchar Inventario
-                const invRef = window.dbRef(window.db, 'inventory');
-                const unsubInv = window.dbOnValue(invRef, (snap) => {
-                    const data = snap.val();
-                    if (data) setYarnInventory(data);
-                    else window.dbSet(invRef, defaultInventory); // Inicializar si vacío
-                });
-
-                // 3. Escuchar Órdenes
-                const ordersRef = window.dbRef(window.db, 'orders');
-                const unsubOrders = window.dbOnValue(ordersRef, (snap) => {
-                    const data = snap.val();
-                    if (data) setOrders(Object.values(data));
-                    else setOrders([]);
+                // Escuchar todo de una vez (o por partes)
+                dbRef.on('value', (snap) => {
+                    const val = snap.val();
+                    if (val) {
+                        if (val.config) setConfig(val.config);
+                        if (val.inventory) setYarnInventory(val.inventory);
+                        if (val.orders) {
+                            const list = Object.values(val.orders);
+                            setOrders(list);
+                            // Actualizar la orden seleccionada si existe
+                            if (selectedOrder) {
+                                const updated = list.find(o => o.id === selectedOrder.id);
+                                if (updated) setSelectedOrder(updated);
+                            }
+                        } else {
+                            setOrders([]);
+                        }
+                    }
                     setLoading(false);
                 });
 
-                return () => { unsubConfig(); unsubInv(); unsubOrders(); };
-            }, []);
+                return () => dbRef.off();
+            }, []); // Sin dependencias para que solo se suscriba una vez
 
-            // --- FIREBASE ACTIONS ---
+            // --- ACCIONES FIREBASE ---
             const handleSaveOrder = (newOrders) => {
-                newOrders.forEach(order => {
-                    const newOrderRef = window.dbRef(window.db, 'orders/' + order.id);
-                    window.dbSet(newOrderRef, order);
-                });
+                const updates = {};
                 // Actualizar contador
-                window.dbUpdate(window.dbRef(window.db, 'config'), { sequenceCounter: config.sequenceCounter + 1 });
+                updates['config/sequenceCounter'] = config.sequenceCounter + 1;
+                // Guardar órdenes
+                newOrders.forEach(o => {
+                    updates['orders/' + o.id] = o;
+                });
+                db.ref().update(updates);
                 setView('list'); setOrderToCopy(null);
-            };
-
-            const updateOrder = (id, changes) => {
-                window.dbUpdate(window.dbRef(window.db, 'orders/' + id), changes);
-                // Actualización local optimista para la UI
-                if(selectedOrder?.id === id) setSelectedOrder(prev => ({...prev, ...changes}));
-            };
-
-            const updateInventory = (key, newData) => {
-                window.dbSet(window.dbRef(window.db, 'inventory/' + key), newData);
             };
 
             const allClients = [...new Set(orders.map(o => o.cliente))].sort();
             const allPieces = [...new Set(orders.flatMap(o => o.isMerged ? o.subPiecesData.map(p=>p.pieza) : [o.pieza]))].sort();
             const pendingOrders = orders.filter(o => (filterClient==='ALL' || o.cliente===filterClient) && o.status!=='ARCHIVADO').sort((a,b)=>b.id-a.id);
+            const archivedOrders = orders.filter(o => (filterClient==='ALL' || o.cliente===filterClient) && o.status==='ARCHIVADO').sort((a,b)=>b.id-a.id);
 
-            if(loading) return <div className="h-screen flex items-center justify-center font-bold text-slate-500">Cargando datos de Firebase...</div>;
+            if(loading) return <div className="h-screen flex flex-col items-center justify-center font-bold text-slate-500"><Icon name="cloud" size={48} className="animate-bounce mb-4 text-indigo-500"/>Conectando a Firebase...</div>;
 
             return (
                 <div className="min-h-screen bg-slate-100 pb-10">
                     <nav className="bg-slate-900 text-white p-3 flex justify-between no-print">
-                        <div className="font-bold flex gap-2"><Icon name="cloud"/> Producción v8.1 (Cloud)</div>
+                        <div className="font-bold flex gap-2"><Icon name="cloud"/> Producción v8.2</div>
                         <div className="flex gap-4">
                              <button onClick={()=>setView('inventory')} className="text-sm font-bold flex items-center gap-1 hover:text-indigo-400"><Icon name="warehouse" size={18}/> Stock</button>
+                             <button onClick={()=>setShowSettings(true)}><Icon name="settings"/></button>
                         </div>
                     </nav>
 
@@ -620,6 +652,7 @@
                                 <button onClick={()=>setView('creation-flow')} className="bg-indigo-600 text-white px-4 py-2 rounded font-bold shadow flex gap-2"><Icon name="plus"/> NUEVO</button>
                             </div>
                             
+                            <h3 className="font-bold text-slate-500 mb-2 border-b">EN PROCESO ({pendingOrders.length})</h3>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                                 {pendingOrders.map(o => {
                                     const total = o.progreso?.filter(p => p.finished).reduce((a,b)=>a+(b.cantidad||0),0)||0;
@@ -634,13 +667,24 @@
                                     )
                                 })}
                             </div>
+
+                            <h3 className="font-bold text-slate-500 mb-2 border-b opacity-50">ARCHIVADOS ({archivedOrders.length})</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 opacity-60">
+                                {archivedOrders.map(o => (
+                                    <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className="bg-white p-3 rounded border cursor-pointer hover:shadow">
+                                        <div className="text-xs font-bold text-slate-400">{o.displayId}</div>
+                                        <div className="font-bold text-sm">{o.cliente}</div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
 
-                    {view === 'inventory' && <YarnInventory inventory={yarnInventory} onUpdate={updateInventory} onBack={() => setView('list')} />}
-                    {view === 'creation-flow' && <CreationFlow orders={orders} config={config} onSelectOrder={(o) => { setOrderToCopy(o); setView('create'); }} onStartNew={() => setView('create')} />}
+                    {view === 'inventory' && <YarnInventory inventory={yarnInventory} onBack={() => setView('list')} />}
+                    {view === 'creation-flow' && <CreationFlow orders={orders} onSelectOrder={(o) => { setOrderToCopy(o); setView('create'); }} onStartNew={() => setView('create')} />}
                     {view === 'create' && <MultiOrderForm config={config} onSave={handleSaveOrder} onCancel={()=>{setView('list'); setOrderToCopy(null);}} initialOrder={orderToCopy} clientHistory={allClients} pieceHistory={allPieces}/>}
-                    {view === 'detail' && selectedOrder && <OrderView order={selectedOrder} config={config} onBack={()=>{setView('list');setSelectedOrder(null)}} onUpdate={updateOrder} />}
+                    {view === 'detail' && selectedOrder && <OrderView order={selectedOrder} config={config} onBack={()=>{setView('list');setSelectedOrder(null)}} />}
+                    {showSettings && <SettingsModal config={config} onClose={()=>setShowSettings(false)} />}
                 </div>
             );
         };
@@ -650,3 +694,4 @@
     </script>
 </body>
 </html>
+
