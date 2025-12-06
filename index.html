@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Textil Cloud v8.2</title>
+    <title>Sistema Textil Cloud v8.3 - GitHub Pages Ready</title>
     
     <!-- 1. Estilos y Librerías Base -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -12,10 +12,11 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- 2. FIREBASE COMPAT (Versión Global Segura) -->
-    <!-- Estas versiones crean una variable global 'firebase' que no falla -->
+    <!-- 2. FIREBASE COMPAT (Versión Estable para Navegador/GitHub Pages) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <!-- Agregamos Auth por si lo necesitas a futuro, aunque no se usa en este código base -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 
     <style>
         /* ESTILOS DE IMPRESIÓN */
@@ -50,9 +51,19 @@
             gap: 10px;
             padding-bottom: 10px;
         }
+        /* Loader */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 
-    <!-- 3. INICIALIZACIÓN DE FIREBASE (Antes de React) -->
+    <!-- 3. INICIALIZACIÓN DE FIREBASE GLOBAL -->
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyALlErn39YN4EoLgiE2joM9NWO9ckxVQ6I",
@@ -65,13 +76,12 @@
             measurementId: "G-YDRYJ0FQ08"
         };
 
-        // Inicializar Firebase Globalmente
+        // Inicializar
         try {
             firebase.initializeApp(firebaseConfig);
             console.log("Firebase conectado exitosamente.");
         } catch (error) {
             console.error("Error al inicializar Firebase:", error);
-            alert("Error de conexión con la base de datos.");
         }
     </script>
 </head>
@@ -81,7 +91,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
 
-        // --- REFERENCIA RÁPIDA A LA BASE DE DATOS ---
+        // Referencia a la base de datos
         const db = firebase.database();
 
         // --- UTILIDADES ---
@@ -106,10 +116,11 @@
             handler(e);
         };
 
-        // --- DATOS POR DEFECTO (Si la BD está vacía) ---
+        // --- DATOS POR DEFECTO (Se usan solo la primera vez que se carga la BD) ---
         const defaultInventory = {
             'ALEMANIA': { comp: '40/40/12', estiraje: 2500, bodega: 0, taller: 0 },
             'PARÍS': { comp: '20/33/34', estiraje: 2050, bodega: 0, taller: 0 },
+            'YUKI': { comp: '20/70/68', estiraje: 1800, bodega: 0, taller: 0 },
         };
 
         const defaultConfig = { 
@@ -118,7 +129,7 @@
             shiftHours: 8, 
         };
 
-        // --- COMPONENTE: INVENTARIO (Conectado a Firebase) ---
+        // --- COMPONENTE: GESTIÓN DE INVENTARIO ---
         const YarnInventory = ({ inventory, onBack }) => {
             const [selectedYarn, setSelectedYarn] = useState(null);
             const [movementType, setMovementType] = useState('INGRESAR');
@@ -138,23 +149,23 @@
             }, [inventory]);
 
             const handleUpdate = () => {
-                if (!selectedYarn || amount <= 0) return alert('Datos inválidos.');
+                if (!selectedYarn || amount <= 0) return alert('Por favor ingresa una cantidad válida.');
                 
                 const key = selectedYarn.name;
                 const val = Number(amount);
                 const current = inventory[key] || { bodega: 0, taller: 0 };
                 
                 if (movementType === 'INGRESAR') {
-                    if(confirm(`¿Ingresar ${val}kg a Bodega?`)) {
+                    if(confirm(`¿Deseas ingresar ${val}kg de ${key} a Bodega?`)) {
                         db.ref(`inventory/${key}/bodega`).set((current.bodega || 0) + val);
                     }
                 } else {
-                    if ((current.bodega || 0) < val) return alert('No hay suficiente en bodega.');
-                    if(confirm(`¿Transferir ${val}kg a Taller?`)) {
-                        db.ref(`inventory/${key}`).update({
-                            bodega: (current.bodega || 0) - val,
-                            taller: (current.taller || 0) + val
-                        });
+                    if ((current.bodega || 0) < val) return alert(`Error: Solo hay ${(current.bodega || 0)} kg en bodega.`);
+                    if(confirm(`¿Transferir ${val}kg de ${key} de Bodega a Taller?`)) {
+                        const updates = {};
+                        updates[`inventory/${key}/bodega`] = (current.bodega || 0) - val;
+                        updates[`inventory/${key}/taller`] = (current.taller || 0) + val;
+                        db.ref().update(updates);
                     }
                 }
                 setAmount(''); setSelectedYarn(null);
@@ -191,13 +202,13 @@
             return (
                 <div className="max-w-6xl mx-auto p-6">
                     <button onClick={onBack} className="flex items-center gap-2 text-slate-600 font-bold mb-6"><Icon name="arrow-left"/> Volver</button>
-                    <h1 className="text-3xl font-black mb-6 text-slate-900">Inventario Cloud</h1>
+                    <h1 className="text-3xl font-black mb-6 text-slate-900 flex items-center gap-2"><Icon name="cloud"/> Inventario en Nube</h1>
 
                     <div className="bg-white p-4 rounded-lg shadow-lg mb-8 border border-slate-200">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label className="block text-xs font-bold text-slate-700 mb-1">HILATURA</label>
-                                <div className={`p-3 border rounded font-bold ${selectedYarn ? 'bg-yellow-100' : 'bg-slate-100 text-slate-400'}`}>{selectedYarn ? selectedYarn.name : 'Selecciona de tabla'}</div>
+                                <div className={`p-3 border rounded font-bold ${selectedYarn ? 'bg-yellow-100' : 'bg-slate-100 text-slate-400'}`}>{selectedYarn ? selectedYarn.name : 'Selecciona de la lista'}</div>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-700 mb-1">ACCIÓN</label>
@@ -208,15 +219,16 @@
                             </div>
                             <div className="flex gap-2 items-end">
                                 <div className="flex-grow">
-                                    <label className="block text-xs font-bold text-slate-700 mb-1">KG</label>
-                                    <input type="number" className="p-3 border rounded w-full" value={amount} onChange={e => setAmount(e.target.value)} />
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">CANTIDAD (KG)</label>
+                                    <input type="number" className="p-3 border rounded w-full" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00"/>
                                 </div>
-                                <button onClick={handleUpdate} className="p-3 bg-indigo-600 text-white rounded font-bold"><Icon name="check" size={20}/></button>
+                                <button onClick={handleUpdate} className="p-3 bg-indigo-600 text-white rounded font-bold shadow hover:bg-indigo-700"><Icon name="check" size={20}/></button>
                             </div>
                         </div>
                     </div>
                     <InventoryTable title="Lycras" data={groupedInventory.Lycras} />
                     <InventoryTable title="Nylon" data={groupedInventory.Nylon} />
+                    {groupedInventory.Otros.length > 0 && <InventoryTable title="Otros" data={groupedInventory.Otros} />}
                 </div>
             );
         };
@@ -265,7 +277,7 @@
             return (
                 <div className="border rounded bg-white overflow-hidden">
                     <div className="bg-slate-200 p-2 text-xs font-bold flex justify-between"><span>TABLA DE ENHEBRADO</span> <button onClick={addRow} className="text-indigo-600">+ Agregar</button></div>
-                    {data.length === 0 ? <div className="p-4 text-center text-xs text-slate-400 cursor-pointer" onClick={addRow}>+ Click para agregar</div> : (
+                    {data.length === 0 ? <div className="p-4 text-center text-xs text-slate-400 cursor-pointer hover:bg-slate-50" onClick={addRow}>+ Click para agregar hilos</div> : (
                         <table className="w-full text-xs text-left">
                             <thead className="bg-slate-50 text-slate-500">
                                 <tr><th className="p-2 w-16">GUÍA</th><th className="p-2">MATERIAL</th><th className="p-2 w-16">SIS</th><th className="p-2 w-16 text-center">%</th><th className="w-8"></th></tr>
@@ -277,7 +289,7 @@
                                         <td className="p-1"><input className="w-full border rounded p-1" value={r.material} onChange={toUppercase(e=>updateRow(r.id,'material',e.target.value))}/></td>
                                         <td className="p-1"><input className="w-full border rounded p-1" value={r.sis} onChange={toUppercase(e=>updateRow(r.id,'sis',e.target.value))}/></td>
                                         <td className="p-1"><input type="number" className="w-full border rounded p-1 text-center" value={r.porcentaje} onChange={e=>updateRow(r.id,'porcentaje',e.target.value)}/></td>
-                                        <td className="p-1 text-center"><button onClick={()=>removeRow(r.id)} className="text-red-400"><Icon name="x" size={14}/></button></td>
+                                        <td className="p-1 text-center"><button onClick={()=>removeRow(r.id)} className="text-red-400 hover:text-red-600"><Icon name="x" size={14}/></button></td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -288,7 +300,7 @@
             );
         };
 
-        // --- COMPONENTE: FORMULARIO ---
+        // --- COMPONENTE: FORMULARIO MULTI-ORDEN ---
         const MultiOrderForm = ({ config, onSave, onCancel, initialOrder, clientHistory, pieceHistory }) => {
             const defaultHeader = initialOrder ? {
                 codigo: initialOrder.codigo || '', cliente: initialOrder.cliente || '', maquina: initialOrder.maquina || '', 
@@ -329,9 +341,9 @@
             };
 
             const handleSubmit = () => {
-                if(!header.codigo || !header.cliente || !header.maquina || pieces.some(p => !p.pieza || !p.programa)) return alert("Faltan datos obligatorios.");
+                if(!header.codigo || !header.cliente || !header.maquina || pieces.some(p => !p.pieza || !p.programa)) return alert("Faltan datos obligatorios (Código, Cliente, Máquina, Programa).");
 
-                const shouldMerge = pieces.length > 1 && confirm(`¿Juntar ${pieces.length} piezas en una orden?`);
+                const shouldMerge = pieces.length > 1 && confirm(`¿Juntar ${pieces.length} piezas en una sola orden (SET)?`);
                 let finalOrders = [];
                 const commonData = {
                     cliente: header.cliente, maquina: header.maquina, codigo: header.codigo,
@@ -362,7 +374,7 @@
 
             return (
                 <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-xl my-6 overflow-hidden">
-                    <div className="bg-slate-800 text-white p-4 flex justify-between items-center"><h2 className="font-bold flex gap-2"><Icon name="file-plus" /> Nueva Orden</h2><button onClick={onCancel} className="underline">Cancelar</button></div>
+                    <div className="bg-slate-800 text-white p-4 flex justify-between items-center"><h2 className="font-bold flex gap-2"><Icon name="file-plus" /> Nueva Orden Cloud</h2><button onClick={onCancel} className="underline">Cancelar</button></div>
                     <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <div>
                             <div className="bg-indigo-50 p-4 rounded mb-6 flex gap-4">
@@ -375,7 +387,7 @@
                                 <input value={header.maquina} onChange={toUppercase(e => setHeader({...header, maquina: e.target.value}))} className="p-2 border rounded font-bold" placeholder="MÁQUINA" />
                             </div>
                             <div className="mb-4">
-                                <label className="text-xs font-bold text-slate-700">TAMAÑO PAQUETE</label>
+                                <label className="text-xs font-bold text-slate-700">TAMAÑO PAQUETE (PIEZAS)</label>
                                 <input type="number" value={packageSize} onChange={e => setPackageSize(Number(e.target.value))} className="p-2 border rounded w-full font-bold" />
                             </div>
                             <div className="space-y-4">
@@ -414,9 +426,9 @@
             const [entry, setEntry] = useState({ tejedor: '', fecha: new Date().toISOString().split('T')[0], defectos: '', agujas: '' });
             
             const markFinished = (pkgId) => {
-                if (!entry.tejedor || !entry.fecha) return alert("Falta Tejedor o Fecha.");
+                if (!entry.tejedor || !entry.fecha) return alert("Falta ingresar Tejedor o Fecha.");
                 
-                // Actualizar solo el paquete específico en Firebase
+                // Actualizar solo el paquete específico directamente en Firebase
                 const pkgIndex = order.progreso.findIndex(p => p.id === pkgId);
                 if (pkgIndex === -1) return;
 
@@ -427,8 +439,9 @@
                 updates[`orders/${order.id}/progreso/${pkgIndex}/agujas`] = entry.agujas;
                 updates[`orders/${order.id}/progreso/${pkgIndex}/finished`] = true;
 
-                db.ref().update(updates);
-                setEntry(prev => ({ ...prev, defectos: '', agujas: '' }));
+                db.ref().update(updates).then(() => {
+                    setEntry(prev => ({ ...prev, defectos: '', agujas: '' }));
+                }).catch(err => alert("Error al guardar: " + err.message));
             };
 
             const toggleArchive = () => {
@@ -505,7 +518,7 @@
                                         {pending.map(pkg => (
                                             <tr key={pkg.id} className="border-t hover:bg-indigo-50">
                                                 <td className="p-2 font-bold">{pkg.cantidad} pzs ({pkg.piezaNombre} #{pkg.paqueteNum})</td>
-                                                <td className="p-1 text-center"><button onClick={() => markFinished(pkg.id)} className="bg-green-600 text-white p-1 rounded text-xs font-bold">Registrar</button></td>
+                                                <td className="p-1 text-center"><button onClick={() => markFinished(pkg.id)} className="bg-green-600 text-white p-1 rounded text-xs font-bold hover:bg-green-700">Registrar</button></td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -546,23 +559,34 @@
 
         // --- COMPONENTE: AJUSTES ---
         const SettingsModal = ({ config, onClose }) => {
-            const [local, setLocal] = useState({ ...config });
+            const [local, setLocal] = useState({ ...config, repoUrls: config.repoUrls || [''] });
             
             const handleSave = () => {
                 db.ref('config').set(local);
                 onClose();
             };
 
+            const handleChangeUrl = (val) => {
+                const urls = [...local.repoUrls];
+                urls[0] = val;
+                setLocal({...local, repoUrls: urls});
+            }
+
             return (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                     <div className="bg-white p-6 rounded w-11/12 max-w-lg">
                         <h2 className="font-bold mb-4">Configuración Cloud</h2>
-                        <label className="block text-xs font-bold mb-1">Repositorio Imágenes</label>
-                        <input className="w-full border p-2 mb-4 text-sm" value={local.repoUrls[0]} onChange={e=>setLocal({...local,repoUrls:[e.target.value]})}/>
+                        <label className="block text-xs font-bold mb-1">Repositorio Imágenes (GitHub URL)</label>
+                        <input className="w-full border p-2 mb-4 text-sm" value={local.repoUrls[0]} onChange={e=>handleChangeUrl(e.target.value)} placeholder="https://raw.github..."/>
+                        
+                        <label className="block text-xs font-bold mb-1">Horas por Turno</label>
+                        <input className="w-full border p-2 mb-4 text-sm" type="number" value={local.shiftHours} onChange={e=>setLocal({...local,shiftHours:parseInt(e.target.value)})}/>
+
                         <label className="block text-xs font-bold mb-1">Consecutivo</label>
                         <input className="w-full border p-2 mb-4 text-sm" type="number" value={local.sequenceCounter} onChange={e=>setLocal({...local,sequenceCounter:parseInt(e.target.value)})}/>
+                        
                         <div className="flex justify-end gap-2">
-                            <button onClick={onClose} className="px-3 py-1">Cancelar</button>
+                            <button onClick={onClose} className="px-3 py-1 text-slate-600">Cancelar</button>
                             <button onClick={handleSave} className="bg-indigo-600 text-white px-3 py-1 rounded font-bold">Guardar</button>
                         </div>
                     </div>
@@ -582,14 +606,14 @@
             const [loading, setLoading] = useState(true);
             const [showSettings, setShowSettings] = useState(false);
 
-            // --- ESCUCHAS DE FIREBASE (REALTIME) ---
+            // --- LISTENERS FIREBASE (Realtime) ---
             useEffect(() => {
                 lucide.createIcons();
 
-                const dbRef = firebase.database().ref();
+                const dbRef = db.ref();
                 
-                // Escuchar todo de una vez (o por partes)
-                dbRef.on('value', (snap) => {
+                // Escuchar toda la DB (Simplificado para este caso de uso)
+                const handleData = (snap) => {
                     const val = snap.val();
                     if (val) {
                         if (val.config) setConfig(val.config);
@@ -597,7 +621,7 @@
                         if (val.orders) {
                             const list = Object.values(val.orders);
                             setOrders(list);
-                            // Actualizar la orden seleccionada si existe
+                            // Actualizar la orden seleccionada si está abierta
                             if (selectedOrder) {
                                 const updated = list.find(o => o.id === selectedOrder.id);
                                 if (updated) setSelectedOrder(updated);
@@ -607,22 +631,28 @@
                         }
                     }
                     setLoading(false);
-                });
+                };
 
-                return () => dbRef.off();
-            }, []); // Sin dependencias para que solo se suscriba una vez
+                dbRef.on('value', handleData);
+                return () => dbRef.off('value', handleData);
+            }, [selectedOrder]); 
 
-            // --- ACCIONES FIREBASE ---
+            // --- ACCIONES PRINCIPALES ---
             const handleSaveOrder = (newOrders) => {
                 const updates = {};
-                // Actualizar contador
+                // Incrementamos el contador global
                 updates['config/sequenceCounter'] = config.sequenceCounter + 1;
-                // Guardar órdenes
+                // Guardamos cada orden generada
                 newOrders.forEach(o => {
                     updates['orders/' + o.id] = o;
                 });
-                db.ref().update(updates);
-                setView('list'); setOrderToCopy(null);
+                
+                db.ref().update(updates)
+                  .then(() => {
+                      setView('list'); 
+                      setOrderToCopy(null);
+                  })
+                  .catch(err => alert("Error al guardar: " + err));
             };
 
             const allClients = [...new Set(orders.map(o => o.cliente))].sort();
@@ -630,50 +660,57 @@
             const pendingOrders = orders.filter(o => (filterClient==='ALL' || o.cliente===filterClient) && o.status!=='ARCHIVADO').sort((a,b)=>b.id-a.id);
             const archivedOrders = orders.filter(o => (filterClient==='ALL' || o.cliente===filterClient) && o.status==='ARCHIVADO').sort((a,b)=>b.id-a.id);
 
-            if(loading) return <div className="h-screen flex flex-col items-center justify-center font-bold text-slate-500"><Icon name="cloud" size={48} className="animate-bounce mb-4 text-indigo-500"/>Conectando a Firebase...</div>;
+            if(loading) return (
+                <div className="h-screen flex flex-col items-center justify-center text-slate-500 bg-slate-100">
+                    <div className="loader mb-4"></div>
+                    <div className="font-bold text-lg animate-pulse">Sincronizando Nube...</div>
+                </div>
+            );
 
             return (
                 <div className="min-h-screen bg-slate-100 pb-10">
-                    <nav className="bg-slate-900 text-white p-3 flex justify-between no-print">
-                        <div className="font-bold flex gap-2"><Icon name="cloud"/> Producción v8.2</div>
+                    <nav className="bg-slate-900 text-white p-3 flex justify-between no-print sticky top-0 z-50 shadow-md">
+                        <div className="font-bold flex gap-2 items-center"><Icon name="cloud"/> Producción Cloud v8.3</div>
                         <div className="flex gap-4">
-                             <button onClick={()=>setView('inventory')} className="text-sm font-bold flex items-center gap-1 hover:text-indigo-400"><Icon name="warehouse" size={18}/> Stock</button>
-                             <button onClick={()=>setShowSettings(true)}><Icon name="settings"/></button>
+                             <button onClick={()=>setView('inventory')} className="text-sm font-bold flex items-center gap-1 hover:text-indigo-400 bg-slate-800 px-3 py-1 rounded"><Icon name="warehouse" size={16}/> Stock</button>
+                             <button onClick={()=>setShowSettings(true)} className="hover:text-indigo-400"><Icon name="settings"/></button>
                         </div>
                     </nav>
 
                     {view === 'list' && (
                         <div className="max-w-6xl mx-auto p-6">
-                            <div className="flex justify-between items-end mb-6">
-                                <div className="flex gap-2 overflow-x-auto pb-1">
-                                    <button onClick={()=>setFilterClient('ALL')} className={`px-3 py-1 rounded-full text-xs font-bold border ${filterClient==='ALL'?'bg-indigo-600 text-white':'bg-white'}`}>TODOS</button>
-                                    {allClients.map(c=><button key={c} onClick={()=>setFilterClient(c)} className={`px-3 py-1 rounded-full text-xs font-bold border ${filterClient===c?'bg-indigo-600 text-white':'bg-white'}`}>{c}</button>)}
+                            <div className="flex flex-col md:flex-row justify-between items-end mb-6 gap-4">
+                                <div className="flex gap-2 overflow-x-auto pb-1 w-full md:w-auto">
+                                    <button onClick={()=>setFilterClient('ALL')} className={`px-3 py-1 rounded-full text-xs font-bold border transition-colors ${filterClient==='ALL'?'bg-indigo-600 text-white':'bg-white hover:bg-slate-200'}`}>TODOS</button>
+                                    {allClients.map(c=><button key={c} onClick={()=>setFilterClient(c)} className={`px-3 py-1 rounded-full text-xs font-bold border transition-colors ${filterClient===c?'bg-indigo-600 text-white':'bg-white hover:bg-slate-200'}`}>{c}</button>)}
                                 </div>
-                                <button onClick={()=>setView('creation-flow')} className="bg-indigo-600 text-white px-4 py-2 rounded font-bold shadow flex gap-2"><Icon name="plus"/> NUEVO</button>
+                                <button onClick={()=>setView('creation-flow')} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold shadow-lg hover:bg-indigo-700 flex gap-2 transition-transform transform hover:scale-105"><Icon name="plus"/> NUEVA ORDEN</button>
                             </div>
                             
-                            <h3 className="font-bold text-slate-500 mb-2 border-b">EN PROCESO ({pendingOrders.length})</h3>
+                            <h3 className="font-bold text-slate-600 mb-3 border-b pb-2 flex items-center gap-2"><Icon name="loader" size={16}/> EN PROCESO ({pendingOrders.length})</h3>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                                 {pendingOrders.map(o => {
                                     const total = o.progreso?.filter(p => p.finished).reduce((a,b)=>a+(b.cantidad||0),0)||0;
                                     const pct = o.totalPedido ? Math.min(100, Math.round((total/o.totalPedido)*100)) : 0;
                                     return (
-                                        <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className="bg-white p-4 rounded shadow border cursor-pointer hover:shadow-lg">
-                                            <div className="flex justify-between mb-2"><span className="font-mono text-xs text-slate-400 font-bold">{o.displayId}</span><span className="bg-slate-100 text-xs px-2 rounded font-bold">MQ-{o.maquina}</span></div>
-                                            <div className="font-bold">{o.cliente}</div>
-                                            <div className="text-sm text-slate-500 mb-2">{o.pieza} <span className="text-xs text-indigo-500">({o.codigo})</span></div>
-                                            <div className="w-full bg-slate-100 h-1.5 rounded-full mb-1"><div className="bg-green-500 h-full rounded-full" style={{width:`${pct}%`}}></div></div>
+                                        <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 cursor-pointer hover:shadow-xl hover:border-indigo-300 transition-all">
+                                            <div className="flex justify-between mb-2"><span className="font-mono text-xs text-slate-500 font-bold tracking-tight">{o.displayId}</span><span className="bg-slate-100 text-xs px-2 py-0.5 rounded font-bold text-slate-600">MQ-{o.maquina}</span></div>
+                                            <div className="font-bold text-lg text-slate-800 leading-tight">{o.cliente}</div>
+                                            <div className="text-sm text-slate-500 mb-3 truncate">{o.pieza} <span className="text-xs text-indigo-500 font-mono">({o.codigo})</span></div>
+                                            <div className="w-full bg-slate-100 h-2 rounded-full mb-1 overflow-hidden"><div className="bg-green-500 h-full rounded-full transition-all duration-500" style={{width:`${pct}%`}}></div></div>
+                                            <div className="text-[10px] text-right text-slate-400 font-bold">{pct}% Completado</div>
                                         </div>
                                     )
                                 })}
                             </div>
 
-                            <h3 className="font-bold text-slate-500 mb-2 border-b opacity-50">ARCHIVADOS ({archivedOrders.length})</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 opacity-60">
+                            <h3 className="font-bold text-slate-400 mb-3 border-b pb-2 flex items-center gap-2 text-sm"><Icon name="archive" size={14}/> ARCHIVADOS ({archivedOrders.length})</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 opacity-75">
                                 {archivedOrders.map(o => (
-                                    <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className="bg-white p-3 rounded border cursor-pointer hover:shadow">
-                                        <div className="text-xs font-bold text-slate-400">{o.displayId}</div>
-                                        <div className="font-bold text-sm">{o.cliente}</div>
+                                    <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className="bg-slate-50 p-3 rounded border cursor-pointer hover:bg-white hover:shadow transition-colors">
+                                        <div className="text-[10px] font-bold text-slate-400 mb-1">{o.displayId}</div>
+                                        <div className="font-bold text-xs truncate">{o.cliente}</div>
+                                        <div className="text-[10px] text-slate-500 truncate">{o.codigo}</div>
                                     </div>
                                 ))}
                             </div>
