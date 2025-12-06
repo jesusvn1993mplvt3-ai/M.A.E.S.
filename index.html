@@ -3,15 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Textil v8.1 - Control de Producción e Inventario (Firebase)</title>
+    <title>Sistema Textil v8.1 - Control de Producción e Inventario</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-
     <style>
         /* ESTILOS DE IMPRESIÓN */
         @media print {
@@ -59,14 +56,9 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        // Se removió 'useCallback' de aquí para evitar posibles fallos de Babel Standalone.
-        const { useState, useEffect, useMemo } = React; 
+        const { useState, useEffect, useMemo } = React;
 
-        // =================================================================
-        // 1. CONFIGURACIÓN Y LÓGICA DE PERSISTENCIA (ADAPTADO A FIREBASE)
-        // =================================================================
-
-        // --- CONFIGURACIÓN DE FIREBASE ---
+        // --- CONFIGURACIÓN DE FIREBASE (Datos proporcionados por el usuario) ---
         const firebaseConfig = {
             apiKey: "AIzaSyBqHgV4vDat1-VmZfKbiPg7nuiX-ROcexw",
             authDomain: "cirineo-cec21.firebaseapp.com",
@@ -76,63 +68,9 @@
             appId: "1:620210618284:web:f35f762490712013f18409",
             measurementId: "G-P5L30GXJGD"
         };
+        // console.log("Configuración de Firebase Cargada:", firebaseConfig.projectId);
         
-        // Inicializar la aplicación de Firebase
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
-
-        // Referencias a Firestore
-        const db = firebase.firestore();
-        const ORDERS_COLLECTION = db.collection("v8_orders");
-        const CONFIG_DOC = db.collection("v8_config").doc("config");
-        const INVENTORY_DOC = db.collection("v8_inventory").doc("yarn_stock"); 
-
-        // --- FUNCIONES DE PERSISTENCIA ASÍNCRONAS ---
-
-        const loadConfig = async () => {
-            const doc = await CONFIG_DOC.get();
-            return doc.exists ? doc.data() : { repoUrls: [''], sequenceCounter: 1, shiftHours: 8 };
-        };
-        const saveConfig = async (config) => {
-            await CONFIG_DOC.set(config);
-        };
-
-        const loadOrders = async () => {
-            const snapshot = await ORDERS_COLLECTION.get();
-            // Mapeamos el ID del documento de Firestore al campo 'id'
-            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        };
-        
-        const saveOrder = async (orderData) => {
-            const dataToSave = { ...orderData };
-            
-            if (orderData.id && typeof orderData.id === 'string' && orderData.id.length > 10) { 
-                // Asumimos que un ID de más de 10 caracteres es un ID de Firestore válido
-                const docId = dataToSave.id;
-                delete dataToSave.id; 
-                await ORDERS_COLLECTION.doc(docId).update(dataToSave);
-                return { id: docId, ...dataToSave }; 
-            } else {
-                // Crear nueva orden
-                // Eliminamos cualquier ID temporal (numérico o corto) antes de crear
-                if (typeof dataToSave.id === 'number') delete dataToSave.id; 
-                if (dataToSave.id === undefined) delete dataToSave.id;
-                
-                const newRef = await ORDERS_COLLECTION.add(dataToSave);
-                return { id: newRef.id, ...dataToSave }; 
-            }
-        };
-
-        const loadYarnInventory = async (initialData) => {
-            const doc = await INVENTORY_DOC.get();
-            return doc.exists ? doc.data() : initialData;
-        };
-        const saveYarnInventory = async (inventory) => {
-            await INVENTORY_DOC.set(inventory);
-        };
-
-        // --- UTILIDADES (Sin cambios) ---
+        // --- UTILIDADES ---
         const generateID = (clientName, sequence, pieceName) => {
             const clientInitial = clientName ? clientName.charAt(0).toUpperCase() : 'X';
             const seqString = String(sequence).padStart(6, '0');
@@ -157,6 +95,7 @@
 
         // --- DATOS INICIALES DE EJEMPLO DE INVENTARIO ---
         const initialYarnInventory = {
+            // Lycras (Composición/Estiraje/Kilos)
             'ALEMANIA': { comp: '40/40/12', estiraje: 2500, bodega: 100, taller: 0 },
             'PARÍS': { comp: '20/33/34', estiraje: 2050, bodega: 100, taller: 0 },
             'YUKI': { comp: '20/70/68', estiraje: 1800, bodega: 100, taller: 0 },
@@ -166,19 +105,78 @@
             'UCRANIA': { comp: '40/70/68', estiraje: 2500, bodega: 100, taller: 0 },
             'RUSIA': { comp: '40/70/68', estiraje: 2600, bodega: 100, taller: 0 },
             'GUATEMALA': { comp: '40/40/24', estiraje: 2800, bodega: 100, taller: 0 },
+            // Nylons
             'NYLON CALIDAD A': { comp: '70/68', estiraje: '-', bodega: 0, taller: 0 },
             'NYLON CALIDAD C': { comp: '70/68', estiraje: '-', bodega: 0, taller: 0 },
         };
         
-        // =================================================================
-        // 2. COMPONENTE GESTIÓN DE INVENTARIO DE HILATURAS (ADAPTADO)
-        // =================================================================
-        
+        // --- DATOS INICIALES DE EJEMPLO DE ORDENES ---
+        const initialOrdersData = [
+            {
+                id: 1700000001,
+                displayId: "C-000001-ML",
+                cliente: "CIRCULO TEXTIL",
+                maquina: "2A",
+                codigo: "M026",
+                programa: "M026BL01",
+                fechaInicio: "2025-12-01",
+                fechaFin: "2025-12-15",
+                batchSequence: 1,
+                status: "EN PROCESO",
+                threading: [
+                    { id: 101, guia: '1', material: 'LYCRA ALEMANIA', sis: '30', porcentaje: '60' },
+                    { id: 102, guia: '2', material: 'ALGODÓN NEGRO', sis: '40', porcentaje: '40' }
+                ],
+                pieza: "MANGA LARGA",
+                talla: "M/L",
+                totalPedido: 500,
+                peso: "120",
+                tiempo: "25",
+                packageSize: 50,
+                isMerged: false,
+                progreso: [
+                    { id: 1, piezaNombre: "MANGA LARGA", cantidad: 50, totalPedido: 500, paqueteNum: 1, paquetesTotales: 10, tejedor: 'JUAN PEREZ', fecha: '2025-12-03', defectos: '1', agujas: '0', finished: true },
+                    { id: 2, piezaNombre: "MANGA LARGA", cantidad: 50, totalPedido: 500, paqueteNum: 2, paquetesTotales: 10, tejedor: '', fecha: '', defectos: '', agujas: '', finished: false },
+                    { id: 3, piezaNombre: "MANGA LARGA", cantidad: 50, totalPedido: 500, paqueteNum: 3, paquetesTotales: 10, tejedor: '', fecha: '', defectos: '', agujas: '', finished: false },
+                ]
+            },
+            {
+                id: 1700000002,
+                displayId: "R-000002-SET",
+                cliente: "ROPA BONITA",
+                maquina: "5B",
+                codigo: "P101",
+                fechaInicio: "2025-12-05",
+                fechaFin: "2025-12-20",
+                batchSequence: 2,
+                status: "ARCHIVADO", // ARCHIVADO PARA PRUEBA
+                threading: [
+                    { id: 201, guia: 'A', material: 'NYLON CALIDAD A', sis: '60', porcentaje: '100' }
+                ],
+                isMerged: true,
+                subPiecesData: [
+                    { pieza: "BLUSA", talla: "G", totalPedido: 300, peso: "150", tiempo: "30", programa: "P101BL01" },
+                    { pieza: "CUELLO", talla: "UNITALLA", totalPedido: 300, peso: "30", tiempo: "5", programa: "P101CU01" }
+                ],
+                totalPedido: 600, 
+                packageSize: 60,
+                progreso: [
+                    { id: 11, piezaNombre: "BLUSA", cantidad: 60, totalPedido: 300, paqueteNum: 1, paquetesTotales: 5, tejedor: 'ANA GARCIA', fecha: '2025-12-05', defectos: '0', agujas: '0', finished: true },
+                    { id: 12, piezaNombre: "BLUSA", cantidad: 60, totalPedido: 300, paqueteNum: 2, paquetesTotales: 5, tejedor: 'ANA GARCIA', fecha: '2025-12-05', defectos: '0', agujas: '0', finished: true },
+                    { id: 13, piezaNombre: "CUELLO", cantidad: 60, totalPedido: 300, paqueteNum: 1, paquetesTotales: 5, tejedor: 'ANA GARCIA', fecha: '2025-12-05', defectos: '0', agujas: '0', finished: true },
+                    { id: 14, piezaNombre: "CUELLO", cantidad: 60, totalPedido: 300, paqueteNum: 2, paquetesTotales: 5, tejedor: 'ANA GARCIA', fecha: '2025-12-05', defectos: '0', agujas: '0', finished: true },
+                ]
+            }
+        ];
+
+
+        // --- COMPONENTE GESTIÓN DE INVENTARIO DE HILATURAS ---
         const YarnInventory = ({ inventory, onUpdate, onBack }) => {
             const [selectedYarn, setSelectedYarn] = useState(null);
             const [movementType, setMovementType] = useState('INGRESAR'); // INGRESAR | TRANSFERIR
             const [amount, setAmount] = useState('');
             
+            // Función para agrupar las hilaturas por tipo
             const groupedInventory = useMemo(() => {
                 const groups = { Lycras: [], Nylon: [], Otros: [] };
                 
@@ -186,7 +184,7 @@
                     const entry = { name, ...data };
                     if (name.startsWith('NYLON')) {
                         groups.Nylon.push(entry);
-                    } else if (data.comp && data.comp.includes('/') && data.estiraje !== '-') {
+                    } else if (data.comp.includes('/') && data.estiraje !== '-') {
                         groups.Lycras.push(entry);
                     } else {
                         groups.Otros.push(entry);
@@ -195,7 +193,7 @@
                 return groups;
             }, [inventory]);
 
-            const handleUpdate = async () => { // Hacemos esta función ASÍNCRONA
+            const handleUpdate = () => {
                 if (!selectedYarn || amount <= 0) {
                     alert('Por favor, selecciona una hilatura e ingresa una cantidad válida.');
                     return;
@@ -203,20 +201,18 @@
                 
                 const key = selectedYarn.name;
                 const numericAmount = Number(amount);
-                let newInventory = { ...inventory };
-                let success = false;
                 
                 if (movementType === 'INGRESAR') {
+                    // Ingreso de Lote (solo a Bodega)
                     const confirmMsg = `¿Deseas ingresar ${numericAmount} kg de **${key}** a la Bodega?`;
                     if (confirm(confirmMsg)) {
-                        newInventory = { 
-                            ...inventory, 
-                            [key]: { ...inventory[key], bodega: inventory[key].bodega + numericAmount } 
-                        };
-                        success = true;
+                        const newInventory = { ...inventory, [key]: { ...inventory[key], bodega: inventory[key].bodega + numericAmount } };
+                        onUpdate(newInventory);
+                        alert(`¡Ingreso exitoso! ${numericAmount} kg de ${key} añadidos a Bodega.`);
                     }
 
                 } else if (movementType === 'TRANSFERIR') {
+                    // Transferencia de Bodega a Taller
                     if (inventory[key].bodega < numericAmount) {
                         alert(`Error: Solo hay ${inventory[key].bodega} kg de ${key} en Bodega. No puedes transferir ${numericAmount} kg.`);
                         return;
@@ -224,7 +220,7 @@
                     
                     const confirmMsg = `¿Deseas transferir ${numericAmount} kg de **${key}** de Bodega a Taller?`;
                     if (confirm(confirmMsg)) {
-                        newInventory = { 
+                        const newInventory = { 
                             ...inventory, 
                             [key]: { 
                                 ...inventory[key], 
@@ -232,18 +228,16 @@
                                 taller: inventory[key].taller + numericAmount
                             } 
                         };
-                        success = true;
+                        onUpdate(newInventory);
+                        alert(`¡Transferencia exitosa! ${numericAmount} kg de ${key} movidos de Bodega a Taller.`);
                     }
                 }
                 
-                if (success) {
-                    await onUpdate(newInventory); 
-                    alert(`¡Operación exitosa! ${key} actualizado.`);
-                    setAmount('');
-                    setSelectedYarn(null);
-                }
+                // Limpiar formulario después de la operación
+                setAmount('');
+                setSelectedYarn(null);
             };
-            
+
             const InventoryTable = ({ title, data }) => (
                 <div className="mb-8">
                     <h3 className="text-xl font-bold mb-3 border-b pb-1 text-slate-700 flex items-center gap-2"><Icon name="box-select" size={20}/> {title} ({data.length})</h3>
@@ -352,7 +346,7 @@
             );
         };
         
-        // --- COMPONENTE IMAGEN INTELIGENTE (Sin cambios) ---
+        // --- COMPONENTE IMAGEN INTELIGENTE (Soporte Múltiples Repos) ---
         const SmartImage = ({ repoUrls, codigo, className }) => {
             const [imgSrc, setImgSrc] = useState(null);
             const [attempt, setAttempt] = useState({ urlIndex: 0, extension: 'jpg' });
@@ -364,6 +358,7 @@
                     return;
                 }
                 setAttempt({ urlIndex: 0, extension: 'jpg' });
+                // Inicializa el primer intento
                 const cleanBase = repoUrls[0].endsWith('/') ? repoUrls[0] : repoUrls[0] + '/';
                 setImgSrc(`${cleanBase}${codigo}.jpg`);
             }, [repoUrls, codigo]);
@@ -372,15 +367,18 @@
                 const { urlIndex, extension } = attempt;
                 
                 if (extension === 'jpg') {
+                    // 1. Intenta con PNG en la URL actual
                     const cleanBase = repoUrls[urlIndex].endsWith('/') ? repoUrls[urlIndex] : repoUrls[urlIndex] + '/';
                     setImgSrc(`${cleanBase}${codigo}.png`);
                     setAttempt({ urlIndex, extension: 'png' });
                 } else if (urlIndex < repoUrls.length - 1) {
+                    // 2. Intenta con la siguiente URL (empezando con JPG)
                     const nextIndex = urlIndex + 1;
                     const cleanBase = repoUrls[nextIndex].endsWith('/') ? repoUrls[nextIndex] : repoUrls[nextIndex] + '/';
                     setImgSrc(`${cleanBase}${codigo}.jpg`);
                     setAttempt({ urlIndex: nextIndex, extension: 'jpg' });
                 } else {
+                    // 3. Fallaron todas las URLs y extensiones
                     setAttempt({ urlIndex, extension: 'fail' });
                 }
             };
@@ -389,12 +387,13 @@
             return <img src={imgSrc} alt={codigo} className={className} onError={handleError} />;
         };
 
-        // --- COMPONENTE EDITOR DE ENHEBRADO (Sin cambios) ---
+        // --- COMPONENTE EDITOR DE ENHEBRADO ---
         const ThreadingEditor = ({ data, onChange }) => {
             const addRow = () => onChange([...data, { id: Date.now(), guia: '', material: '', sis: '', porcentaje: '' }]);
             const updateRow = (id, field, val) => onChange(data.map(r => r.id === id ? { ...r, [field]: val } : r));
             const removeRow = (id) => onChange(data.filter(r => r.id !== id));
 
+            // Calcular suma de porcentajes
             const totalPercent = data.reduce((sum, row) => sum + (Number(row.porcentaje) || 0), 0);
 
             return (
@@ -447,9 +446,10 @@
             );
         };
 
-        // --- FORMULARIO DE LOTE (ADAPTADO A ASYNC) ---
+        // --- FORMULARIO DE LOTE ---
         const MultiOrderForm = ({ config, onSave, onCancel, initialOrder = null, clientHistory, pieceHistory }) => {
             
+            // Lógica para inicializar el formulario con datos de una orden copiada o con valores por defecto
             const defaultHeader = initialOrder ? {
                 codigo: initialOrder.codigo || '', 
                 cliente: initialOrder.cliente || '', 
@@ -467,6 +467,7 @@
 
             const [header, setHeader] = useState(defaultHeader);
             const [threadingData, setThreadingData] = useState(initialOrder?.threading || []);
+            // Aseguramos que las piezas tengan un campo 'programa' para evitar errores
             const [pieces, setPieces] = useState(defaultPieces.map(p => ({...p, totalPedido: p.totalPedido || 0, programa: p.programa || ''})));
             const [packageSize, setPackageSize] = useState(initialOrder?.packageSize || 50);
 
@@ -483,6 +484,7 @@
                 return Math.floor(shiftMinutes / time);
             };
 
+            // Genera la lista de paquetes para una orden (fusionada o simple)
             const generatePackageList = (pieces, packageSize) => {
                 const packages = [];
                 let totalPieces = 0;
@@ -513,7 +515,7 @@
                 return packages;
             };
 
-            const handleSubmit = async () => { 
+            const handleSubmit = () => {
                 if(!header.codigo || !header.cliente || !header.maquina || pieces.some(p => !p.pieza || !p.programa)) {
                     return alert("Falta CÓDIGO, CLIENTE, MÁQUINA o el NOMBRE DEL PROGRAMA de alguna pieza. Favor de completar los campos.");
                 }
@@ -531,13 +533,17 @@
 
                 if (shouldMerge) {
                     const subPiecesData = pieces.map(p => ({
-                        pieza: p.pieza, talla: p.talla, totalPedido: Number(p.totalPedido) || 0,
-                        peso: p.peso, tiempo: p.tiempo, programa: p.programa, 
+                        pieza: p.pieza,
+                        talla: p.talla,
+                        totalPedido: Number(p.totalPedido) || 0,
+                        peso: p.peso,
+                        tiempo: p.tiempo,
+                        programa: p.programa, // Nuevo campo
                     }));
 
                     finalOrders.push({
                         ...commonData,
-                        id: Date.now(), // ID temporal, será reemplazado por Firestore ID
+                        id: Date.now(),
                         displayId: generateID(header.cliente, config.sequenceCounter, "Set"),
                         pieza: `JUEGO: ${subPiecesData.map(p => p.pieza).join(' + ')}`,
                         subPiecesData: subPiecesData, 
@@ -551,18 +557,17 @@
                         const packageList = generatePackageList([p], packageSize);
                         return {
                             ...commonData,
-                            id: Date.now() + index, // ID temporal
+                            id: Date.now() + index,
                             displayId: generateID(header.cliente, config.sequenceCounter, p.pieza),
                             pieza: p.pieza, talla: p.talla, totalPedido: p.totalPedido,
-                            peso: p.peso, tiempo: p.tiempo, programa: p.programa, 
+                            peso: p.peso, tiempo: p.tiempo, programa: p.programa, // Nuevo campo
                             progreso: packageList, 
                             packageSize: Number(packageSize) || 0,
                             isMerged: false,
                         }
                     });
                 }
-                
-                await onSave(finalOrders);
+                onSave(finalOrders);
             };
 
             return (
@@ -658,16 +663,18 @@
             );
         };
 
-        // --- VISTA DETALLE / IMPRESIÓN (ADAPTADO A ASYNC) ---
+        // --- VISTA DETALLE / IMPRESIÓN ---
         const OrderView = ({ order, config, onBack, onUpdate }) => {
             const [entry, setEntry] = useState({ tejedor: '', fecha: new Date().toISOString().split('T')[0], defectos: '', agujas: '' });
             
+            // Calculamos totales
             const totalProdPackages = order.progreso?.filter(p => p.finished).reduce((a, b) => a + (b.cantidad || 0), 0) || 0;
             const totalPzOrdered = order.totalPedido || order.progreso?.reduce((a, b) => a + (b.cantidad || 0), 0) || 0;
             const pct = totalPzOrdered ? Math.round((totalProdPackages / totalPzOrdered) * 100) : 0;
             const totalPackages = order.progreso?.length || 0;
             const completedPackages = order.progreso?.filter(p => p.finished).length || 0;
             
+            // Función para marcar un paquete como terminado
             const markPackageAsFinished = (packageId) => {
                 if (!entry.tejedor || !entry.fecha) {
                     alert("Por favor, ingresa el nombre del Tejedor y la Fecha.");
@@ -678,7 +685,7 @@
                     if (pkg.id === packageId) {
                         return {
                             ...pkg,
-                            tejedor: entry.tejedor.toUpperCase(), 
+                            tejedor: entry.tejedor.toUpperCase(), // Mayúsculas
                             fecha: entry.fecha,
                             defectos: entry.defectos,
                             agujas: entry.agujas,
@@ -687,7 +694,6 @@
                     }
                     return pkg;
                 });
-                
                 onUpdate(order.id, 'progreso', updatedProgreso);
 
                 setEntry(prev => ({ 
@@ -697,6 +703,7 @@
                 }));
             };
 
+            // Componente para mostrar detalles de las piezas (solo para órdenes compuestas)
             const PieceDetails = ({ data }) => (
                 <div className="border border-black p-1.5 text-xs">
                     <div className="font-bold text-[9px] uppercase mb-1 border-b border-black pb-0.5">Detalles de Pieza</div>
@@ -710,9 +717,11 @@
                 </div>
             );
 
+            // Determinar los paquetes pendientes
             const pendingPackages = order.progreso?.filter(p => !p.finished) || [];
             const completedPackagesData = order.progreso?.filter(p => p.finished).reverse() || [];
             
+            // Función para calcular piezas por turno para la impresión
             const calculatePiecesPerShift = (timeInMin) => {
                 const shiftHours = Number(config.shiftHours) || 8;
                 const time = Number(timeInMin);
@@ -724,13 +733,9 @@
             const isFinished = pct === 100;
             const isArchived = order.status === 'ARCHIVADO';
             
-            const handleArchive = async () => {
-                await onUpdate(order.id, 'status', 'ARCHIVADO');
-            };
-
             const buttonArchive = isFinished && !isArchived ? (
                 <button 
-                    onClick={handleArchive} 
+                    onClick={() => onUpdate(order.id, 'status', 'ARCHIVADO')} 
                     className="px-4 py-1 bg-green-600 text-white rounded font-bold flex gap-2 items-center text-xs ml-2 hover:bg-green-700"
                 >
                     <Icon name="archive" size={14}/> Archivar Orden
@@ -846,6 +851,7 @@
                                 {/* Columna Derecha: Imagen */}
                                 <div className="w-1/2 border border-black flex items-center justify-center p-1 bg-white relative">
                                     <div className="absolute top-0 left-0 bg-black text-white text-[9px] px-1">REF: {order.codigo}</div>
+                                    {/* Usa repoUrls en SmartImage */}
                                     <SmartImage repoUrls={config.repoUrls} codigo={order.codigo} className="max-w-full max-h-full object-contain" />
                                 </div>
                             </div>
@@ -873,11 +879,13 @@
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    {/* Paquetes no completados (vacíos para rellenar a mano) */}
                                     {order.progreso?.map((pkg, i) => (
                                         <tr key={pkg.id} className="production-row-h">
                                             <td className="border border-black font-bold">
                                                 {pkg.cantidad} pzs {pkg.paqueteNum}/{pkg.paquetesTotales} <span className="text-xs font-normal text-slate-600">({pkg.piezaNombre})</span>
                                             </td>
+                                            {/* Si ya está terminado, se llena el resto de los campos */}
                                             {pkg.finished ? (
                                                 <>
                                                     <td className="border border-black">{pkg.tejedor}</td>
@@ -923,6 +931,7 @@
                                 <input placeholder="Agujas (unid)" type="number" value={entry.agujas} onChange={e=>setEntry({...entry,agujas:e.target.value})} className="border p-2 rounded text-sm w-28"/>
                             </div>
                             
+                            {/* Lista de Paquetes Pendientes */}
                             <div className="max-h-60 overflow-y-auto border bg-white rounded">
                                 {pendingPackages.length === 0 ? (
                                     <div className="p-4 text-center text-slate-400 font-bold">🎉 ¡No hay paquetes pendientes!</div>
@@ -988,7 +997,7 @@
             );
         };
 
-        // --- COMPONENTE FLUJO DE CREACIÓN (Sin cambios) ---
+        // --- COMPONENTE FLUJO DE CREACIÓN (PASO INTERMEDIO) ---
         const CreationFlow = ({ orders, onSelectOrder, onStartNew, config }) => {
             const [searchTerm, setSearchTerm] = useState('');
             const [searchClient, setSearchClient] = useState('');
@@ -997,13 +1006,10 @@
             const uniqueClients = [...new Set(orders.map(o => o.cliente))].sort();
 
             const lastFiveOrders = useMemo(() => {
+                // Filtra órdenes por código único y toma las últimas 5 (por ID)
                 const uniqueOrders = [];
                 const codes = new Set();
-                const allOrders = [...orders].sort((a, b) => {
-                    const idA = typeof a.id === 'string' ? Date.parse(a.id.substring(0, 8)) || 0 : a.id;
-                    const idB = typeof b.id === 'string' ? Date.parse(b.id.substring(0, 8)) || 0 : b.id;
-                    return idB - idA;
-                }); 
+                const allOrders = [...orders].sort((a, b) => b.id - a.id); 
                 
                 for (const order of allOrders) {
                     if (!codes.has(order.codigo)) {
@@ -1019,14 +1025,16 @@
                 if (!searchTerm && !searchClient) return setSearchResults([]);
 
                 const results = orders.filter(o => 
+                    // Búsqueda por Código (parcial)
                     (searchTerm && o.codigo.includes(searchTerm.toUpperCase())) ||
+                    // Exploración por Cliente (exacto)
                     (searchClient && o.cliente === searchClient)
                 );
                 setSearchResults(results);
             };
 
             const handleCopy = (order) => {
-                const confirmCopy = confirm(`¿Estás seguro de COPIAR la orden ${order.displayId || order.id} - ${order.codigo} (${order.pieza})?`);
+                const confirmCopy = confirm(`¿Estás seguro de COPIAR la orden ${order.displayId} - ${order.codigo} (${order.pieza})?`);
                 if (confirmCopy) {
                     onSelectOrder(order);
                 }
@@ -1037,6 +1045,7 @@
                     <h2 className="font-bold text-xl mb-4 flex items-center gap-2"><Icon name="forklift" /> Selecciona Modo de Creación</h2>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Opción 1: Crear desde Cero */}
                         <div className="border p-4 rounded-lg bg-indigo-50 flex flex-col items-center">
                             <Icon name="file-plus" size={32} className="text-indigo-600 mb-2"/>
                             <h3 className="font-bold mb-3 text-center">FICHA DESDE CERO</h3>
@@ -1045,10 +1054,12 @@
                             </button>
                         </div>
 
+                        {/* Opción 2: Copiar Existente */}
                         <div className="border p-4 rounded-lg bg-slate-50 flex flex-col">
                             <Icon name="copy" size={32} className="text-slate-600 mb-2 self-center"/>
                             <h3 className="font-bold mb-3 text-center">COPIAR ORDEN EXISTENTE</h3>
 
+                            {/* Búsqueda */}
                             <div className="flex gap-2 mb-3">
                                 <button onClick={handleSearch} className="bg-slate-700 text-white p-2 rounded font-bold flex items-center"><Icon name="search" size={16}/></button>
                                 <input 
@@ -1070,6 +1081,7 @@
                             </select>
                             <button onClick={handleSearch} className="w-full bg-slate-200 text-slate-700 py-2 rounded font-bold mb-4 flex items-center justify-center gap-2"><Icon name="folder" size={16}/> Mostrar Resultados</button>
                             
+                            {/* Resultados de Búsqueda */}
                             {searchResults.length > 0 && (
                                 <div className="max-h-32 overflow-y-auto border rounded mb-3 p-2 bg-white">
                                     <p className="text-xs font-bold text-slate-600 mb-1">Resultados ({searchResults.length}):</p>
@@ -1082,6 +1094,7 @@
                                 </div>
                             )}
 
+                            {/* Miniaturas de las Últimas 5 */}
                             <h4 className="font-bold text-xs mt-3 mb-2 border-t pt-3">3. Últimas 5 Órdenes Únicas:</h4>
                             <div className="scroll-container">
                                 {lastFiveOrders.map(o => (
@@ -1103,7 +1116,7 @@
             );
         };
         
-        // --- COMPONENTE MODAL DE CONFIGURACIÓN (Sin cambios sustanciales) ---
+        // --- COMPONENTE MODAL DE CONFIGURACIÓN ---
         const RepoUrlInput = ({ index, url, onChange, onRemove }) => (
             <div className="flex gap-2 mb-2 items-center">
                 <input 
@@ -1119,6 +1132,7 @@
         const SettingsModal = ({ config, onSave, onClose }) => {
             const [local, setLocal] = useState({ 
                 ...config, 
+                // Asegurar que repoUrls sea un array para edición
                 repoUrls: Array.isArray(config.repoUrls) ? config.repoUrls : (config.repoUrls ? [config.repoUrls] : ['']), 
             });
 
@@ -1180,134 +1194,53 @@
         };
 
 
-        // =================================================================
-        // 3. APP PRINCIPAL (ADAPTADO A FIREBASE)
-        // =================================================================
+        // --- APP PRINCIPAL ---
         const App = () => {
-            const [view, setView] = useState('loading'); 
-            const [orders, setOrders] = useState([]); 
-            const [config, setConfig] = useState({}); 
-            const [yarnInventory, setYarnInventory] = useState(initialYarnInventory);
+            const [view, setView] = useState('list');
+            const [orders, setOrders] = useState(() => JSON.parse(localStorage.getItem('v8_orders')) || initialOrdersData); 
+            const [config, setConfig] = useState(() => JSON.parse(localStorage.getItem('v8_config')) || { 
+                repoUrls: ['https://raw.githubusercontent.com/TuUsuario/TuRepo/main/img/'], 
+                sequenceCounter: 3,
+                shiftHours: 8, 
+            }); 
+            const [yarnInventory, setYarnInventory] = useState(() => JSON.parse(localStorage.getItem('v8_yarnInventory')) || initialYarnInventory);
             const [selectedOrder, setSelectedOrder] = useState(null);
             const [orderToCopy, setOrderToCopy] = useState(null); 
             const [showSettings, setShowSettings] = useState(false);
             const [filterClient, setFilterClient] = useState('ALL');
 
-            // --- FUNCIÓN DE INICIALIZACIÓN (Carga de Firebase) ---
             useEffect(() => {
-                const initializeData = async () => {
-                    try {
-                        const loadedConfig = await loadConfig();
-                        setConfig(loadedConfig);
+                localStorage.setItem('v8_orders', JSON.stringify(orders)); 
+                localStorage.setItem('v8_config', JSON.stringify(config)); 
+                localStorage.setItem('v8_yarnInventory', JSON.stringify(yarnInventory)); // Guardar inventario
+                lucide.createIcons();
+            }, [orders, config, view, yarnInventory]);
 
-                        const loadedOrders = await loadOrders();
-                        setOrders(loadedOrders);
-                        
-                        const loadedInventory = await loadYarnInventory(initialYarnInventory);
-                        setYarnInventory(loadedInventory);
-
-                        setView('list'); 
-                    } catch (error) {
-                        console.error("Error al inicializar la app desde Firebase:", error);
-                        // Fallback de emergencia
-                        setConfig({ repoUrls: [''], sequenceCounter: 1, shiftHours: 8 });
-                        setOrders([]);
-                        setYarnInventory(initialYarnInventory);
-                        setView('list'); 
-                        alert("Error de conexión con Firebase. Cargando datos por defecto.");
-                    }
-                    lucide.createIcons();
-                };
-                initializeData();
-            }, []); 
-            
-            // --- GUARDADO DE CONFIGURACIÓN E INVENTARIO ---
-            useEffect(() => {
-                if(config.sequenceCounter && view !== 'loading') { // Solo guardar si ya cargamos y no estamos cargando
-                    saveConfig(config);
-                }
-            }, [config, view]);
-
-            const handleUpdateInventory = async (newInventory) => {
-                setYarnInventory(newInventory);
-                await saveYarnInventory(newInventory);
-            }
-            
-            // --- MANEJO DE ÓRDENES (ASÍNCRONO) ---
-            
-            const handleSave = async (newOrders) => {
-                const savedOrders = [];
-                for (const order of newOrders) {
-                    const savedOrder = await saveOrder(order);
-                    savedOrders.push(savedOrder);
-                }
-
-                // Actualizar el estado de órdenes, manteniendo el ID de Firestore
-                setOrders([...savedOrders, ...orders]);
-                
-                // Actualizar y guardar el contador
-                const newConfig = {...config, sequenceCounter: (config.sequenceCounter || 0) + 1};
-                setConfig(newConfig); 
-
+            const handleSave = (newOrders) => {
+                setOrders([...newOrders, ...orders]);
+                setConfig({...config, sequenceCounter: config.sequenceCounter + 1});
                 setView('list');
                 setOrderToCopy(null); 
             };
 
-            const updateOrder = async (orderId, field, value) => {
-                
-                let updatedOrder = null;
-                const updatedOrders = orders.map(o => {
-                    if (o.id === orderId) {
-                        updatedOrder = { ...o, [field]: value };
-                        return updatedOrder;
-                    }
-                    return o;
-                });
-                
-                setOrders(updatedOrders);
-
-                if (updatedOrder) {
-                    await saveOrder(updatedOrder);
-                }
-
-                if(selectedOrder?.id === orderId) {
-                    setSelectedOrder(updatedOrder);
-                }
+            const updateOrder = (id, f, v) => {
+                const updated = orders.map(o => o.id === id ? { ...o, [f]: v } : o);
+                setOrders(updated);
+                if(selectedOrder?.id === id) setSelectedOrder(updated.find(o => o.id === id));
             };
-            
-            // --- DATOS DERIVADOS ---
-            const allClients = useMemo(() => [...new Set(orders.map(o => o.cliente))].sort(), [orders]);
-            const allPieces = useMemo(() => 
-                [...new Set(orders.flatMap(o => o.isMerged && o.subPiecesData ? o.subPiecesData.map(sp => sp.pieza) : [o.pieza]))].filter(p => p).sort(), 
-            [orders]);
 
-            // Ordenamos para que las más recientes (ID de Firestore o ID de Date.now) salgan primero
-            const sortedOrders = orders.slice().sort((a,b)=>{
-                // Intenta tratar los IDs de Firestore (string) como fechas para ordenar cronológicamente si es posible
-                const idA = typeof a.id === 'string' ? Date.parse(a.id.substring(0, 8)) || 0 : a.id;
-                const idB = typeof b.id === 'string' ? Date.parse(b.id.substring(0, 8)) || 0 : b.id;
-                return idB - idA;
-            });
+            const allClients = [...new Set(orders.map(o => o.cliente))].sort();
+            // Obtener todas las piezas únicas, incluyendo las de órdenes fusionadas
+            const allPieces = [...new Set(orders.flatMap(o => o.isMerged && o.subPiecesData ? o.subPiecesData.map(sp => sp.pieza) : [o.pieza]))].filter(p => p).sort();
 
-            const pendingOrders = sortedOrders.filter(o => (filterClient === 'ALL' || o.cliente === filterClient) && o.status !== 'ARCHIVADO');
-            const archivedOrders = sortedOrders.filter(o => (filterClient === 'ALL' || o.cliente === filterClient) && o.status === 'ARCHIVADO');
+            const pendingOrders = orders.filter(o => (filterClient === 'ALL' || o.cliente === filterClient) && o.status !== 'ARCHIVADO').sort((a,b)=>b.id-a.id);
+            const archivedOrders = orders.filter(o => (filterClient === 'ALL' || o.cliente === filterClient) && o.status === 'ARCHIVADO').sort((a,b)=>b.id-a.id);
 
 
-            if (view === 'loading') {
-                return (
-                    <div className="min-h-screen flex items-center justify-center bg-white">
-                        <div className="text-center">
-                            <Icon name="loader-2" size={48} className="animate-spin text-indigo-600 mx-auto"/>
-                            <p className="mt-4 text-lg font-bold text-slate-700">Cargando datos de Firebase...</p>
-                        </div>
-                    </div>
-                );
-            }
-            
             return (
                 <div className="min-h-screen bg-slate-100 pb-10">
                     <nav className="bg-slate-900 text-white p-3 flex justify-between no-print">
-                        <div className="font-bold flex gap-2"><Icon name="box"/> Producción v8.1 (Firebase)</div>
+                        <div className="font-bold flex gap-2"><Icon name="box"/> Producción v8.1</div>
                         <div className="flex gap-4">
                              <button onClick={()=>setView('inventory')} className="text-sm font-bold flex items-center gap-1 hover:text-indigo-400">
                                 <Icon name="warehouse" size={18}/> Inventario
@@ -1320,10 +1253,10 @@
                         <div className="max-w-6xl mx-auto p-6">
                             <div className="flex justify-between items-end mb-6">
                                 <div className="flex gap-2 overflow-x-auto pb-1">
-                                    <button onClick={()=>setFilterClient('ALL')} className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-bold border ${filterClient==='ALL'?'bg-indigo-600 text-white':'bg-white'}`}>TODOS</button>
-                                    {allClients.map(c=><button key={c} onClick={()=>setFilterClient(c)} className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-bold border ${filterClient===c?'bg-indigo-600 text-white':'bg-white'}`}>{c}</button>)}
+                                    <button onClick={()=>setFilterClient('ALL')} className={`px-3 py-1 rounded-full text-xs font-bold border ${filterClient==='ALL'?'bg-indigo-600 text-white':'bg-white'}`}>TODOS</button>
+                                    {allClients.map(c=><button key={c} onClick={()=>setFilterClient(c)} className={`px-3 py-1 rounded-full text-xs font-bold border ${filterClient===c?'bg-indigo-600 text-white':'bg-white'}`}>{c}</button>)}
                                 </div>
-                                <button onClick={()=>setView('creation-flow')} className="flex-shrink-0 bg-indigo-600 text-white px-4 py-2 rounded font-bold shadow flex gap-2"><Icon name="plus"/> NUEVO</button>
+                                <button onClick={()=>setView('creation-flow')} className="bg-indigo-600 text-white px-4 py-2 rounded font-bold shadow flex gap-2"><Icon name="plus"/> NUEVO</button>
                             </div>
                             
                             {/* ÓRDENES EN PROCESO */}
@@ -1337,7 +1270,7 @@
                                         const pct = o.totalPedido ? Math.min(100, Math.round((total/o.totalPedido)*100)) : 0;
                                         return (
                                             <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className="bg-white p-4 rounded shadow border cursor-pointer hover:shadow-lg">
-                                                <div className="flex justify-between mb-2"><span className="font-mono text-xs text-slate-400 font-bold">{o.displayId || o.id}</span><span className="bg-slate-100 text-xs px-2 rounded font-bold">MQ-{o.maquina}</span></div>
+                                                <div className="flex justify-between mb-2"><span className="font-mono text-xs text-slate-400 font-bold">{o.displayId}</span><span className="bg-slate-100 text-xs px-2 rounded font-bold">MQ-{o.maquina}</span></div>
                                                 <div className="font-bold">{o.cliente}</div>
                                                 <div className="text-sm text-slate-500 mb-2">{o.pieza} <span className="text-xs text-indigo-500">({o.codigo})</span></div>
                                                 <div className="w-full bg-slate-100 h-1.5 rounded-full mb-1"><div className="bg-green-500 h-full rounded-full" style={{width:`${pct}%`}}></div></div>
@@ -1356,7 +1289,7 @@
                                     archivedOrders.map(o => {
                                         return (
                                             <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className="bg-white p-4 rounded shadow border cursor-pointer hover:shadow-lg">
-                                                <div className="flex justify-between mb-2"><span className="font-mono text-xs text-slate-400 font-bold">{o.displayId || o.id}</span><span className="bg-slate-100 text-xs px-2 rounded font-bold">MQ-{o.maquina}</span></div>
+                                                <div className="flex justify-between mb-2"><span className="font-mono text-xs text-slate-400 font-bold">{o.displayId}</span><span className="bg-slate-100 text-xs px-2 rounded font-bold">MQ-{o.maquina}</span></div>
                                                 <div className="font-bold">{o.cliente}</div>
                                                 <div className="text-sm text-slate-500 mb-2">{o.pieza} <span className="text-xs text-indigo-500">({o.codigo})</span></div>
                                                 <div className="text-xs text-gray-500 font-bold">ARCHIVADO</div>
@@ -1371,7 +1304,7 @@
                     {view === 'inventory' && (
                         <YarnInventory 
                             inventory={yarnInventory}
-                            onUpdate={handleUpdateInventory} 
+                            onUpdate={setYarnInventory}
                             onBack={() => setView('list')}
                         />
                     )}
