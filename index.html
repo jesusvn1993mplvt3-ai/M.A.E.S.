@@ -42,47 +42,72 @@
     </script>
 
     <style>
+        /* ESTILOS DE IMPRESIÓN CORREGIDOS */
         @media print {
             @page { margin: 0.5cm; size: letter portrait; }
-            body { background: white; -webkit-print-color-adjust: exact; }
-            .no-print { display: none !important; }
-            .print-only { display: block !important; }
+            
+            /* Forzar que el cuerpo sea visible y tenga altura automática */
+            body, html, #root { 
+                background: white; 
+                -webkit-print-color-adjust: exact; 
+                width: 100%;
+                height: auto !important;
+                overflow: visible !important;
+                position: static !important;
+            }
+
+            /* Ocultar todo lo que no se debe imprimir */
+            .no-print, .dashboard-grid { display: none !important; }
+            
+            /* Asegurar que el modal de la orden sea visible y ocupe todo */
+            .print-visible-wrapper {
+                position: static !important;
+                display: block !important;
+                width: 100% !important;
+                height: auto !important;
+                overflow: visible !important;
+                z-index: 99999 !important;
+                background: white !important;
+                inset: auto !important;
+            }
+
             .print-section-top { height: 40vh; overflow: hidden; border-bottom: 2px dashed #000; margin-bottom: 1vh; display: flex; flex-direction: column; }
             .print-section-bottom { height: 55vh; display: block; }
             
-            /* Estilos generales de tabla para impresión */
-            table { border-collapse: collapse; width: 100%; border: 2px solid black; }
-            th, td { border: 1px solid black; }
+            table { border-collapse: collapse; width: 100%; border: 2px solid black; table-layout: fixed; }
+            th, td { border: 1px solid black; word-wrap: break-word; }
             
-            /* Tabla de Enhebrado */
             .threading-table-print { font-size: 9pt; }
             .threading-table-print th { background-color: #ddd !important; }
             
-            /* Tabla de Paquetes (La que pediste modificar) */
+            /* TABLA DE PAQUETES OPTIMIZADA */
             .package-table-print { font-size: 9pt; width: 100%; border: 2px solid black !important; }
             .package-table-print th { 
                 background-color: #e5e7eb !important; 
                 font-weight: 800; 
                 text-transform: uppercase; 
-                font-size: 8pt; 
-                padding: 2px; 
+                font-size: 7pt; /* Letra más pequeña para encabezados */
+                padding: 1px; 
                 border: 1px solid black !important;
             }
             .package-table-print td { 
-                padding: 2px; 
+                padding: 1px; 
                 height: 25px; 
                 vertical-align: middle; 
                 border: 1px solid black !important;
+                font-size: 8pt;
             }
             
-            /* Quitar borde derecho de la última columna para evitar doble línea */
+            /* Quitar borde derecho de la última columna */
             .package-table-print th:last-child,
             .package-table-print td:last-child {
                 border-right: none !important;
             }
 
             .manual-input { color: transparent; }
+            .print-only { display: block !important; }
         }
+
         .print-only { display: none; }
         .dashboard-grid { display: grid; grid-template-rows: 60vh 1fr; height: 100vh; overflow: hidden; }
         .top-pane { overflow-y: auto; border-bottom: 4px solid #334155; }
@@ -152,10 +177,9 @@
             );
         };
 
-        // --- DASHBOARD COMPONENTS (MÁQUINAS Y TIEMPOS) ---
+        // --- DASHBOARD COMPONENTS ---
         const MachineCard = ({ maquina, orders }) => {
             const [is24Hours, setIs24Hours] = useState(true);
-            
             const pendingPackages = useMemo(() => {
                 let pkgs = [];
                 orders.forEach(o => {
@@ -163,14 +187,7 @@
                     incomplete.forEach(p => {
                         const pieceData = o.subPiecesData?.find(sp => sp.pieza === p.piezaNombre) || o;
                         const timePerPiece = Number(pieceData.tiempo) || 0;
-                        
-                        pkgs.push({ 
-                            ...p, 
-                            parentOrderId: o.id, 
-                            orderCode: o.codigo, 
-                            partida: o.partida,
-                            timeTotal: (p.cantidad * timePerPiece) 
-                        });
+                        pkgs.push({ ...p, parentOrderId: o.id, orderCode: o.codigo, partida: o.partida, timeTotal: (p.cantidad * timePerPiece) });
                     });
                 });
                 return pkgs; 
@@ -212,13 +229,7 @@
                                     <div className="text-[9px] text-yellow-500 font-black truncate">{p.partida}</div>
                                 </div>
                                 <div className="flex-grow pl-2 border-l border-slate-600">
-                                    <input 
-                                        className="obs-input placeholder-slate-600" 
-                                        placeholder="Observaciones..." 
-                                        defaultValue={p.observaciones || ''}
-                                        onBlur={(e) => updateObs(p.id, p.parentOrderId, e.target.value)}
-                                        onKeyDown={(e) => { if(e.key === 'Enter') e.target.blur(); }}
-                                    />
+                                    <input className="obs-input placeholder-slate-600" placeholder="Observaciones..." defaultValue={p.observaciones || ''} onBlur={(e) => updateObs(p.id, p.parentOrderId, e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') e.target.blur(); }}/>
                                 </div>
                             </div>
                         ))}
@@ -230,10 +241,7 @@
         const DashboardBottom = ({ activeOrders }) => {
             const machineGroups = useMemo(() => {
                 const groups = {};
-                activeOrders.forEach(o => { 
-                    if(!groups[o.maquina]) groups[o.maquina] = []; 
-                    groups[o.maquina].push(o); 
-                });
+                activeOrders.forEach(o => { if(!groups[o.maquina]) groups[o.maquina] = []; groups[o.maquina].push(o); });
                 return Object.keys(groups).sort((a,b) => parseInt(a)-parseInt(b)).map(k => ({ id: k, orders: groups[k] }));
             }, [activeOrders]);
 
@@ -245,7 +253,7 @@
             );
         };
 
-        // --- COMPONENTE DE IMPORTACIÓN EXCEL/CSV (CORREGIDO CON BOTÓN CERRAR) ---
+        // --- COMPONENTE DE IMPORTACIÓN (CON BOTÓN CERRAR CLARO) ---
         const ImportModal = ({ onClose, onImport }) => {
             const [text, setText] = useState('');
             const [error, setError] = useState(null);
@@ -256,12 +264,8 @@
                     const delimiter = text.includes('\t') ? '\t' : ',';
                     const rows = text.trim().split('\n').map(r => r.split(delimiter));
                     if (rows.length < 2) throw new Error("Datos insuficientes.");
-
                     const headers = rows[0].map(h => h.trim().toUpperCase().replace(/"/g, ''));
-                    const getVal = (row, colName) => {
-                        const idx = headers.indexOf(colName);
-                        return idx !== -1 && row[idx] ? row[idx].trim().replace(/"/g, '') : '';
-                    };
+                    const getVal = (row, colName) => { const idx = headers.indexOf(colName); return idx !== -1 && row[idx] ? row[idx].trim().replace(/"/g, '') : ''; };
 
                     if (headers.indexOf('PARTIDA') === -1) throw new Error("Falta columna 'PARTIDA'");
                     if (headers.indexOf('CODIGO') === -1) throw new Error("Falta columna 'CODIGO'");
@@ -275,18 +279,9 @@
                         const piezas = parseFloat(getVal(r, 'PIEZAS'));
                         const codigoUnico = getVal(r, 'CODIGO');
                         let pkgNum = i + 1;
-                        
                         if (!isNaN(piezas)) {
                             totalPiezas += piezas;
-                            predefinedPackages.push({
-                                id: Date.now() + i,
-                                piezaNombre: getVal(r, 'DESCRIPCION') || 'ESTANDAR',
-                                cantidad: piezas,
-                                paqueteNum: pkgNum,
-                                paquetesDePieza: rows.length - 1,
-                                codigoUnico: codigoUnico,
-                                finished: false
-                            });
+                            predefinedPackages.push({ id: Date.now() + i, piezaNombre: getVal(r, 'DESCRIPCION') || 'ESTANDAR', cantidad: piezas, paqueteNum: pkgNum, paquetesDePieza: rows.length - 1, codigoUnico: codigoUnico, finished: false });
                         }
                     });
 
@@ -296,65 +291,32 @@
                     if (nylon) threading.push({ id: 1, guia: '1', material: `NYLON ${nylon}`, sis: '', porcentaje: '' });
                     if (lycra) threading.push({ id: 2, guia: '2', material: `LYCRA ${lycra}`, sis: '', porcentaje: '' });
 
-                    const importedData = {
-                        codigo: getVal(firstRow, 'MODELO'),
-                        cliente: getVal(firstRow, 'CLIENTE'),
-                        maquina: getVal(firstRow, 'MAQUINA'),
-                        partida: getVal(firstRow, 'PARTIDA'),
-                        pieces: [{
-                            id: Date.now(),
-                            pieza: getVal(firstRow, 'DESCRIPCION') || 'ESTANDAR',
-                            programa: '',
-                            talla: getVal(firstRow, 'TALLA') || 'UNITALLA',
-                            totalPedido: totalPiezas,
-                            peso: '',
-                            tiempo: ''
-                        }],
-                        threading: threading,
-                        predefinedPackages: predefinedPackages
-                    };
-
-                    onImport(importedData);
-                } catch (e) {
-                    setError(e.message);
-                }
+                    onImport({ codigo: getVal(firstRow, 'MODELO'), cliente: getVal(firstRow, 'CLIENTE'), maquina: getVal(firstRow, 'MAQUINA'), partida: getVal(firstRow, 'PARTIDA'), pieces: [{ id: Date.now(), pieza: getVal(firstRow, 'DESCRIPCION') || 'ESTANDAR', programa: '', talla: getVal(firstRow, 'TALLA') || 'UNITALLA', totalPedido: totalPiezas, peso: '', tiempo: '' }], threading: threading, predefinedPackages: predefinedPackages });
+                } catch (e) { setError(e.message); }
             };
 
             return (
                 <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
                     <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-2xl relative">
                         <div className="flex justify-between items-center mb-4 border-b pb-2">
-                            <h3 className="font-bold text-xl text-green-700 flex items-center gap-2">
-                                <Icon name="file-spreadsheet"/> Importar Excel
-                            </h3>
-                            {/* BOTÓN CERRAR AGREGADO */}
-                            <button onClick={onClose} className="bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-lg transition-transform hover:scale-110">
-                                <Icon name="x" size={24}/>
+                            <h3 className="font-bold text-xl text-green-700 flex items-center gap-2"><Icon name="file-spreadsheet"/> Importar Excel</h3>
+                            {/* BOTÓN CERRAR - Ahora más visible y funcional */}
+                            <button onClick={onClose} className="bg-red-500 hover:bg-red-600 text-white rounded-md p-2 shadow-lg flex items-center gap-1 font-bold text-xs transition-transform hover:scale-105">
+                                <Icon name="x" size={18}/> CERRAR
                             </button>
                         </div>
-                        
-                        <p className="text-xs text-slate-500 mb-2">Copia y pega las celdas directamente desde Excel.</p>
-                        
-                        <textarea 
-                            value={text} 
-                            onChange={(e) => { setText(e.target.value); setError(null); }}
-                            className="w-full h-64 p-3 border-2 border-slate-300 rounded font-mono text-xs focus:border-green-500 focus:outline-none"
-                            placeholder="PARTIDA | CODIGO | PIEZAS | ..."
-                        ></textarea>
-                        
+                        <p className="text-xs text-slate-500 mb-2">Copia y pega las celdas desde Excel.</p>
+                        <textarea value={text} onChange={(e) => { setText(e.target.value); setError(null); }} className="w-full h-64 p-3 border-2 border-slate-300 rounded font-mono text-xs focus:border-green-500 focus:outline-none" placeholder="Pegar datos..."></textarea>
                         {error && <div className="mt-2 text-red-600 text-xs font-bold bg-red-50 p-2 rounded border border-red-200">Error: {error}</div>}
-                        
                         <div className="flex justify-end gap-2 mt-4">
-                            <button onClick={handleProcess} className="px-6 py-2 bg-green-600 text-white font-bold rounded shadow hover:bg-green-700 flex items-center gap-2">
-                                <Icon name="check-circle" size={18}/> Procesar
-                            </button>
+                            <button onClick={handleProcess} className="px-6 py-2 bg-green-600 text-white font-bold rounded shadow hover:bg-green-700 flex items-center gap-2"><Icon name="check-circle" size={18}/> Procesar</button>
                         </div>
                     </div>
                 </div>
             );
         };
 
-        // --- COMPONENTE IMAGEN INTELIGENTE (MULTI-REPO) ---
+        // --- COMPONENTE IMAGEN ---
         const SmartImage = ({ repoUrls, codigo, className }) => {
             const [imgSrc, setImgSrc] = useState(null);
             const [attempt, setAttempt] = useState({ urlIndex: 0, extension: 'jpg' });
@@ -382,23 +344,13 @@
                 }
             };
 
-            if (attempt.extension === 'fail' || !imgSrc) return <div className={`bg-slate-100 flex flex-col items-center justify-center text-slate-300 ${className}`}>
-                <Icon name="image-off" size={48} className="mb-2"/>
-                <span className="text-[10px] text-center px-2">No se encontró: {codigo}<br/>(Verifica el Modelo)</span>
-            </div>;
+            if (attempt.extension === 'fail' || !imgSrc) return <div className={`bg-slate-100 flex flex-col items-center justify-center text-slate-300 ${className}`}><Icon name="image-off" size={48} className="mb-2"/><span className="text-[10px] text-center px-2">No imagen</span></div>;
             return <img src={imgSrc} onError={handleError} className={className} />;
         };
 
         // --- FORMULARIO DE ORDEN ---
         const MultiOrderForm = ({ config, onCancel, initialOrder, clientHistory, inventory }) => {
-            const [header, setHeader] = useState(initialOrder ? { 
-                codigo: initialOrder.codigo, 
-                cliente: initialOrder.cliente, 
-                maquina: initialOrder.maquina, 
-                partida: initialOrder.partida || '', 
-                fechaInicio: new Date().toISOString().split('T')[0] 
-            } : { codigo: '', cliente: '', maquina: '', partida: '', fechaInicio: new Date().toISOString().split('T')[0] });
-
+            const [header, setHeader] = useState(initialOrder ? { codigo: initialOrder.codigo, cliente: initialOrder.cliente, maquina: initialOrder.maquina, partida: initialOrder.partida || '', fechaInicio: new Date().toISOString().split('T')[0] } : { codigo: '', cliente: '', maquina: '', partida: '', fechaInicio: new Date().toISOString().split('T')[0] });
             const [pieces, setPieces] = useState(initialOrder?.pieces || [{ id: 1, pieza: 'BLUSA', programa: '', talla: 'UNITALLA', totalPedido: 100, peso: '', tiempo: '' }]);
             const [threadingData, setThreadingData] = useState(initialOrder?.threading || []);
             const predefinedPackages = initialOrder?.predefinedPackages || null;
@@ -411,30 +363,16 @@
             const handleSubmit = async () => {
                 if(!header.codigo || !header.cliente || !header.maquina || !header.partida) return alert("Faltan datos.");
                 let finalPackages = [];
-                if (predefinedPackages) {
-                    finalPackages = predefinedPackages;
-                } else {
+                if (predefinedPackages) finalPackages = predefinedPackages;
+                else {
                     pieces.forEach(p => {
                         const total = Number(p.totalPedido)||0; const size = Number(packageSize)||total; const n = Math.ceil(total/size);
-                        for(let i=1; i<=n; i++) finalPackages.push({ 
-                            id: Date.now()+Math.random(), 
-                            piezaNombre: p.pieza, 
-                            cantidad: (i===n)?(total%size||size):size, 
-                            paqueteNum: i, 
-                            paquetesDePieza: n, 
-                            codigoUnico: `${header.partida}_${i}_${n}_${(i===n)?(total%size||size):size}`,
-                            finished: false 
-                        });
+                        for(let i=1; i<=n; i++) finalPackages.push({ id: Date.now()+Math.random(), piezaNombre: p.pieza, cantidad: (i===n)?(total%size||size):size, paqueteNum: i, paquetesDePieza: n, codigoUnico: `${header.partida}_${i}_${n}_${(i===n)?(total%size||size):size}`, finished: false });
                     });
                 }
                 const displayId = generateSmartID(header.partida, pieces, header.maquina);
-                const orderPayload = { 
-                    ...header, id: Date.now(), displayId, subPiecesData: pieces.map(p => ({...p, totalPedido: Number(p.totalPedido)})), progreso: finalPackages, threading: threadingData, packageSize: predefinedPackages ? 'VARIO' : Number(packageSize), status: 'EN PROCESO', totalPedido: pieces.reduce((a,b)=>a+Number(b.totalPedido),0) 
-                };
-                try {
-                    await db.collection('orders').doc(String(orderPayload.id)).set(orderPayload);
-                    alert("Orden Guardada"); onCancel();
-                } catch(e) { console.error(e); alert("Error"); }
+                const orderPayload = { ...header, id: Date.now(), displayId, subPiecesData: pieces.map(p => ({...p, totalPedido: Number(p.totalPedido)})), progreso: finalPackages, threading: threadingData, packageSize: predefinedPackages ? 'VARIO' : Number(packageSize), status: 'EN PROCESO', totalPedido: pieces.reduce((a,b)=>a+Number(b.totalPedido),0) };
+                try { await db.collection('orders').doc(String(orderPayload.id)).set(orderPayload); alert("Orden Guardada"); onCancel(); } catch(e) { console.error(e); alert("Error"); }
             };
 
             return (
@@ -469,7 +407,7 @@
             );
         };
 
-        // --- VISUALIZACIÓN E IMPRESIÓN (SIN EDICIÓN DE FOTO) ---
+        // --- VISUALIZACIÓN E IMPRESIÓN (SIN EDICIÓN DE FOTO, TABLA AJUSTADA) ---
         const OrderView = ({ order, config, onBack }) => {
             const [entry, setEntry] = useState({ tejedor: '', fecha: new Date().toISOString().split('T')[0], defectos: '', agujas: '' });
             
@@ -479,12 +417,16 @@
                 await db.collection('orders').doc(String(order.id)).update({progreso: newProgreso});
             };
 
+            // Eliminé el botón de editar modelo como pediste.
+            // Tabla ajustada: Columna CODIGO reducida, Columna OBSERVACIONES agregada al final, Borde derecho eliminado.
             return (
                 <div className="bg-white min-h-screen relative">
                     <div className="no-print p-4 border-b flex justify-between bg-slate-50 sticky top-0 z-10 shadow-sm">
                         <button onClick={onBack} className="flex items-center gap-2 text-slate-600 font-bold"><Icon name="arrow-left"/> Volver</button>
                         <div className="flex gap-2">
-                             <button onClick={()=>window.print()} className="bg-slate-900 text-white px-3 py-1 rounded font-bold text-xs flex items-center gap-1"><Icon name="printer"/> IMPRIMIR</button>
+                             <button onClick={() => window.print()} className="bg-slate-900 text-white px-3 py-1 rounded font-bold text-xs flex items-center gap-1 hover:bg-slate-700">
+                                <Icon name="printer"/> IMPRIMIR
+                             </button>
                         </div>
                     </div>
                     
@@ -544,32 +486,40 @@
                                 <span>TOTAL PIEZAS: {order.totalPedido}</span>
                              </div>
                              <table className="package-table-print">
+                                <colgroup>
+                                    <col style={{width: '5%'}} />
+                                    <col style={{width: '15%'}} /> <col style={{width: '8%'}} />
+                                    <col style={{width: '10%'}} />
+                                    <col style={{width: '10%'}} />
+                                    <col style={{width: '8%'}} />
+                                    <col style={{width: '8%'}} />
+                                    <col style={{width: '5%'}} />
+                                    <col style={{width: '31%'}} /> </colgroup>
                                 <thead>
                                     <tr>
-                                        <th className="w-8">#</th>
-                                        <th className="w-20">CÓDIGO</th> {/* REDUCIDO SEGÚN TU SOLICITUD */}
-                                        <th className="w-12">Cant</th>
-                                        <th className="w-16">Tejedor</th>
-                                        <th className="w-16">Fecha</th>
-                                        <th className="w-12">Def</th>
-                                        <th className="w-10">Agj</th>
-                                        <th className="w-8">OK</th>
-                                        <th>OBSERVACIONES</th> {/* NUEVA COLUMNA AL FINAL */}
+                                        <th>#</th>
+                                        <th>CÓDIGO</th> 
+                                        <th>Cant</th>
+                                        <th>Tejedor</th>
+                                        <th>Fecha</th>
+                                        <th>Def</th>
+                                        <th>Agj</th>
+                                        <th>OK</th>
+                                        <th>OBSERVACIONES</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {order.progreso?.map((p, idx) => (
                                         <tr key={p.id}>
                                             <td className="text-center font-bold border-r border-black">{idx+1}</td>
-                                            <td className="pl-1 font-mono text-[8px] border-r border-black truncate max-w-[50px]">{p.codigoUnico}</td>
+                                            <td className="pl-1 font-mono text-[8px] border-r border-black truncate">{p.codigoUnico}</td>
                                             <td className="text-center font-bold border-r border-black">{p.cantidad}</td>
                                             <td className="manual-input border-r border-black">_</td>
                                             <td className="manual-input border-r border-black">_</td>
                                             <td className="manual-input border-r border-black">_</td>
                                             <td className="manual-input border-r border-black">_</td>
                                             <td className="manual-input border-r border-black">_</td>
-                                            <td className="manual-input">_</td> {/* SIN BORDE DERECHO */}
-                                        </tr>
+                                            <td className="manual-input">_</td> </tr>
                                     ))}
                                 </tbody>
                              </table>
@@ -657,7 +607,10 @@
             return (
                 <div className="h-screen bg-slate-100 overflow-hidden">
                     {view === 'create' && <div className="absolute inset-0 z-50 bg-black/50 flex items-center justify-center"><MultiOrderForm config={config} onCancel={()=>setView('dashboard')} initialOrder={formProps.initialOrder} clientHistory={allClients} inventory={inventory}/></div>}
-                    {view === 'detail' && selectedOrder && <div className="absolute inset-0 z-40 bg-white overflow-y-auto"><OrderView order={orders.find(o=>o.id===selectedOrder.id) || selectedOrder} config={config} onBack={()=>setView('dashboard')}/></div>}
+                    
+                    {/* ENVOLTORIO PARA IMPRESIÓN (print-visible-wrapper) */}
+                    {view === 'detail' && selectedOrder && <div className="absolute inset-0 z-40 bg-white overflow-y-auto print-visible-wrapper"><OrderView order={orders.find(o=>o.id===selectedOrder.id) || selectedOrder} config={config} onBack={()=>setView('dashboard')}/></div>}
+                    
                     {showSettings && <SettingsModal config={config} onClose={()=>setShowSettings(false)} />}
                     {showImport && <ImportModal onClose={()=>setShowImport(false)} onImport={handleImportData} />}
 
