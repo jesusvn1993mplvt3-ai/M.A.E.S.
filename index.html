@@ -49,12 +49,38 @@
             .print-only { display: block !important; }
             .print-section-top { height: 40vh; overflow: hidden; border-bottom: 2px dashed #000; margin-bottom: 1vh; display: flex; flex-direction: column; }
             .print-section-bottom { height: 55vh; display: block; }
-            table, th, td { border: 1px solid black !important; border-collapse: collapse; }
-            .threading-table-print { font-size: 9pt; width: 100%; }
+            
+            /* Estilos generales de tabla para impresión */
+            table { border-collapse: collapse; width: 100%; border: 2px solid black; }
+            th, td { border: 1px solid black; }
+            
+            /* Tabla de Enhebrado */
+            .threading-table-print { font-size: 9pt; }
             .threading-table-print th { background-color: #ddd !important; }
+            
+            /* Tabla de Paquetes (La que pediste modificar) */
             .package-table-print { font-size: 9pt; width: 100%; border: 2px solid black !important; }
-            .package-table-print th { background-color: #e5e7eb !important; font-weight: 800; text-transform: uppercase; font-size: 8pt; padding: 2px; border: 1px solid black !important; }
-            .package-table-print td { padding: 2px; height: 25px; vertical-align: middle; border: 1px solid black !important; }
+            .package-table-print th { 
+                background-color: #e5e7eb !important; 
+                font-weight: 800; 
+                text-transform: uppercase; 
+                font-size: 8pt; 
+                padding: 2px; 
+                border: 1px solid black !important;
+            }
+            .package-table-print td { 
+                padding: 2px; 
+                height: 25px; 
+                vertical-align: middle; 
+                border: 1px solid black !important;
+            }
+            
+            /* Quitar borde derecho de la última columna para evitar doble línea */
+            .package-table-print th:last-child,
+            .package-table-print td:last-child {
+                border-right: none !important;
+            }
+
             .manual-input { color: transparent; }
         }
         .print-only { display: none; }
@@ -66,7 +92,6 @@
         .pkg-list::-webkit-scrollbar { width: 6px; }
         .pkg-list::-webkit-scrollbar-thumb { background: #64748b; border-radius: 4px; }
         
-        /* Input invisible para observaciones */
         .obs-input { background: transparent; border: none; color: #cbd5e1; width: 100%; font-size: 10px; border-bottom: 1px solid #475569; }
         .obs-input:focus { outline: none; border-bottom: 1px solid #94a3b8; color: white; }
     </style>
@@ -131,7 +156,6 @@
         const MachineCard = ({ maquina, orders }) => {
             const [is24Hours, setIs24Hours] = useState(true);
             
-            // Calculamos los paquetes pendientes y el tiempo total
             const pendingPackages = useMemo(() => {
                 let pkgs = [];
                 orders.forEach(o => {
@@ -142,7 +166,7 @@
                         
                         pkgs.push({ 
                             ...p, 
-                            parentOrderId: o.id, // Necesario para guardar observaciones
+                            parentOrderId: o.id, 
                             orderCode: o.codigo, 
                             partida: o.partida,
                             timeTotal: (p.cantidad * timePerPiece) 
@@ -153,7 +177,6 @@
             }, [orders]);
 
             const updateObs = async (pkgId, parentOrderId, newVal) => {
-                // Función optimista simple: no esperamos la UI, solo enviamos a FB
                 const order = orders.find(o => o.id === parentOrderId);
                 if(!order) return;
                 const newProgreso = order.progreso.map(p => p.id === pkgId ? {...p, observaciones: newVal} : p);
@@ -183,16 +206,11 @@
                         {pendingPackages.length === 0 && <div className="text-center text-slate-500 text-xs py-4">Máquina Libre</div>}
                         {pendingPackages.map((p, i) => (
                             <div key={i} className="bg-slate-800 p-2 rounded flex gap-2 items-center text-xs border border-slate-700">
-                                {/* Cantidad Grande */}
                                 <div className="font-black text-white text-lg w-10 text-right shrink-0">{p.cantidad}</div>
-                                
-                                {/* Info Corta (Pieza y Partida truncada) */}
                                 <div className="w-24 shrink-0 overflow-hidden">
                                     <div className="font-bold text-slate-300 truncate text-[10px]" title={p.piezaNombre}>{p.piezaNombre}</div>
                                     <div className="text-[9px] text-yellow-500 font-black truncate">{p.partida}</div>
                                 </div>
-                                
-                                {/* Observaciones (Input ocupa el resto) */}
                                 <div className="flex-grow pl-2 border-l border-slate-600">
                                     <input 
                                         className="obs-input placeholder-slate-600" 
@@ -227,7 +245,7 @@
             );
         };
 
-        // --- COMPONENTE DE IMPORTACIÓN EXCEL/CSV ---
+        // --- COMPONENTE DE IMPORTACIÓN EXCEL/CSV (CORREGIDO CON BOTÓN CERRAR) ---
         const ImportModal = ({ onClose, onImport }) => {
             const [text, setText] = useState('');
             const [error, setError] = useState(null);
@@ -305,22 +323,30 @@
             return (
                 <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
                     <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-2xl relative">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-bold text-xl text-green-700 flex items-center gap-2"><Icon name="file-spreadsheet"/> Importar Excel (Por Partida)</h3>
-                            <button onClick={onClose} className="text-red-500 hover:text-red-700 transition-colors absolute top-4 right-4" title="Cerrar">
-                                <Icon name="x-circle" size={28}/>
+                        <div className="flex justify-between items-center mb-4 border-b pb-2">
+                            <h3 className="font-bold text-xl text-green-700 flex items-center gap-2">
+                                <Icon name="file-spreadsheet"/> Importar Excel
+                            </h3>
+                            {/* BOTÓN CERRAR AGREGADO */}
+                            <button onClick={onClose} className="bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-lg transition-transform hover:scale-110">
+                                <Icon name="x" size={24}/>
                             </button>
                         </div>
+                        
+                        <p className="text-xs text-slate-500 mb-2">Copia y pega las celdas directamente desde Excel.</p>
+                        
                         <textarea 
                             value={text} 
                             onChange={(e) => { setText(e.target.value); setError(null); }}
                             className="w-full h-64 p-3 border-2 border-slate-300 rounded font-mono text-xs focus:border-green-500 focus:outline-none"
-                            placeholder="Copia y pega las celdas del Excel aquí... (Incluyendo encabezados: PARTIDA, CODIGO, PIEZAS...)"
+                            placeholder="PARTIDA | CODIGO | PIEZAS | ..."
                         ></textarea>
+                        
                         {error && <div className="mt-2 text-red-600 text-xs font-bold bg-red-50 p-2 rounded border border-red-200">Error: {error}</div>}
+                        
                         <div className="flex justify-end gap-2 mt-4">
                             <button onClick={handleProcess} className="px-6 py-2 bg-green-600 text-white font-bold rounded shadow hover:bg-green-700 flex items-center gap-2">
-                                <Icon name="check-circle" size={18}/> Procesar Partida
+                                <Icon name="check-circle" size={18}/> Procesar
                             </button>
                         </div>
                     </div>
@@ -443,7 +469,7 @@
             );
         };
 
-        // --- VISUALIZACIÓN E IMPRESIÓN (CON EDICIÓN DE FOTO) ---
+        // --- VISUALIZACIÓN E IMPRESIÓN (SIN EDICIÓN DE FOTO) ---
         const OrderView = ({ order, config, onBack }) => {
             const [entry, setEntry] = useState({ tejedor: '', fecha: new Date().toISOString().split('T')[0], defectos: '', agujas: '' });
             
@@ -517,32 +543,32 @@
                                 <span>CONTROL DE TEJIDO - PARTIDA {order.partida}</span>
                                 <span>TOTAL PIEZAS: {order.totalPedido}</span>
                              </div>
-                             <table className="package-table-print w-full">
+                             <table className="package-table-print">
                                 <thead>
                                     <tr>
                                         <th className="w-8">#</th>
-                                        <th className="w-32">CÓDIGO ÚNICO</th>
+                                        <th className="w-20">CÓDIGO</th> {/* REDUCIDO SEGÚN TU SOLICITUD */}
                                         <th className="w-12">Cant</th>
                                         <th className="w-16">Tejedor</th>
                                         <th className="w-16">Fecha</th>
                                         <th className="w-12">Def</th>
                                         <th className="w-10">Agj</th>
                                         <th className="w-8">OK</th>
-                                        <th>OBSERVACIONES</th>
+                                        <th>OBSERVACIONES</th> {/* NUEVA COLUMNA AL FINAL */}
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {order.progreso?.map((p, idx) => (
                                         <tr key={p.id}>
                                             <td className="text-center font-bold border-r border-black">{idx+1}</td>
-                                            <td className="pl-1 font-mono text-[9px] border-r border-black truncate">{p.codigoUnico}</td>
+                                            <td className="pl-1 font-mono text-[8px] border-r border-black truncate max-w-[50px]">{p.codigoUnico}</td>
                                             <td className="text-center font-bold border-r border-black">{p.cantidad}</td>
                                             <td className="manual-input border-r border-black">_</td>
                                             <td className="manual-input border-r border-black">_</td>
                                             <td className="manual-input border-r border-black">_</td>
                                             <td className="manual-input border-r border-black">_</td>
                                             <td className="manual-input border-r border-black">_</td>
-                                            <td className="manual-input">_</td>
+                                            <td className="manual-input">_</td> {/* SIN BORDE DERECHO */}
                                         </tr>
                                     ))}
                                 </tbody>
