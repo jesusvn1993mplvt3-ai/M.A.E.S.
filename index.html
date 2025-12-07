@@ -18,6 +18,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     <script>
         const manifest = {
             "name": "Sistema Textil Cloud",
@@ -42,24 +44,17 @@
     </script>
 
     <style>
-        /* ESTILOS DE IMPRESIÓN CORREGIDOS */
+        /* ESTILOS DE IMPRESIÓN (MANTENIDOS POR SI ACASO SE REQUIERE IMPRIMIR NATIVAMENTE) */
         @media print {
             @page { margin: 0.5cm; size: letter portrait; }
-            
-            /* Forzar que el cuerpo sea visible y tenga altura automática */
             body, html, #root { 
                 background: white; 
                 -webkit-print-color-adjust: exact; 
                 width: 100%;
                 height: auto !important;
                 overflow: visible !important;
-                position: static !important;
             }
-
-            /* Ocultar todo lo que no se debe imprimir */
             .no-print, .dashboard-grid { display: none !important; }
-            
-            /* Asegurar que el modal de la orden sea visible y ocupe todo */
             .print-visible-wrapper {
                 position: static !important;
                 display: block !important;
@@ -70,23 +65,18 @@
                 background: white !important;
                 inset: auto !important;
             }
-
             .print-section-top { height: 40vh; overflow: hidden; border-bottom: 2px dashed #000; margin-bottom: 1vh; display: flex; flex-direction: column; }
             .print-section-bottom { height: 55vh; display: block; }
-            
             table { border-collapse: collapse; width: 100%; border: 2px solid black; table-layout: fixed; }
             th, td { border: 1px solid black; word-wrap: break-word; }
-            
             .threading-table-print { font-size: 9pt; }
             .threading-table-print th { background-color: #ddd !important; }
-            
-            /* TABLA DE PAQUETES OPTIMIZADA */
             .package-table-print { font-size: 9pt; width: 100%; border: 2px solid black !important; }
             .package-table-print th { 
                 background-color: #e5e7eb !important; 
                 font-weight: 800; 
                 text-transform: uppercase; 
-                font-size: 7pt; /* Letra más pequeña para encabezados */
+                font-size: 7pt; 
                 padding: 1px; 
                 border: 1px solid black !important;
             }
@@ -97,17 +87,13 @@
                 border: 1px solid black !important;
                 font-size: 8pt;
             }
-            
-            /* Quitar borde derecho de la última columna */
             .package-table-print th:last-child,
-            .package-table-print td:last-child {
-                border-right: none !important;
-            }
-
+            .package-table-print td:last-child { border-right: none !important; }
             .manual-input { color: transparent; }
             .print-only { display: block !important; }
         }
 
+        /* Estilos visuales en pantalla para el reporte */
         .print-only { display: none; }
         .dashboard-grid { display: grid; grid-template-rows: 60vh 1fr; height: 100vh; overflow: hidden; }
         .top-pane { overflow-y: auto; border-bottom: 4px solid #334155; }
@@ -116,9 +102,13 @@
         .pkg-list { overflow-y: auto; flex-grow: 1; margin-top: 10px; padding-right: 4px; }
         .pkg-list::-webkit-scrollbar { width: 6px; }
         .pkg-list::-webkit-scrollbar-thumb { background: #64748b; border-radius: 4px; }
-        
         .obs-input { background: transparent; border: none; color: #cbd5e1; width: 100%; font-size: 10px; border-bottom: 1px solid #475569; }
         .obs-input:focus { outline: none; border-bottom: 1px solid #94a3b8; color: white; }
+
+        /* Clase auxiliar para forzar visualización durante exportación PDF si es necesario */
+        .force-visible-export .print-only { display: block !important; }
+        .force-visible-export .print-section-top { height: auto !important; min-height: 400px; }
+        .force-visible-export .print-section-bottom { height: auto !important; }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans">
@@ -148,28 +138,20 @@
             return `${partida}-${piecePrefixes}-M${maquina}`;
         };
 
-        // --- COMPONENTE BOTÓN DE INSTALACIÓN ---
         const InstallButton = () => {
             const [deferredPrompt, setDeferredPrompt] = useState(null);
-
             useEffect(() => {
-                const handler = (e) => {
-                    e.preventDefault();
-                    setDeferredPrompt(e);
-                };
+                const handler = (e) => { e.preventDefault(); setDeferredPrompt(e); };
                 window.addEventListener('beforeinstallprompt', handler);
                 return () => window.removeEventListener('beforeinstallprompt', handler);
             }, []);
-
             const handleInstall = async () => {
                 if (!deferredPrompt) return;
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
                 if (outcome === 'accepted') setDeferredPrompt(null);
             };
-
             if (!deferredPrompt) return null;
-
             return (
                 <button onClick={handleInstall} className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-2 rounded font-bold shadow flex items-center gap-2 text-xs animate-pulse">
                     <Icon name="download-cloud" size={16}/> INSTALAR APP
@@ -177,7 +159,6 @@
             );
         };
 
-        // --- DASHBOARD COMPONENTS ---
         const MachineCard = ({ maquina, orders }) => {
             const [is24Hours, setIs24Hours] = useState(true);
             const pendingPackages = useMemo(() => {
@@ -253,7 +234,6 @@
             );
         };
 
-        // --- COMPONENTE DE IMPORTACIÓN ---
         const ImportModal = ({ onClose, onImport }) => {
             const [text, setText] = useState('');
             const [error, setError] = useState(null);
@@ -346,7 +326,6 @@
             return <img src={imgSrc} onError={handleError} className={className} />;
         };
 
-        // --- FORMULARIO DE ORDEN ---
         const MultiOrderForm = ({ config, onCancel, initialOrder, clientHistory, inventory }) => {
             const [header, setHeader] = useState(initialOrder ? { codigo: initialOrder.codigo, cliente: initialOrder.cliente, maquina: initialOrder.maquina, partida: initialOrder.partida || '', fechaInicio: new Date().toISOString().split('T')[0] } : { codigo: '', cliente: '', maquina: '', partida: '', fechaInicio: new Date().toISOString().split('T')[0] });
             const [pieces, setPieces] = useState(initialOrder?.pieces || [{ id: 1, pieza: 'BLUSA', programa: '', talla: 'UNITALLA', totalPedido: 100, peso: '', tiempo: '' }]);
@@ -405,7 +384,7 @@
             );
         };
 
-        // --- VISUALIZACIÓN E IMPRESIÓN MODIFICADA PARA EXPORTACIÓN ---
+        // --- VISUALIZACIÓN E IMPRESIÓN CON PDF DIRECTO ---
         const OrderView = ({ order, config, onBack }) => {
             const [entry, setEntry] = useState({ tejedor: '', fecha: new Date().toISOString().split('T')[0], defectos: '', agujas: '' });
             
@@ -419,17 +398,9 @@
                 const preHtml = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Orden Doc</title><style>body {font-family: sans-serif;} table {border-collapse: collapse; width: 100%; font-size: 10pt;} th, td {border: 1px solid black; padding: 4px;}</style></head><body>";
                 const postHtml = "</body></html>";
                 const printableContent = document.getElementById('printable-area').innerHTML;
-                
-                // Limpieza básica de clases para que Word no se confunda (opcional, pero ayuda)
-                // y asegurando que las tablas tengan border="1" para Word
                 const cleanContent = printableContent.replace(/<table/g, '<table border="1"');
-                
                 const html = preHtml + cleanContent + postHtml;
-                
-                const blob = new Blob(['\ufeff', html], {
-                    type: 'application/msword'
-                });
-                
+                const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url;
@@ -437,6 +408,26 @@
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
+            };
+
+            // NUEVA FUNCIÓN PARA DESCARGAR PDF
+            const handlePdfExport = () => {
+                const element = document.getElementById('printable-area');
+                // Forzar clases para asegurar visibilidad en la captura
+                element.classList.add('force-visible-export');
+                
+                const opt = {
+                    margin:       0.2, // pulgadas
+                    filename:     `Orden_${order.codigo}_${order.partida}.pdf`,
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2, useCORS: true }, // scale 2 mejora la calidad del texto
+                    jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+                };
+
+                // Generar PDF y luego limpiar la clase forzada
+                html2pdf().set(opt).from(element).save().then(() => {
+                    element.classList.remove('force-visible-export');
+                });
             };
 
             return (
@@ -447,14 +438,15 @@
                              <button onClick={() => handleDocxExport()} className="bg-blue-600 text-white px-3 py-1 rounded font-bold text-xs flex items-center gap-1 hover:bg-blue-700">
                                 <Icon name="file-text"/> EXPORTAR DOCX
                              </button>
-                             <button onClick={() => window.print()} className="bg-red-600 text-white px-3 py-1 rounded font-bold text-xs flex items-center gap-1 hover:bg-red-700">
-                                <Icon name="file"/> EXPORTAR PDF
+                             {/* BOTÓN ACTUALIZADO PARA DESCARGAR PDF */}
+                             <button onClick={() => handlePdfExport()} className="bg-red-600 text-white px-3 py-1 rounded font-bold text-xs flex items-center gap-1 hover:bg-red-700">
+                                <Icon name="file"/> DESCARGAR PDF
                              </button>
                         </div>
                     </div>
                     
-                    {/* ENVOLTORIO CON ID PARA EXPORTACIÓN DOCX */}
-                    <div className="p-8 print:p-0" id="printable-area">
+                    {/* ENVOLTORIO CON ID PARA EXPORTACIÓN DOCX Y PDF */}
+                    <div className="p-8 print:p-0 bg-white" id="printable-area">
                         <div className="print-section-top">
                              <div className="flex justify-between items-start border-b-4 border-black pb-2 mb-2">
                                 <div>
@@ -504,7 +496,7 @@
                             </div>
                         </div>
 
-                        <div className="print-section-bottom print-only">
+                        <div className="print-section-bottom print-only" style={{display: 'block'}}>
                             <br/>
                              <div className="border-b border-black font-bold mb-1 text-sm flex justify-between">
                                 <span>CONTROL DE TEJIDO - PARTIDA {order.partida}</span>
@@ -551,7 +543,6 @@
                         </div>
                     </div>
 
-                    {/* SECCIÓN DIGITAL (NO SE IMPRIME NI SE EXPORTA AL DOCX PORQUE ESTÁ FUERA DEL ID) */}
                     <div className="no-print p-8 pt-0">
                         <div className="bg-slate-100 p-4 rounded border mb-6">
                             <h3 className="font-bold text-lg mb-2 text-slate-700">Registro Digital</h3>
@@ -634,7 +625,6 @@
                 <div className="h-screen bg-slate-100 overflow-hidden">
                     {view === 'create' && <div className="absolute inset-0 z-50 bg-black/50 flex items-center justify-center"><MultiOrderForm config={config} onCancel={()=>setView('dashboard')} initialOrder={formProps.initialOrder} clientHistory={allClients} inventory={inventory}/></div>}
                     
-                    {/* ENVOLTORIO PARA IMPRESIÓN (print-visible-wrapper) */}
                     {view === 'detail' && selectedOrder && <div className="absolute inset-0 z-40 bg-white overflow-y-auto print-visible-wrapper"><OrderView order={orders.find(o=>o.id===selectedOrder.id) || selectedOrder} config={config} onBack={()=>setView('dashboard')}/></div>}
                     
                     {showSettings && <SettingsModal config={config} onClose={()=>setShowSettings(false)} />}
