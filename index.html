@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -42,70 +42,60 @@
     </script>
 
     <style>
-        /* ESTILOS DE IMPRESIÓN CORREGIDOS */
+        /* ESTILOS DE IMPRESIÓN RESTAURADOS (Traídos de index 14) */
         @media print {
             @page { margin: 0.5cm; size: letter portrait; }
             
-            /* Forzar que el cuerpo sea visible y tenga altura automática */
-            body, html, #root { 
+            body, html { 
                 background: white; 
                 -webkit-print-color-adjust: exact; 
                 width: 100%;
-                height: auto !important;
-                overflow: visible !important;
-                position: static !important;
+                height: 100%;
+                margin: 0;
+                padding: 0;
             }
 
-            /* Ocultar todo lo que no se debe imprimir */
-            .no-print, .dashboard-grid { display: none !important; }
+            /* Ocultar todo lo que no sea el wrapper de impresión */
+            body * { visibility: hidden; }
             
-            /* Asegurar que el modal de la orden sea visible y ocupe todo */
-            .print-visible-wrapper {
-                position: static !important;
-                display: block !important;
-                width: 100% !important;
-                height: auto !important;
-                overflow: visible !important;
-                z-index: 99999 !important;
-                background: white !important;
-                inset: auto !important;
+            /* Hacer visible solo el contenedor de impresión y sus hijos */
+            .print-visible-wrapper, .print-visible-wrapper * {
+                visibility: visible;
             }
+
+            .print-visible-wrapper {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                background: white !important;
+                z-index: 9999;
+            }
+
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
 
             .print-section-top { height: 40vh; overflow: hidden; border-bottom: 2px dashed #000; margin-bottom: 1vh; display: flex; flex-direction: column; }
             .print-section-bottom { height: 55vh; display: block; }
             
-            table { border-collapse: collapse; width: 100%; border: 2px solid black; table-layout: fixed; }
-            th, td { border: 1px solid black; word-wrap: break-word; }
+            table, th, td { border: 1px solid black !important; border-collapse: collapse; }
             
-            .threading-table-print { font-size: 9pt; }
+            .threading-table-print { font-size: 9pt; width: 100%; }
             .threading-table-print th { background-color: #ddd !important; }
             
-            /* TABLA DE PAQUETES OPTIMIZADA */
-            .package-table-print { font-size: 9pt; width: 100%; border: 2px solid black !important; }
+            .package-table-print { font-size: 9pt; width: 100%; }
             .package-table-print th { 
                 background-color: #e5e7eb !important; 
                 font-weight: 800; 
                 text-transform: uppercase; 
-                font-size: 7pt; /* Letra más pequeña para encabezados */
-                padding: 1px; 
-                border: 1px solid black !important;
+                font-size: 8pt; 
+                padding: 2px; 
             }
-            .package-table-print td { 
-                padding: 1px; 
-                height: 25px; 
-                vertical-align: middle; 
-                border: 1px solid black !important;
-                font-size: 8pt;
-            }
+            .package-table-print td { padding: 2px; height: 25px; vertical-align: middle; }
             
-            /* Quitar borde derecho de la última columna */
-            .package-table-print th:last-child,
-            .package-table-print td:last-child {
-                border-right: none !important;
-            }
-
             .manual-input { color: transparent; }
-            .print-only { display: block !important; }
         }
 
         .print-only { display: none; }
@@ -253,7 +243,7 @@
             );
         };
 
-        // --- COMPONENTE DE IMPORTACIÓN (CON BOTÓN CERRAR CLARO) ---
+        // --- COMPONENTE DE IMPORTACIÓN (MEJORADO - MANTENIDO DE INDEX 2) ---
         const ImportModal = ({ onClose, onImport }) => {
             const [text, setText] = useState('');
             const [error, setError] = useState(null);
@@ -300,7 +290,7 @@
                     <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-2xl relative">
                         <div className="flex justify-between items-center mb-4 border-b pb-2">
                             <h3 className="font-bold text-xl text-green-700 flex items-center gap-2"><Icon name="file-spreadsheet"/> Importar Excel</h3>
-                            {/* BOTÓN CERRAR - Ahora más visible y funcional */}
+                            {/* BOTÓN CERRAR - MANTENIDO DE INDEX 2 (MEJORADO) */}
                             <button onClick={onClose} className="bg-red-500 hover:bg-red-600 text-white rounded-md p-2 shadow-lg flex items-center gap-1 font-bold text-xs transition-transform hover:scale-105">
                                 <Icon name="x" size={18}/> CERRAR
                             </button>
@@ -407,7 +397,7 @@
             );
         };
 
-        // --- VISUALIZACIÓN E IMPRESIÓN (SIN EDICIÓN DE FOTO, TABLA AJUSTADA) ---
+        // --- VISUALIZACIÓN E IMPRESIÓN (RESTAURADO ESTILO DE IMPRESIÓN DE INDEX 14) ---
         const OrderView = ({ order, config, onBack }) => {
             const [entry, setEntry] = useState({ tejedor: '', fecha: new Date().toISOString().split('T')[0], defectos: '', agujas: '' });
             
@@ -417,8 +407,6 @@
                 await db.collection('orders').doc(String(order.id)).update({progreso: newProgreso});
             };
 
-            // Eliminé el botón de editar modelo como pediste.
-            // Tabla ajustada: Columna CODIGO reducida, Columna OBSERVACIONES agregada al final, Borde derecho eliminado.
             return (
                 <div className="bg-white min-h-screen relative">
                     <div className="no-print p-4 border-b flex justify-between bg-slate-50 sticky top-0 z-10 shadow-sm">
@@ -431,6 +419,7 @@
                     </div>
                     
                     <div className="p-8 print:p-0">
+                        {/* SECCIÓN SUPERIOR DE IMPRESIÓN RESTAURADA */}
                         <div className="print-section-top">
                              <div className="flex justify-between items-start border-b-4 border-black pb-2 mb-2">
                                 <div>
@@ -480,46 +469,24 @@
                             </div>
                         </div>
 
+                        {/* SECCIÓN INFERIOR DE IMPRESIÓN RESTAURADA (TABLA TIPO 14) */}
                         <div className="print-section-bottom print-only">
                              <div className="border-b border-black font-bold mb-1 text-sm flex justify-between">
                                 <span>CONTROL DE TEJIDO - PARTIDA {order.partida}</span>
                                 <span>TOTAL PIEZAS: {order.totalPedido}</span>
                              </div>
-                             <table className="package-table-print">
-                                <colgroup>
-                                    <col style={{width: '5%'}} />
-                                    <col style={{width: '15%'}} /> <col style={{width: '8%'}} />
-                                    <col style={{width: '10%'}} />
-                                    <col style={{width: '10%'}} />
-                                    <col style={{width: '8%'}} />
-                                    <col style={{width: '8%'}} />
-                                    <col style={{width: '5%'}} />
-                                    <col style={{width: '31%'}} /> </colgroup>
+                             <table className="package-table-print border-2 border-black w-full">
                                 <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>CÓDIGO</th> 
-                                        <th>Cant</th>
-                                        <th>Tejedor</th>
-                                        <th>Fecha</th>
-                                        <th>Def</th>
-                                        <th>Agj</th>
-                                        <th>OK</th>
-                                        <th>OBSERVACIONES</th>
-                                    </tr>
+                                    <tr><th className="w-8">#</th><th>CÓDIGO ÚNICO (Papeleta)</th><th className="w-12">Cant</th><th className="w-16">Tejedor</th><th className="w-16">Fecha</th><th className="w-12">Def</th><th className="w-10">Agj</th><th className="w-8">OK</th></tr>
                                 </thead>
                                 <tbody>
                                     {order.progreso?.map((p, idx) => (
                                         <tr key={p.id}>
                                             <td className="text-center font-bold border-r border-black">{idx+1}</td>
-                                            <td className="pl-1 font-mono text-[8px] border-r border-black truncate">{p.codigoUnico}</td>
+                                            <td className="pl-2 font-mono text-[10px] border-r border-black">{p.codigoUnico}</td>
                                             <td className="text-center font-bold border-r border-black">{p.cantidad}</td>
-                                            <td className="manual-input border-r border-black">_</td>
-                                            <td className="manual-input border-r border-black">_</td>
-                                            <td className="manual-input border-r border-black">_</td>
-                                            <td className="manual-input border-r border-black">_</td>
-                                            <td className="manual-input border-r border-black">_</td>
-                                            <td className="manual-input">_</td> </tr>
+                                            <td className="manual-input border-r border-black">_</td><td className="manual-input border-r border-black">_</td><td className="manual-input border-r border-black">_</td><td className="manual-input border-r border-black">_</td><td className="manual-input">_</td>
+                                        </tr>
                                     ))}
                                 </tbody>
                              </table>
@@ -608,7 +575,7 @@
                 <div className="h-screen bg-slate-100 overflow-hidden">
                     {view === 'create' && <div className="absolute inset-0 z-50 bg-black/50 flex items-center justify-center"><MultiOrderForm config={config} onCancel={()=>setView('dashboard')} initialOrder={formProps.initialOrder} clientHistory={allClients} inventory={inventory}/></div>}
                     
-                    {/* ENVOLTORIO PARA IMPRESIÓN (print-visible-wrapper) */}
+                    {/* ENVOLTORIO PARA IMPRESIÓN CON CLASE CORRECTA */}
                     {view === 'detail' && selectedOrder && <div className="absolute inset-0 z-40 bg-white overflow-y-auto print-visible-wrapper"><OrderView order={orders.find(o=>o.id===selectedOrder.id) || selectedOrder} config={config} onBack={()=>setView('dashboard')}/></div>}
                     
                     {showSettings && <SettingsModal config={config} onClose={()=>setShowSettings(false)} />}
