@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Antojitos La Güerita: Historias</title>
+    <title>Antojitos La Güerita: Historias de Yuriria</title>
     <style>
-        /* ESTILOS COZY / RELAJADOS */
+        /* Estilos (Los estilos visuales son los mismos para mantener la vibra "cozy") */
         body {
             font-family: 'Georgia', 'Times New Roman', serif;
             background-color: #fdf5e6; /* Crema suave */
@@ -16,7 +16,8 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
-            background-image: radial-gradient(#ffe0b2 10%, transparent 10%);
+            /* Fondo con textura de adobe o tierra */
+            background-image: radial-gradient(#d7ccc8 10%, transparent 10%);
             background-size: 30px 30px;
         }
 
@@ -27,7 +28,7 @@
             height: 80vh;
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(93, 64, 55, 0.2);
-            border: 8px solid #8d6e63;
+            border: 8px solid #a1887f; /* Color de tierra/adobe */
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -37,7 +38,8 @@
         /* ESCENA SUPERIOR (El Cliente) */
         .scene-area {
             flex: 2;
-            background: linear-gradient(to bottom, #fff3e0, #ffe0b2);
+            /* Degradado que evoca el atardecer en la laguna */
+            background: linear-gradient(to bottom, #d4e157, #689f38); 
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -53,7 +55,7 @@
         }
 
         .character-name {
-            background-color: #8d6e63;
+            background-color: #5d4037;
             color: white;
             padding: 5px 20px;
             border-radius: 20px;
@@ -97,7 +99,7 @@
         }
 
         button.choice-btn:hover {
-            background-color: #8d6e63;
+            background-color: #689f38; /* Color verde olivo de la naturaleza */
             color: white;
         }
 
@@ -124,7 +126,7 @@
             z-index: 100;
         }
 
-        .title-screen h1 { font-size: 2.5rem; color: #d84315; margin-bottom: 10px;}
+        .title-screen h1 { font-size: 2.5rem; color: #689f38; margin-bottom: 10px;}
         .title-screen p { font-size: 1.2rem; margin-bottom: 30px; font-style: italic;}
         
         .start-btn {
@@ -148,7 +150,7 @@
     <div class="game-frame">
         
         <div class="hearts-container" id="heartsDisplay">
-            ❤️❤️❤️
+            Satisfacción: 0/3
         </div>
 
         <div class="scene-area">
@@ -164,9 +166,9 @@
             </div>
 
         <div class="title-screen" id="titleScreen">
-            <div style="font-size: 4rem;">🍲</div>
+            <div style="font-size: 4rem;">⛵</div>
             <h1>Antojitos La Güerita</h1>
-            <p>Donde cada platillo cuenta una historia.</p>
+            <p>La Laguna y su Sazón (Yuriria, GTO)</p>
             <button class="start-btn" onclick="startGame()">Abrir el Puesto</button>
         </div>
 
@@ -180,69 +182,65 @@
     </div>
 
     <script>
-        // --- DATOS DE LA HISTORIA ---
-        
-        /* Cada "Cliente" tiene un problema y dos opciones de comida.
-           Una opción es "Perfecta" (resuena emocionalmente) y la otra es "Neutra".
-        */
+        // --- DATOS DE LA HISTORIA (AMBIENTACIÓN YURIRIA) ---
         
         const story = [
             {
                 id: 1,
-                name: "Don Pepe (Taxista)",
-                emoji: "👴🏽",
-                intro: "Buenas noches, Güerita. Uff, no sabes el tráfico que hay en Tlalpan. Llevo 10 horas manejando y siento el cuerpo cortado, como que me quiere dar gripa.",
+                name: "Don Beto (Pescador)",
+                emoji: "🎣",
+                intro: "¡Buenos días, Güerita! Uf, qué solazo hace en la Laguna. Llevo desde el amanecer en la lancha y el calor me tiene mareado. Necesito algo que me despierte.",
                 options: [
                     {
-                        dish: "🌮 Tacos de Suadero",
-                        desc: "Grasositos y rápidos.",
-                        reaction: "Están buenos, pero me cayeron un poco pesados para el estómago... Gracias igual.",
+                        dish: "🥣 Sopa de Codo",
+                        desc: "Caliente y reconfortante.",
+                        reaction: "Ay, no, Güerita. Con este calor, ¡la sopa me va a dormir! Pero está sabrosa, eso sí.",
                         score: 0
                     },
                     {
-                        dish: "🥣 Caldo de Gallina",
-                        desc: "Calientito con garbanzo y arroz.",
-                        reaction: "¡Ay, mija! Esto es justo lo que necesitaba. Siento que me revivió el alma. Gracias por cuidarme.",
+                        dish: "🧊 Caldo de Oso",
+                        desc: "Bebida fría de jícama, piña y vinagre.",
+                        reaction: "¡Eso mero! Esto sí es de Guanajuato. ¡Está frío, picosito y me revivió! Gracias, se me quitó el sopor de la Laguna.",
                         score: 1
                     }
                 ]
             },
             {
                 id: 2,
-                name: "Sofi (Estudiante)",
-                emoji: "👩🏻‍💻",
-                intro: "Hola... oye, ¿tienes algo rápido? Tengo examen final mañana y no he dormido nada, necesito energía pero estoy súper nerviosa y me tiemblan las manos.",
+                name: "Julieta (Turista)",
+                emoji: "📸",
+                intro: "¡Hola! Vine a ver el Ex Convento y la vista de la Laguna. Estoy fascinada, pero llevo horas caminando y siento que me falta energía para seguir. Necesito algo que me dé un buen 'punch'.",
                 options: [
                     {
-                        dish: "🥤 Atole de Champurrado",
-                        desc: "Dulce, espeso y calmante.",
-                        reaction: "Mmm... está rico y me calmó los nervios. Creo que podré estudiar mejor sin tanta ansiedad. ¡Eres la mejor!",
+                        dish: "🌶️ Guacamaya",
+                        desc: "Duro con cueritos, col y mucha salsa.",
+                        reaction: "¡Wow! Nunca había probado esto. ¡El picante me despertó y es súper llenador! ¡Justo lo que necesitaba para seguir turisteando!",
                         score: 1
                     },
                     {
-                        dish: "🌶️ Gordita de Chicharrón",
-                        desc: "Con mucha salsa roja picante.",
-                        reaction: "¡Híjole! Me enchilé tanto que se me olvidó lo que estudié, jaja. Bueno, al menos me despertó.",
+                        dish: "☕ Café de Olla",
+                        desc: "Caliente y especiado.",
+                        reaction: "Gracias, está riquísimo. Pero para caminar en el sol me dio más calor que energía. Debí pedir algo más sustancioso.",
                         score: 0
                     }
                 ]
             },
             {
                 id: 3,
-                name: "Doña Carmen (Vecina)",
-                emoji: "👵🏻",
-                intro: "¿Ya supiste lo de los vecinos de enfrente? ¡Un escándalo! Ay, Güerita, venía solo de paso pero el chisme está bueno y tengo tiempo de sobra.",
+                name: "Doña Lucha (Comerciante del Mercado)",
+                emoji: "🛍️",
+                intro: "¡Ay, Güerita! No sabes el ajetreo en el mercado hoy. El puesto de frutas de junto me dio un mal rato y ya me dejó el estómago revuelto. Necesito algo suavecito y tradicional que me calme el coraje.",
                 options: [
                     {
-                        dish: "🌮 Un taco rápido",
-                        desc: "Para comer de pie.",
-                        reaction: "Ah... bueno, me lo como rápido y me voy. Luego te cuento bien el chisme completo.",
+                        dish: "🌮 Tacos de Pastor con todo",
+                        desc: "Grasa y mucha cebolla.",
+                        reaction: "Mmm... creo que la grasa no me ayudó a calmar el estómago, al contrario. Pero me comí el coraje, ¡eso sí!",
                         score: 0
                     },
                     {
-                        dish: "🍽️ Orden de Enchiladas",
-                        desc: "Platillo grande para sentarse a comer.",
-                        reaction: "¡Eso! Sírvemelas bien preparadas para sentarme aquí un buen rato a platicarte todo. ¡Trae la coca!",
+                        dish: "🍚 Tamal de Dulce y Atole",
+                        desc: "Suave, dulce y reconfortante.",
+                        reaction: "¡Bendiciones! El tamal está como hecho por mi abuela, y el atole me sentó de maravilla. Ya estoy de mejor humor para volver al mercado. ¡Gracias por el consuelo!",
                         score: 1
                     }
                 ]
@@ -252,6 +250,8 @@
         let currentLevel = 0;
         let happiness = 0;
 
+        // --- FUNCIONES DEL JUEGO (Mismos principios que el concepto original) ---
+        
         function startGame() {
             document.getElementById('titleScreen').classList.add('hidden');
             loadLevel(0);
@@ -265,14 +265,12 @@
 
             const data = story[index];
             
-            // Actualizar interfaz
             document.getElementById('charName').innerText = data.name;
             document.getElementById('charImg').innerText = data.emoji;
             document.getElementById('dialogueText').innerText = data.intro;
 
-            // Generar botones
             const btnContainer = document.getElementById('choicesContainer');
-            btnContainer.innerHTML = ''; // Limpiar botones anteriores
+            btnContainer.innerHTML = ''; 
 
             data.options.forEach(opt => {
                 const btn = document.createElement('button');
@@ -284,16 +282,13 @@
         }
 
         function selectOption(option, index) {
-            // Mostrar reacción
             document.getElementById('dialogueText').innerText = option.reaction;
             
-            // Actualizar felicidad
             happiness += option.score;
             updateHearts();
 
-            // Limpiar botones para que el usuario solo pueda leer
             const btnContainer = document.getElementById('choicesContainer');
-            btnContainer.innerHTML = '<button class="choice-btn" style="text-align:center; display:block;" onclick="nextLevel()">Siguiente Cliente ▶</button>';
+            btnContainer.innerHTML = '<button class="choice-btn" style="text-align:center; display:block;" onclick="nextLevel()">Siguiente Cliente de Yuriria ▶</button>';
             
             currentLevel = index + 1;
         }
@@ -303,14 +298,7 @@
         }
 
         function updateHearts() {
-            let hearts = "";
-            for(let i=0; i<3; i++) {
-                if(i < happiness) hearts += "❤️";
-                else hearts += "🤍";
-            }
-            // En este demo simple, el maximo es 3 corazones basado en 3 niveles
-            // Ajustamos visualización
-            document.getElementById('heartsDisplay').innerText = "Satisfacción: " + happiness + "/3";
+            document.getElementById('heartsDisplay').innerText = `Satisfacción: ${happiness}/3`;
         }
 
         function endGame() {
@@ -318,11 +306,11 @@
             const msg = document.getElementById('finalMessage');
             
             if(happiness === 3) {
-                msg.innerText = "¡Eres el corazón del barrio! Todos se fueron felices.";
+                msg.innerText = "¡El Pueblo Mágico te adora! Eres el mejor sazón de Yuriria.";
             } else if (happiness >= 1) {
-                msg.innerText = "Fue una buena noche, aunque algunos se fueron con hambre de algo más.";
+                msg.innerText = "Tuviste buen tino con los antojos. El puesto de la Laguna fue bien atendido.";
             } else {
-                msg.innerText = "Hoy no tuviste buen tino con los antojos. ¡Mañana será mejor!";
+                msg.innerText = "La Laguna de hoy estuvo difícil. ¡Mañana afinamos el sazón regional!";
             }
         }
 
