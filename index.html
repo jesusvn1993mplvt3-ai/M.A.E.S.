@@ -3,657 +3,294 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Textil Cloud - Cirineo</title>
-    
-    <link id="appIcon" rel="icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/maes.png">
-    <link id="appAppleIcon" rel="apple-touch-icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/maes.png">
-    <meta name="theme-color" content="#1e293b">
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-
-    <script>
-        const manifest = {
-            "name": "Sistema Textil Cloud",
-            "short_name": "Cirineo",
-            "start_url": ".",
-            "display": "standalone",
-            "background_color": "#f1f5f9",
-            "theme_color": "#1e293b",
-            "icons": [{
-                "src": "https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/maes.png",
-                "sizes": "192x192",
-                "type": "image/png"
-            }]
-        };
-        const stringManifest = JSON.stringify(manifest);
-        const blob = new Blob([stringManifest], {type: 'application/json'});
-        const manifestURL = URL.createObjectURL(blob);
-        const link = document.createElement('link');
-        link.rel = 'manifest';
-        link.href = manifestURL;
-        document.head.appendChild(link);
-    </script>
-
+    <title>Antojitos La Güerita</title>
     <style>
-        /* ESTILOS DE IMPRESIÓN CORREGIDOS */
-        @media print {
-            @page { margin: 0.5cm; size: letter portrait; }
-            
-            /* Forzar que el cuerpo sea visible y tenga altura automática */
-            body, html, #root { 
-                background: white; 
-                -webkit-print-color-adjust: exact; 
-                width: 100%;
-                height: auto !important;
-                overflow: visible !important;
-                position: static !important;
-            }
-
-            /* Ocultar todo lo que no se debe imprimir */
-            .no-print, .dashboard-grid { display: none !important; }
-            
-            /* Asegurar que el modal de la orden sea visible y ocupe todo */
-            .print-visible-wrapper {
-                position: static !important;
-                display: block !important;
-                width: 100% !important;
-                height: auto !important;
-                overflow: visible !important;
-                z-index: 99999 !important;
-                background: white !important;
-                inset: auto !important;
-            }
-
-            .print-section-top { height: 40vh; overflow: hidden; border-bottom: 2px dashed #000; margin-bottom: 1vh; display: flex; flex-direction: column; }
-            .print-section-bottom { height: 55vh; display: block; }
-            
-            table { border-collapse: collapse; width: 100%; border: 2px solid black; table-layout: fixed; }
-            th, td { border: 1px solid black; word-wrap: break-word; }
-            
-            .threading-table-print { font-size: 9pt; }
-            .threading-table-print th { background-color: #ddd !important; }
-            
-            /* TABLA DE PAQUETES OPTIMIZADA */
-            .package-table-print { font-size: 9pt; width: 100%; border: 2px solid black !important; }
-            .package-table-print th { 
-                background-color: #e5e7eb !important; 
-                font-weight: 800; 
-                text-transform: uppercase; 
-                font-size: 7pt; /* Letra más pequeña para encabezados */
-                padding: 1px; 
-                border: 1px solid black !important;
-            }
-            .package-table-print td { 
-                padding: 1px; 
-                height: 25px; 
-                vertical-align: middle; 
-                border: 1px solid black !important;
-                font-size: 8pt;
-            }
-            
-            /* Quitar borde derecho de la última columna */
-            .package-table-print th:last-child,
-            .package-table-print td:last-child {
-                border-right: none !important;
-            }
-
-            .manual-input { color: transparent; }
-            .print-only { display: block !important; }
+        /* ESTILOS (El diseño visual) */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            touch-action: manipulation; /* Mejora respuesta en móviles */
         }
 
-        .print-only { display: none; }
-        .dashboard-grid { display: grid; grid-template-rows: 60vh 1fr; height: 100vh; overflow: hidden; }
-        .top-pane { overflow-y: auto; border-bottom: 4px solid #334155; }
-        .bottom-pane { overflow-x: auto; background: #1e293b; color: white; display: flex; padding: 10px; gap: 10px; }
-        .machine-card { min-width: 320px; background: #334155; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; height: 100%; }
-        .pkg-list { overflow-y: auto; flex-grow: 1; margin-top: 10px; padding-right: 4px; }
-        .pkg-list::-webkit-scrollbar { width: 6px; }
-        .pkg-list::-webkit-scrollbar-thumb { background: #64748b; border-radius: 4px; }
+        .game-container {
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            border: 5px solid #ffeb3b;
+        }
+
+        h1 {
+            color: #d81b60;
+            margin-top: 0;
+            font-size: 1.8rem;
+            text-shadow: 1px 1px 0px #ffeb3b;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .timer-box { color: #d32f2f; }
+        .score-box { color: #388e3c; }
+
+        /* AREA DEL CLIENTE */
+        .customer-area {
+            background-color: #fff3e0;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px dashed #ff9800;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .customer-speech {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            font-style: italic;
+        }
+
+        .order-emoji {
+            font-size: 4rem;
+            animation: bounce 0.5s infinite alternate;
+        }
+
+        /* LA COCINA (BOTONES) */
+        .kitchen-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .food-btn {
+            background-color: #fff;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .food-btn span { font-size: 2rem; }
+
+        .food-btn:active { transform: scale(0.95); }
+        .food-btn:hover { background-color: #f1f8e9; border-color: #8bc34a; }
+
+        /* PANTALLAS DE ESTADO */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 10;
+        }
+
+        .hidden { display: none !important; }
+
+        button.start-btn {
+            background-color: #ffeb3b;
+            color: #d81b60;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(255, 235, 59, 0.4);
+            transition: transform 0.2s;
+        }
         
-        .obs-input { background: transparent; border: none; color: #cbd5e1; width: 100%; font-size: 10px; border-bottom: 1px solid #475569; }
-        .obs-input:focus { outline: none; border-bottom: 1px solid #94a3b8; color: white; }
+        button.start-btn:hover { transform: scale(1.1); }
+
+        @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+        
+        /* Feedback visual */
+        .correct { animation: greenFlash 0.2s; }
+        .wrong { animation: redShake 0.3s; }
+
+        @keyframes greenFlash { 0% {background: #fff;} 50% {background: #b9f6ca;} 100% {background: #fff;} }
+        @keyframes redShake { 0% {transform: translateX(0);} 25% {transform: translateX(-5px);} 75% {transform: translateX(5px);} 100% {transform: translateX(0);} }
+
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans">
-    <div id="root"></div>
+<body>
 
-    <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+    <div class="game-container" id="gameBox">
+        <h1>🌮 Antojitos La Güerita</h1>
+        
+        <div class="stats">
+            <div class="score-box">Ventas: $<span id="score">0</span></div>
+            <div class="timer-box">Tiempo: <span id="time">30</span>s</div>
+        </div>
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBqHgV4vDat1-VmZfKbiPg7nuiX-ROcexw",
-            authDomain: "cirineo-cec21.firebaseapp.com",
-            projectId: "cirineo-cec21",
-            storageBucket: "cirineo-cec21.firebasestorage.app",
-            messagingSenderId: "620210618284",
-            appId: "1:620210618284:web:482bab9bf74650fff18409",
-            measurementId: "G-B7YLM78RVW"
-        };
+        <div class="customer-area">
+            <div class="customer-speech" id="customerText">¡Esperando clientes!</div>
+            <div class="order-emoji" id="orderEmoji">👩‍🍳</div>
+        </div>
 
-        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        <div class="kitchen-grid">
+            <button class="food-btn" onclick="submitOrder('taco')">
+                <span>🌮</span> Taco Pastor
+            </button>
+            <button class="food-btn" onclick="submitOrder('quesadilla')">
+                <span>🧀</span> Quesadilla
+            </button>
+            <button class="food-btn" onclick="submitOrder('elote')">
+                <span>🌽</span> Elote
+            </button>
+            <button class="food-btn" onclick="submitOrder('refresco')">
+                <span>🥤</span> Refresco
+            </button>
+        </div>
+    </div>
 
-        const Icon = ({ name, size = 18, className }) => <i data-lucide={name} width={size} height={size} className={className}></i>;
-        const toUppercase = (handler) => (e) => { e.target.value = e.target.value.toUpperCase(); handler(e); };
+    <div id="startScreen" class="overlay">
+        <h1>👩‍🍳 ¡A cocinar!</h1>
+        <p>Atiende rápido antes de que se enojen.</p>
+        <button class="start-btn" onclick="startGame()">Abrir Puesto</button>
+    </div>
 
-        const generateSmartID = (partida, pieces, maquina) => {
-            const piecePrefixes = pieces.map(p => p.pieza.substring(0, 2).toUpperCase()).join('/');
-            return `${partida}-${piecePrefixes}-M${maquina}`;
-        };
+    <div id="gameOverScreen" class="overlay hidden">
+        <h1>😢 ¡Se acabó!</h1>
+        <p>Ganancia total: $<span id="finalScore">0</span></p>
+        <p id="rankText">Buen intento</p>
+        <button class="start-btn" onclick="startGame()">Intentar de nuevo</button>
+    </div>
 
-        // --- COMPONENTE BOTÓN DE INSTALACIÓN ---
-        const InstallButton = () => {
-            const [deferredPrompt, setDeferredPrompt] = useState(null);
+    <script>
+        // LOGICA DEL JUEGO (JavaScript)
+        
+        let score = 0;
+        let timeLeft = 30;
+        let gameInterval;
+        let currentOrder = '';
+        
+        // Base de datos de frases y pedidos
+        const orders = [
+            { id: 'taco', emoji: '🌮', text: '¡Dos de pastor con todo!' },
+            { id: 'quesadilla', emoji: '🧀', text: '¡Una queca con queso!' },
+            { id: 'elote', emoji: '🌽', text: '¡Un elote con chilito!' },
+            { id: 'refresco', emoji: '🥤', text: '¡Me das una coquita!' }
+        ];
 
-            useEffect(() => {
-                const handler = (e) => {
-                    e.preventDefault();
-                    setDeferredPrompt(e);
-                };
-                window.addEventListener('beforeinstallprompt', handler);
-                return () => window.removeEventListener('beforeinstallprompt', handler);
-            }, []);
+        const ranks = [
+            { score: 0, text: "Novata en el comal" },
+            { score: 100, text: "Ayudante de cocina" },
+            { score: 250, text: "La Patrona del Barrio" },
+            { score: 500, text: "¡LEYENDA DE LA GARNACHA!" }
+        ];
 
-            const handleInstall = async () => {
-                if (!deferredPrompt) return;
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') setDeferredPrompt(null);
-            };
-
-            if (!deferredPrompt) return null;
-
-            return (
-                <button onClick={handleInstall} className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-2 rounded font-bold shadow flex items-center gap-2 text-xs animate-pulse">
-                    <Icon name="download-cloud" size={16}/> INSTALAR APP
-                </button>
-            );
-        };
-
-        // --- DASHBOARD COMPONENTS ---
-        const MachineCard = ({ maquina, orders }) => {
-            const [is24Hours, setIs24Hours] = useState(true);
-            const pendingPackages = useMemo(() => {
-                let pkgs = [];
-                orders.forEach(o => {
-                    const incomplete = o.progreso?.filter(p => !p.finished) || [];
-                    incomplete.forEach(p => {
-                        const pieceData = o.subPiecesData?.find(sp => sp.pieza === p.piezaNombre) || o;
-                        const timePerPiece = Number(pieceData.tiempo) || 0;
-                        pkgs.push({ ...p, parentOrderId: o.id, orderCode: o.codigo, partida: o.partida, timeTotal: (p.cantidad * timePerPiece) });
-                    });
-                });
-                return pkgs; 
-            }, [orders]);
-
-            const updateObs = async (pkgId, parentOrderId, newVal) => {
-                const order = orders.find(o => o.id === parentOrderId);
-                if(!order) return;
-                const newProgreso = order.progreso.map(p => p.id === pkgId ? {...p, observaciones: newVal} : p);
-                await db.collection('orders').doc(String(parentOrderId)).update({progreso: newProgreso});
-            };
-
-            const totalMinutesLeft = pendingPackages.reduce((sum, p) => sum + p.timeTotal, 0);
-            const hoursPerDay = is24Hours ? 24 : 12;
-            const daysLeft = totalMinutesLeft > 0 ? (totalMinutesLeft / 60 / hoursPerDay).toFixed(1) : 0;
-            const hoursLeft = (totalMinutesLeft / 60).toFixed(1);
-
-            return (
-                <div className="machine-card shadow-lg border border-slate-600">
-                    <div className="flex justify-between items-center border-b border-slate-500 pb-2 mb-2">
-                        <div>
-                            <div className="text-xs text-slate-400 font-bold uppercase">Máquina</div>
-                            <div className="text-3xl font-black text-yellow-400">#{maquina}</div>
-                        </div>
-                        <div className="text-right">
-                            <button onClick={()=>setIs24Hours(!is24Hours)} className="bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-[10px] font-bold mb-1 border border-slate-500 block w-full">
-                                {is24Hours ? '24 HORAS' : '12 HORAS'}
-                            </button>
-                            <div className="text-xs font-bold text-green-400">{daysLeft} días ({hoursLeft}h)</div>
-                        </div>
-                    </div>
-                    <div className="pkg-list space-y-1">
-                        {pendingPackages.length === 0 && <div className="text-center text-slate-500 text-xs py-4">Máquina Libre</div>}
-                        {pendingPackages.map((p, i) => (
-                            <div key={i} className="bg-slate-800 p-2 rounded flex gap-2 items-center text-xs border border-slate-700">
-                                <div className="font-black text-white text-lg w-10 text-right shrink-0">{p.cantidad}</div>
-                                <div className="w-24 shrink-0 overflow-hidden">
-                                    <div className="font-bold text-slate-300 truncate text-[10px]" title={p.piezaNombre}>{p.piezaNombre}</div>
-                                    <div className="text-[9px] text-yellow-500 font-black truncate">{p.partida}</div>
-                                </div>
-                                <div className="flex-grow pl-2 border-l border-slate-600">
-                                    <input className="obs-input placeholder-slate-600" placeholder="Observaciones..." defaultValue={p.observaciones || ''} onBlur={(e) => updateObs(p.id, p.parentOrderId, e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') e.target.blur(); }}/>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
-        };
-
-        const DashboardBottom = ({ activeOrders }) => {
-            const machineGroups = useMemo(() => {
-                const groups = {};
-                activeOrders.forEach(o => { if(!groups[o.maquina]) groups[o.maquina] = []; groups[o.maquina].push(o); });
-                return Object.keys(groups).sort((a,b) => parseInt(a)-parseInt(b)).map(k => ({ id: k, orders: groups[k] }));
-            }, [activeOrders]);
-
-            return (
-                <div className="bottom-pane shadow-inner">
-                    {machineGroups.map(g => <MachineCard key={g.id} maquina={g.id} orders={g.orders} />)}
-                    {machineGroups.length === 0 && <div className="text-slate-500 w-full flex items-center justify-center font-bold">No hay producción activa</div>}
-                </div>
-            );
-        };
-
-        // --- COMPONENTE DE IMPORTACIÓN (CON BOTÓN CERRAR CLARO) ---
-        const ImportModal = ({ onClose, onImport }) => {
-            const [text, setText] = useState('');
-            const [error, setError] = useState(null);
-
-            const handleProcess = () => {
-                if (!text.trim()) return;
-                try {
-                    const delimiter = text.includes('\t') ? '\t' : ',';
-                    const rows = text.trim().split('\n').map(r => r.split(delimiter));
-                    if (rows.length < 2) throw new Error("Datos insuficientes.");
-                    const headers = rows[0].map(h => h.trim().toUpperCase().replace(/"/g, ''));
-                    const getVal = (row, colName) => { const idx = headers.indexOf(colName); return idx !== -1 && row[idx] ? row[idx].trim().replace(/"/g, '') : ''; };
-
-                    if (headers.indexOf('PARTIDA') === -1) throw new Error("Falta columna 'PARTIDA'");
-                    if (headers.indexOf('CODIGO') === -1) throw new Error("Falta columna 'CODIGO'");
-                    if (headers.indexOf('PIEZAS') === -1) throw new Error("Falta columna 'PIEZAS'");
-
-                    const predefinedPackages = [];
-                    let totalPiezas = 0;
-                    const firstRow = rows[1]; 
-                    
-                    rows.slice(1).forEach((r, i) => {
-                        const piezas = parseFloat(getVal(r, 'PIEZAS'));
-                        const codigoUnico = getVal(r, 'CODIGO');
-                        let pkgNum = i + 1;
-                        if (!isNaN(piezas)) {
-                            totalPiezas += piezas;
-                            predefinedPackages.push({ id: Date.now() + i, piezaNombre: getVal(r, 'DESCRIPCION') || 'ESTANDAR', cantidad: piezas, paqueteNum: pkgNum, paquetesDePieza: rows.length - 1, codigoUnico: codigoUnico, finished: false });
-                        }
-                    });
-
-                    const threading = [];
-                    const nylon = getVal(firstRow, 'NYLON');
-                    const lycra = getVal(firstRow, 'LYCRA');
-                    if (nylon) threading.push({ id: 1, guia: '1', material: `NYLON ${nylon}`, sis: '', porcentaje: '' });
-                    if (lycra) threading.push({ id: 2, guia: '2', material: `LYCRA ${lycra}`, sis: '', porcentaje: '' });
-
-                    onImport({ codigo: getVal(firstRow, 'MODELO'), cliente: getVal(firstRow, 'CLIENTE'), maquina: getVal(firstRow, 'MAQUINA'), partida: getVal(firstRow, 'PARTIDA'), pieces: [{ id: Date.now(), pieza: getVal(firstRow, 'DESCRIPCION') || 'ESTANDAR', programa: '', talla: getVal(firstRow, 'TALLA') || 'UNITALLA', totalPedido: totalPiezas, peso: '', tiempo: '' }], threading: threading, predefinedPackages: predefinedPackages });
-                } catch (e) { setError(e.message); }
-            };
-
-            return (
-                <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
-                    <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-2xl relative">
-                        <div className="flex justify-between items-center mb-4 border-b pb-2">
-                            <h3 className="font-bold text-xl text-green-700 flex items-center gap-2"><Icon name="file-spreadsheet"/> Importar Excel</h3>
-                            {/* BOTÓN CERRAR - Ahora más visible y funcional */}
-                            <button onClick={onClose} className="bg-red-500 hover:bg-red-600 text-white rounded-md p-2 shadow-lg flex items-center gap-1 font-bold text-xs transition-transform hover:scale-105">
-                                <Icon name="x" size={18}/> CERRAR
-                            </button>
-                        </div>
-                        <p className="text-xs text-slate-500 mb-2">Copia y pega las celdas desde Excel.</p>
-                        <textarea value={text} onChange={(e) => { setText(e.target.value); setError(null); }} className="w-full h-64 p-3 border-2 border-slate-300 rounded font-mono text-xs focus:border-green-500 focus:outline-none" placeholder="Pegar datos..."></textarea>
-                        {error && <div className="mt-2 text-red-600 text-xs font-bold bg-red-50 p-2 rounded border border-red-200">Error: {error}</div>}
-                        <div className="flex justify-end gap-2 mt-4">
-                            <button onClick={handleProcess} className="px-6 py-2 bg-green-600 text-white font-bold rounded shadow hover:bg-green-700 flex items-center gap-2"><Icon name="check-circle" size={18}/> Procesar</button>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        // --- COMPONENTE IMAGEN ---
-        const SmartImage = ({ repoUrls, codigo, className }) => {
-            const [imgSrc, setImgSrc] = useState(null);
-            const [attempt, setAttempt] = useState({ urlIndex: 0, extension: 'jpg' });
-
-            useEffect(() => {
-                if (!repoUrls || !repoUrls.length || !codigo) { setImgSrc(null); return; }
-                setAttempt({ urlIndex: 0, extension: 'jpg' });
-                const base = repoUrls[0].endsWith('/') ? repoUrls[0] : repoUrls[0] + '/';
-                setImgSrc(`${base}${codigo}.jpg`);
-            }, [repoUrls, codigo]);
-
-            const handleError = () => {
-                const { urlIndex, extension } = attempt;
-                if (extension === 'jpg') {
-                    const base = repoUrls[urlIndex].endsWith('/') ? repoUrls[urlIndex] : repoUrls[urlIndex] + '/';
-                    setImgSrc(`${base}${codigo}.png`);
-                    setAttempt({ ...attempt, extension: 'png' });
-                } else if (urlIndex < repoUrls.length - 1) {
-                    const nextIdx = urlIndex + 1;
-                    const base = repoUrls[nextIdx].endsWith('/') ? repoUrls[nextIdx] : repoUrls[nextIdx] + '/';
-                    setImgSrc(`${base}${codigo}.jpg`);
-                    setAttempt({ urlIndex: nextIdx, extension: 'jpg' });
-                } else {
-                    setAttempt({ ...attempt, extension: 'fail' });
-                }
-            };
-
-            if (attempt.extension === 'fail' || !imgSrc) return <div className={`bg-slate-100 flex flex-col items-center justify-center text-slate-300 ${className}`}><Icon name="image-off" size={48} className="mb-2"/><span className="text-[10px] text-center px-2">No imagen</span></div>;
-            return <img src={imgSrc} onError={handleError} className={className} />;
-        };
-
-        // --- FORMULARIO DE ORDEN ---
-        const MultiOrderForm = ({ config, onCancel, initialOrder, clientHistory, inventory }) => {
-            const [header, setHeader] = useState(initialOrder ? { codigo: initialOrder.codigo, cliente: initialOrder.cliente, maquina: initialOrder.maquina, partida: initialOrder.partida || '', fechaInicio: new Date().toISOString().split('T')[0] } : { codigo: '', cliente: '', maquina: '', partida: '', fechaInicio: new Date().toISOString().split('T')[0] });
-            const [pieces, setPieces] = useState(initialOrder?.pieces || [{ id: 1, pieza: 'BLUSA', programa: '', talla: 'UNITALLA', totalPedido: 100, peso: '', tiempo: '' }]);
-            const [threadingData, setThreadingData] = useState(initialOrder?.threading || []);
-            const predefinedPackages = initialOrder?.predefinedPackages || null;
-            const [packageSize, setPackageSize] = useState(50);
-            const addPiece = () => setPieces([...pieces, { id: Date.now(), pieza: '', talla: 'UNITALLA', totalPedido: '', peso: '', tiempo: '' }]);
-            const updatePiece = (id, f, v) => setPieces(pieces.map(p => p.id === id ? { ...p, [f]: v } : p));
-            const removePiece = (id) => pieces.length > 1 && setPieces(pieces.filter(p => p.id !== id));
-            const inventoryKeys = inventory ? Object.keys(inventory) : [];
-
-            const handleSubmit = async () => {
-                if(!header.codigo || !header.cliente || !header.maquina || !header.partida) return alert("Faltan datos.");
-                let finalPackages = [];
-                if (predefinedPackages) finalPackages = predefinedPackages;
-                else {
-                    pieces.forEach(p => {
-                        const total = Number(p.totalPedido)||0; const size = Number(packageSize)||total; const n = Math.ceil(total/size);
-                        for(let i=1; i<=n; i++) finalPackages.push({ id: Date.now()+Math.random(), piezaNombre: p.pieza, cantidad: (i===n)?(total%size||size):size, paqueteNum: i, paquetesDePieza: n, codigoUnico: `${header.partida}_${i}_${n}_${(i===n)?(total%size||size):size}`, finished: false });
-                    });
-                }
-                const displayId = generateSmartID(header.partida, pieces, header.maquina);
-                const orderPayload = { ...header, id: Date.now(), displayId, subPiecesData: pieces.map(p => ({...p, totalPedido: Number(p.totalPedido)})), progreso: finalPackages, threading: threadingData, packageSize: predefinedPackages ? 'VARIO' : Number(packageSize), status: 'EN PROCESO', totalPedido: pieces.reduce((a,b)=>a+Number(b.totalPedido),0) };
-                try { await db.collection('orders').doc(String(orderPayload.id)).set(orderPayload); alert("Orden Guardada"); onCancel(); } catch(e) { console.error(e); alert("Error"); }
-            };
-
-            return (
-                <div className="bg-white p-6 rounded shadow-xl max-w-4xl mx-auto my-4 overflow-y-auto h-[90vh]">
-                    <div className="flex justify-between items-center mb-4 border-b pb-2"><h2 className="font-bold text-xl flex items-center gap-2"><Icon name="file-plus"/> Nueva Orden</h2><button onClick={onCancel} className="text-red-500 font-bold">Cancelar</button></div>
-                    <div className="grid grid-cols-12 gap-4 mb-4">
-                        <div className="col-span-3 bg-yellow-50 p-2 rounded border border-yellow-200"><label className="text-xs font-bold text-yellow-900">PARTIDA</label><input value={header.partida} onChange={toUppercase(e=>setHeader({...header, partida:e.target.value}))} className="w-full text-lg font-black p-1 bg-white border rounded uppercase" placeholder="Ej: 24NOV451"/></div>
-                        <div className="col-span-3"><label className="text-xs font-bold">MODELO (FOTO)</label><input value={header.codigo} onChange={toUppercase(e=>setHeader({...header, codigo:e.target.value}))} className="w-full border p-2 rounded font-bold uppercase"/></div>
-                        <div className="col-span-4"><label className="text-xs font-bold">CLIENTE</label><input list="clients" value={header.cliente} onChange={toUppercase(e=>setHeader({...header, cliente:e.target.value}))} className="w-full border p-2 rounded font-bold"/><datalist id="clients">{clientHistory.map(c=><option key={c} value={c}/>)}</datalist></div>
-                        <div className="col-span-2"><label className="text-xs font-bold bg-slate-200 px-1">MÁQUINA</label><input value={header.maquina} onChange={toUppercase(e=>setHeader({...header, maquina:e.target.value}))} className="w-full border-2 border-slate-400 p-2 rounded font-black text-center"/></div>
-                    </div>
-                    <div className="mb-4 bg-slate-50 p-3 rounded">
-                        <h3 className="font-bold text-sm mb-2 flex items-center gap-2"><Icon name="layers"/> Piezas / Detalles</h3>
-                        {pieces.map((p, i) => (
-                            <div key={p.id} className="grid grid-cols-12 gap-2 mb-2 items-end border-b pb-2">
-                                <div className="col-span-4"><label className="text-[10px] font-bold">Nombre/Desc</label><input value={p.pieza} onChange={toUppercase(e=>updatePiece(p.id,'pieza',e.target.value))} className="w-full border p-1 rounded font-bold text-sm"/></div>
-                                <div className="col-span-2"><label className="text-[10px] font-bold">Talla</label><input value={p.talla} onChange={toUppercase(e=>updatePiece(p.id,'talla',e.target.value))} className="w-full border p-1 rounded text-xs"/></div>
-                                <div className="col-span-2"><label className="text-[10px] font-bold">Cant. Total</label><input type="number" value={p.totalPedido} onChange={e=>updatePiece(p.id,'totalPedido',e.target.value)} className="w-full border p-1 font-bold text-indigo-700" disabled={!!predefinedPackages}/></div>
-                                <div className="col-span-2"><label className="text-[10px] font-bold">Minutos/Pza</label><input type="number" value={p.tiempo} onChange={e=>updatePiece(p.id,'tiempo',e.target.value)} className="w-full border p-1 bg-yellow-50" placeholder="Calc. Tiempo"/></div>
-                                <div className="col-span-1 text-center"><button onClick={()=>removePiece(p.id)} className="text-red-500"><Icon name="x"/></button></div>
-                            </div>
-                        ))}
-                        {!predefinedPackages && <button onClick={addPiece} className="text-xs font-bold text-indigo-600">+ Agregar Pieza</button>}
-                        {predefinedPackages && <div className="text-xs text-green-600 font-bold mt-2"><Icon name="check"/> Paquetes cargados desde Excel ({predefinedPackages.length} filas)</div>}
-                    </div>
-                    <ThreadingEditor data={threadingData} onChange={setThreadingData} inventoryKeys={inventoryKeys} />
-                    <div className="flex gap-4 mt-4">
-                        {!predefinedPackages && <div className="w-32"><label className="text-xs font-bold">Pzs/Paquete</label><input type="number" value={packageSize} onChange={e=>setPackageSize(e.target.value)} className="border p-2 rounded w-full"/></div>}
-                        <button onClick={handleSubmit} className="flex-1 bg-slate-900 text-white font-bold rounded shadow hover:bg-slate-800 py-3">CREAR ORDEN</button>
-                    </div>
-                </div>
-            );
-        };
-
-        // --- VISUALIZACIÓN E IMPRESIÓN (SIN EDICIÓN DE FOTO, TABLA AJUSTADA) ---
-        const OrderView = ({ order, config, onBack }) => {
-            const [entry, setEntry] = useState({ tejedor: '', fecha: new Date().toISOString().split('T')[0], defectos: '', agujas: '' });
+        function startGame() {
+            // Reiniciar variables
+            score = 0;
+            timeLeft = 30;
+            document.getElementById('score').innerText = score;
+            document.getElementById('time').innerText = timeLeft;
             
-            const markPackage = async (pkgId) => {
-                if(!entry.tejedor) return alert("Ingresa las iniciales del tejedor");
-                const newProgreso = order.progreso.map(p => p.id === pkgId ? {...p, finished: true, tejedor: entry.tejedor, fecha: entry.fecha, defectos: entry.defectos, agujas: entry.agujas} : p);
-                await db.collection('orders').doc(String(order.id)).update({progreso: newProgreso});
-            };
+            // Ocultar pantallas
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            
+            // Iniciar ciclo
+            newOrder();
+            
+            // Limpiar intervalo anterior si existe
+            if(gameInterval) clearInterval(gameInterval);
+            
+            // Temporizador
+            gameInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('time').innerText = timeLeft;
+                
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
 
-            // Eliminé el botón de editar modelo como pediste.
-            // Tabla ajustada: Columna CODIGO reducida, Columna OBSERVACIONES agregada al final, Borde derecho eliminado.
-            return (
-                <div className="bg-white min-h-screen relative">
-                    <div className="no-print p-4 border-b flex justify-between bg-slate-50 sticky top-0 z-10 shadow-sm">
-                        <button onClick={onBack} className="flex items-center gap-2 text-slate-600 font-bold"><Icon name="arrow-left"/> Volver</button>
-                        <div className="flex gap-2">
-                             <button onClick={() => window.print()} className="bg-slate-900 text-white px-3 py-1 rounded font-bold text-xs flex items-center gap-1 hover:bg-slate-700">
-                                <Icon name="printer"/> IMPRIMIR
-                             </button>
-                        </div>
-                    </div>
-                    
-                    <div className="p-8 print:p-0">
-                        <div className="print-section-top">
-                             <div className="flex justify-between items-start border-b-4 border-black pb-2 mb-2">
-                                <div>
-                                    <h1 className="text-4xl font-black uppercase tracking-tighter">{order.cliente}</h1>
-                                    <div className="text-xl font-bold font-mono">PARTIDA: {order.partida}</div>
-                                    <div className="text-sm font-bold text-slate-600 mt-1">MODELO: {order.codigo}</div>
-                                </div>
-                                <div className="text-right">
-                                    <span className="bg-black text-white px-2 py-1 text-sm font-bold uppercase">MÁQUINA</span>
-                                    <div className="text-6xl font-black leading-none">{order.maquina}</div>
-                                </div>
-                             </div>
-                            
-                            <div className="flex gap-2 flex-grow overflow-hidden">
-                                <div className="w-7/12 flex flex-col gap-2">
-                                    <div className="border-2 border-black">
-                                        <div className="flex bg-gray-200 border-b border-black font-bold text-xs uppercase p-1">
-                                            <div className="flex-1">Descripción / Pieza</div><div className="w-20 text-center">Talla</div><div className="w-20 text-center">Total</div>
-                                        </div>
-                                        {order.subPiecesData.map((p,i)=>(
-                                            <div key={i} className="flex text-sm p-1 border-b last:border-0">
-                                                <div className="flex-1 truncate">{p.pieza}</div>
-                                                <div className="w-20 text-center text-xs">{p.talla}</div>
-                                                <div className="w-20 text-center font-bold">{p.totalPedido}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <div className="flex-grow border-2 border-black relative">
-                                        <div className="bg-black text-white text-xs font-bold text-center">ENHEBRADO</div>
-                                        <div className="p-1">
-                                            <table className="threading-table-print text-left">
-                                                <thead><tr className="bg-gray-200 border-b border-black"><th className="p-1 w-10">Pos</th><th className="p-1">Material</th><th className="p-1 w-10 text-center">%</th></tr></thead>
-                                                <tbody>{order.threading && order.threading.map((row, i) => (
-                                                    <tr key={i} className="border-b border-gray-300">
-                                                        <td className="pl-1 border-r border-gray-300 font-bold">{row.guia}</td>
-                                                        <td className="pl-1 border-r border-gray-300 truncate">{row.material}</td>
-                                                        <td className="text-center font-bold">{row.porcentaje}</td>
-                                                    </tr>
-                                                ))}</tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="w-5/12 border-2 border-black flex items-center justify-center relative bg-slate-50 overflow-hidden group">
-                                     <SmartImage repoUrls={config.repoUrls} codigo={order.codigo} className="max-h-full max-w-full object-contain"/>
-                                </div>
-                            </div>
-                        </div>
+        function newOrder() {
+            // Elegir pedido al azar
+            const randomIndex = Math.floor(Math.random() * orders.length);
+            const order = orders[randomIndex];
+            
+            currentOrder = order.id;
+            
+            // Actualizar interfaz
+            document.getElementById('orderEmoji').innerText = order.emoji;
+            document.getElementById('customerText').innerText = order.text;
+        }
 
-                        <div className="print-section-bottom print-only">
-                             <div className="border-b border-black font-bold mb-1 text-sm flex justify-between">
-                                <span>CONTROL DE TEJIDO - PARTIDA {order.partida}</span>
-                                <span>TOTAL PIEZAS: {order.totalPedido}</span>
-                             </div>
-                             <table className="package-table-print">
-                                <colgroup>
-                                    <col style={{width: '5%'}} />
-                                    <col style={{width: '15%'}} /> <col style={{width: '8%'}} />
-                                    <col style={{width: '10%'}} />
-                                    <col style={{width: '10%'}} />
-                                    <col style={{width: '8%'}} />
-                                    <col style={{width: '8%'}} />
-                                    <col style={{width: '5%'}} />
-                                    <col style={{width: '31%'}} /> </colgroup>
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>CÓDIGO</th> 
-                                        <th>Cant</th>
-                                        <th>Tejedor</th>
-                                        <th>Fecha</th>
-                                        <th>Def</th>
-                                        <th>Agj</th>
-                                        <th>OK</th>
-                                        <th>OBSERVACIONES</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {order.progreso?.map((p, idx) => (
-                                        <tr key={p.id}>
-                                            <td className="text-center font-bold border-r border-black">{idx+1}</td>
-                                            <td className="pl-1 font-mono text-[8px] border-r border-black truncate">{p.codigoUnico}</td>
-                                            <td className="text-center font-bold border-r border-black">{p.cantidad}</td>
-                                            <td className="manual-input border-r border-black">_</td>
-                                            <td className="manual-input border-r border-black">_</td>
-                                            <td className="manual-input border-r border-black">_</td>
-                                            <td className="manual-input border-r border-black">_</td>
-                                            <td className="manual-input border-r border-black">_</td>
-                                            <td className="manual-input">_</td> </tr>
-                                    ))}
-                                </tbody>
-                             </table>
-                        </div>
+        function submitOrder(item) {
+            const gameBox = document.getElementById('gameBox');
+            
+            if (timeLeft <= 0) return; // Si ya acabó el juego, no hacer nada
 
-                        <div className="no-print mt-4">
-                            <div className="bg-slate-100 p-4 rounded border mb-6">
-                                <h3 className="font-bold text-lg mb-2 text-slate-700">Registro Digital</h3>
-                                <div className="flex gap-2 items-end mb-2">
-                                    <input placeholder="TEJEDOR" value={entry.tejedor} onChange={toUppercase(e=>setEntry({...entry,tejedor:e.target.value}))} className="border p-2 rounded w-32"/>
-                                    <input type="date" value={entry.fecha} onChange={e=>setEntry({...entry,fecha:e.target.value})} className="border p-2 rounded"/>
-                                </div>
-                                <div className="max-h-64 overflow-y-auto bg-white border rounded">
-                                    <table className="w-full text-xs text-left">
-                                        <thead className="bg-slate-200 sticky top-0"><tr><th className="p-2">CÓDIGO</th><th className="p-2">Pzs</th><th className="p-2">Estado</th><th className="p-2">Acción</th></tr></thead>
-                                        <tbody>
-                                            {order.progreso.map(p=>(
-                                                <tr key={p.id} className="border-b">
-                                                    <td className="p-2 font-mono">{p.codigoUnico}</td>
-                                                    <td className="p-2 font-bold">{p.cantidad}</td>
-                                                    <td className="p-2">{p.finished ? <span className="text-green-600 font-bold">LISTO</span> : <span className="text-slate-400">PENDIENTE</span>}</td>
-                                                    <td className="p-2">{!p.finished && <button onClick={()=>markPackage(p.id)} className="bg-green-100 text-green-700 px-2 py-1 rounded font-bold">Registrar</button>}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
+            if (item === currentOrder) {
+                // Acierto
+                score += 20; // Ganas dinero
+                timeLeft += 1; // Ganas un poco de tiempo extra
+                document.getElementById('score').innerText = score;
+                document.getElementById('time').innerText = timeLeft;
+                
+                // Efecto visual
+                gameBox.classList.remove('wrong'); // Quitar clase si existía
+                gameBox.classList.add('correct');
+                setTimeout(() => gameBox.classList.remove('correct'), 200);
 
-        const ThreadingEditor = ({ data, onChange, inventoryKeys }) => {
-            const addRow = () => onChange([...data, { id: Date.now(), guia: '', material: '', sis: '', porcentaje: '' }]);
-            const updateRow = (id, field, val) => onChange(data.map(r => r.id === id ? { ...r, [field]: val } : r));
-            const removeRow = (id) => onChange(data.filter(r => r.id !== id));
-            return (
-                <div className="border rounded bg-white overflow-hidden my-4">
-                    <div className="bg-slate-200 p-2 text-xs font-bold flex justify-between"><span>TABLA DE ENHEBRADO</span><button onClick={addRow} className="text-indigo-600 font-bold">+ Fila</button></div>
-                    <table className="w-full text-xs text-left">
-                        <thead className="bg-slate-50"><tr><th className="p-2">GUÍA</th><th className="p-2">MATERIAL</th><th className="p-2 w-16 text-center">%</th><th></th></tr></thead>
-                        <tbody>{data.map((row) => (<tr key={row.id}><td className="p-1"><input className="w-full border rounded p-1" placeholder="#" value={row.guia} onChange={toUppercase(e=>updateRow(row.id,'guia',e.target.value))} /></td><td className="p-1"><input list="inv" className="w-full border rounded p-1" value={row.material} onChange={toUppercase(e=>updateRow(row.id,'material',e.target.value))} /></td><td className="p-1"><input className="w-full border rounded p-1 text-center" value={row.porcentaje} onChange={e=>updateRow(row.id,'porcentaje',e.target.value)} /></td><td className="p-1"><button onClick={()=>removeRow(row.id)} className="text-red-400"><Icon name="x" size={14}/></button></td></tr>))}</tbody>
-                    </table>
-                    <datalist id="inv">{inventoryKeys.map(k=><option key={k} value={k}/>)}</datalist>
-                </div>
-            );
-        };
-        const SettingsModal = ({ config, onClose }) => {
-            const [localUrls, setLocalUrls] = useState(config.repoUrls || []);
-            const [newUrl, setNewUrl] = useState('');
-            const save = async () => { await db.collection('settings').doc('config').set({ ...config, repoUrls: localUrls }); onClose(); };
-            return (<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-6 rounded w-96"><h3 className="font-bold mb-4">Configuración Imágenes</h3><div className="mb-2 max-h-40 overflow-y-auto">{localUrls.map((u,i)=><div key={i} className="text-xs truncate mb-1 border p-1 flex justify-between"><span>{u}</span><button onClick={()=>setLocalUrls(localUrls.filter((_,x)=>x!==i))} className="text-red-500 font-bold">X</button></div>)}</div><div className="flex gap-2 mb-4"><input value={newUrl} onChange={e=>setNewUrl(e.target.value)} className="border p-1 flex-1 text-xs" placeholder="URL GitHub Raw"/><button onClick={()=>{if(newUrl)setLocalUrls([...localUrls,newUrl]);setNewUrl('')}} className="bg-blue-100 text-blue-700 px-2 font-bold">+</button></div><button onClick={save} className="bg-slate-900 text-white w-full py-2 rounded font-bold">Guardar</button></div></div>);
-        };
+                newOrder();
+            } else {
+                // Error
+                timeLeft -= 3; // Penalización de tiempo
+                document.getElementById('time').innerText = timeLeft;
+                
+                // Efecto visual de error
+                gameBox.classList.remove('correct');
+                gameBox.classList.add('wrong');
+                setTimeout(() => gameBox.classList.remove('wrong'), 300);
+            }
+        }
 
-        const App = () => {
-            const [view, setView] = useState('dashboard');
-            const [orders, setOrders] = useState([]);
-            const [config, setConfig] = useState({});
-            const [inventory, setInventory] = useState({});
-            const [selectedOrder, setSelectedOrder] = useState(null);
-            const [formProps, setFormProps] = useState(null); 
-            const [showSettings, setShowSettings] = useState(false);
-            const [showImport, setShowImport] = useState(false);
-
-            useEffect(() => {
-                const u1 = db.collection('orders').onSnapshot(s => setOrders(s.docs.map(d=>d.data())));
-                const u2 = db.collection('settings').doc('config').onSnapshot(d => setConfig(d.data() || {}));
-                const u3 = db.collection('inventory').doc('main').onSnapshot(d => setInventory(d.data() || {}));
-                setTimeout(()=>lucide.createIcons(), 500);
-                return () => { u1(); u2(); u3(); };
-            }, []);
-            useEffect(()=>lucide.createIcons(), [view, orders]);
-
-            const activeOrders = orders.filter(o => o.status !== 'ARCHIVADO');
-            const allClients = [...new Set(orders.map(o => o.cliente))].sort();
-
-            const handleImportData = (data) => {
-                setFormProps({ initialOrder: data });
-                setShowImport(false);
-                setView('create');
-            };
-
-            return (
-                <div className="h-screen bg-slate-100 overflow-hidden">
-                    {view === 'create' && <div className="absolute inset-0 z-50 bg-black/50 flex items-center justify-center"><MultiOrderForm config={config} onCancel={()=>setView('dashboard')} initialOrder={formProps.initialOrder} clientHistory={allClients} inventory={inventory}/></div>}
-                    
-                    {/* ENVOLTORIO PARA IMPRESIÓN (print-visible-wrapper) */}
-                    {view === 'detail' && selectedOrder && <div className="absolute inset-0 z-40 bg-white overflow-y-auto print-visible-wrapper"><OrderView order={orders.find(o=>o.id===selectedOrder.id) || selectedOrder} config={config} onBack={()=>setView('dashboard')}/></div>}
-                    
-                    {showSettings && <SettingsModal config={config} onClose={()=>setShowSettings(false)} />}
-                    {showImport && <ImportModal onClose={()=>setShowImport(false)} onImport={handleImportData} />}
-
-                    <div className="dashboard-grid">
-                        <div className="top-pane bg-slate-100 p-4">
-                            <div className="flex justify-between items-center mb-4">
-                                <h1 className="text-2xl font-black text-slate-800 flex gap-2 items-center">
-                                    <Icon name="layout-dashboard"/> 
-                                    <span>PLANTA</span>
-                                    <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded ml-2">v2.0 PWA</span>
-                                </h1>
-                                <div className="flex gap-2 items-center">
-                                    <InstallButton />
-                                    <button onClick={()=>setShowSettings(true)} className="bg-slate-300 hover:bg-slate-400 text-slate-800 p-2 rounded shadow"><Icon name="settings"/></button>
-                                    <button onClick={()=>{setFormProps({initialOrder:null}); setView('create')}} className="bg-indigo-600 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2"><Icon name="plus"/> MANUAL</button>
-                                    <button onClick={()=>setShowImport(true)} className="bg-green-600 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2"><Icon name="file-spreadsheet"/> IMPORTAR</button>
-                                </div>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                {activeOrders.sort((a,b)=>b.id-a.id).map(o => {
-                                    const pct = Math.round((o.progreso.filter(p=>p.finished).length / o.progreso.length)*100);
-                                    return (
-                                        <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className="bg-white p-3 rounded shadow border-l-4 border-indigo-500 cursor-pointer hover:shadow-lg transition">
-                                            <div className="flex justify-between items-start"><div className="font-bold text-lg">{o.codigo}</div><div className="bg-slate-200 text-slate-700 text-xs px-2 py-1 rounded font-bold">MQ-{o.maquina}</div></div>
-                                            <div className="text-xs font-bold text-indigo-800 mt-1">PARTIDA: {o.partida}</div>
-                                            <div className="text-[10px] text-slate-400">Total: {o.totalPedido} pzs</div>
-                                            <div className="mt-2 w-full bg-slate-100 h-2 rounded overflow-hidden"><div className="bg-green-500 h-full" style={{width:`${pct}%`}}></div></div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                        
-                        <DashboardBottom activeOrders={activeOrders} />
-                        
-                    </div>
-                </div>
-            );
-        };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        function endGame() {
+            clearInterval(gameInterval);
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+            document.getElementById('finalScore').innerText = score;
+            
+            // Calcular rango
+            let rankTitle = ranks[0].text;
+            for(let rank of ranks) {
+                if(score >= rank.score) {
+                    rankTitle = rank.text;
+                }
+            }
+            document.getElementById('rankText').innerText = `Rango: ${rankTitle}`;
+        }
     </script>
 </body>
 </html>
