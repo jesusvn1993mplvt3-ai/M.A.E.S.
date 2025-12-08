@@ -227,7 +227,7 @@
             );
         };
 
-        // --- COMPONENTE DE IMPORTACIÓN EXCEL/CSV (MODIFICADO CON BOTÓN CERRAR) ---
+        // --- COMPONENTE DE IMPORTACIÓN EXCEL/CSV ---
         const ImportModal = ({ onClose, onImport }) => {
             const [text, setText] = useState('');
             const [error, setError] = useState(null);
@@ -316,13 +316,7 @@
                             placeholder="Copia y pega las celdas del Excel aquí... (Incluyendo encabezados: PARTIDA, CODIGO, PIEZAS...)"
                         ></textarea>
                         {error && <div className="mt-2 text-red-600 text-xs font-bold bg-red-50 p-2 rounded border border-red-200">Error: {error}</div>}
-                        
                         <div className="flex justify-end gap-2 mt-4">
-                            {/* BOTON CANCELAR AGREGADO AQUÍ */}
-                            <button onClick={onClose} className="px-4 py-2 bg-red-100 text-red-700 font-bold rounded shadow hover:bg-red-200 flex items-center gap-2">
-                                <Icon name="x-circle" size={18}/> Cancelar
-                            </button>
-                            {/* BOTON PROCESAR EXISTENTE */}
                             <button onClick={handleProcess} className="px-6 py-2 bg-green-600 text-white font-bold rounded shadow hover:bg-green-700 flex items-center gap-2">
                                 <Icon name="check-circle" size={18}/> Procesar Partida
                             </button>
