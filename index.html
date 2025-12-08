@@ -3,294 +3,329 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Antojitos La Güerita</title>
+    <title>Antojitos La Güerita: Historias</title>
     <style>
-        /* ESTILOS (El diseño visual) */
+        /* ESTILOS COZY / RELAJADOS */
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: #333;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            background-color: #fdf5e6; /* Crema suave */
+            color: #5d4037; /* Café oscuro */
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
             margin: 0;
-            overflow: hidden;
-            touch-action: manipulation; /* Mejora respuesta en móviles */
+            background-image: radial-gradient(#ffe0b2 10%, transparent 10%);
+            background-size: 30px 30px;
         }
 
-        .game-container {
-            background-color: rgba(255, 255, 255, 0.9);
-            padding: 20px;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            text-align: center;
-            max-width: 400px;
+        .game-frame {
+            background-color: #fff;
             width: 90%;
-            border: 5px solid #ffeb3b;
-        }
-
-        h1 {
-            color: #d81b60;
-            margin-top: 0;
-            font-size: 1.8rem;
-            text-shadow: 1px 1px 0px #ffeb3b;
-        }
-
-        .stats {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            font-weight: bold;
-            font-size: 1.2rem;
-        }
-
-        .timer-box { color: #d32f2f; }
-        .score-box { color: #388e3c; }
-
-        /* AREA DEL CLIENTE */
-        .customer-area {
-            background-color: #fff3e0;
+            max-width: 600px;
+            height: 80vh;
             border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
-            border: 2px dashed #ff9800;
-            min-height: 120px;
+            box-shadow: 0 10px 30px rgba(93, 64, 55, 0.2);
+            border: 8px solid #8d6e63;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* ESCENA SUPERIOR (El Cliente) */
+        .scene-area {
+            flex: 2;
+            background: linear-gradient(to bottom, #fff3e0, #ffe0b2);
+            display: flex;
+            flex-direction: column;
             align-items: center;
+            justify-content: flex-end;
+            position: relative;
+            padding-bottom: 20px;
         }
 
-        .customer-speech {
-            font-size: 1.2rem;
+        .character-emoji {
+            font-size: 8rem;
+            filter: drop-shadow(0 10px 10px rgba(0,0,0,0.1));
+            transition: transform 0.5s ease;
+        }
+
+        .character-name {
+            background-color: #8d6e63;
+            color: white;
+            padding: 5px 20px;
+            border-radius: 20px;
             margin-bottom: 10px;
-            font-style: italic;
+            font-size: 1.2rem;
+            font-weight: bold;
         }
 
-        .order-emoji {
-            font-size: 4rem;
-            animation: bounce 0.5s infinite alternate;
+        /* ÁREA DE DIÁLOGO */
+        .dialogue-box {
+            background-color: #fff;
+            padding: 20px;
+            border-top: 4px solid #d7ccc8;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            min-height: 100px;
         }
 
-        /* LA COCINA (BOTONES) */
-        .kitchen-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+        /* ÁREA DE DECISIÓN (Menú) */
+        .choices-area {
+            background-color: #efebe9;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
             gap: 10px;
         }
 
-        .food-btn {
+        button.choice-btn {
             background-color: #fff;
-            border: 2px solid #ddd;
+            border: 2px solid #8d6e63;
+            color: #5d4037;
+            padding: 15px;
             border-radius: 10px;
-            padding: 10px;
+            font-family: inherit;
             font-size: 1rem;
             cursor: pointer;
-            transition: transform 0.1s, background-color 0.2s;
+            transition: all 0.2s;
+            text-align: left;
             display: flex;
-            flex-direction: column;
-            align-items: center;
+            justify-content: space-between;
         }
 
-        .food-btn span { font-size: 2rem; }
-
-        .food-btn:active { transform: scale(0.95); }
-        .food-btn:hover { background-color: #f1f8e9; border-color: #8bc34a; }
-
-        /* PANTALLAS DE ESTADO */
-        .overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+        button.choice-btn:hover {
+            background-color: #8d6e63;
             color: white;
-            z-index: 10;
+        }
+
+        /* DETALLES DE UI */
+        .hearts-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 1.5rem;
         }
 
         .hidden { display: none !important; }
 
-        button.start-btn {
-            background-color: #ffeb3b;
-            color: #d81b60;
+        /* PANTALLA INICIAL */
+        .title-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #fff8e1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            z-index: 100;
+        }
+
+        .title-screen h1 { font-size: 2.5rem; color: #d84315; margin-bottom: 10px;}
+        .title-screen p { font-size: 1.2rem; margin-bottom: 30px; font-style: italic;}
+        
+        .start-btn {
+            background-color: #ff7043;
+            color: white;
             border: none;
-            padding: 15px 30px;
-            font-size: 1.5rem;
-            font-weight: bold;
+            padding: 15px 40px;
+            font-size: 1.2rem;
             border-radius: 50px;
             cursor: pointer;
-            box-shadow: 0 5px 15px rgba(255, 235, 59, 0.4);
-            transition: transform 0.2s;
         }
-        
-        button.start-btn:hover { transform: scale(1.1); }
 
-        @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
-        
-        /* Feedback visual */
-        .correct { animation: greenFlash 0.2s; }
-        .wrong { animation: redShake 0.3s; }
-
-        @keyframes greenFlash { 0% {background: #fff;} 50% {background: #b9f6ca;} 100% {background: #fff;} }
-        @keyframes redShake { 0% {transform: translateX(0);} 25% {transform: translateX(-5px);} 75% {transform: translateX(5px);} 100% {transform: translateX(0);} }
+        /* Animaciones */
+        @keyframes float { 0% {transform: translateY(0);} 50% {transform: translateY(-10px);} 100% {transform: translateY(0);} }
+        .floating { animation: float 3s infinite ease-in-out; }
 
     </style>
 </head>
 <body>
 
-    <div class="game-container" id="gameBox">
-        <h1>🌮 Antojitos La Güerita</h1>
+    <div class="game-frame">
         
-        <div class="stats">
-            <div class="score-box">Ventas: $<span id="score">0</span></div>
-            <div class="timer-box">Tiempo: <span id="time">30</span>s</div>
+        <div class="hearts-container" id="heartsDisplay">
+            ❤️❤️❤️
         </div>
 
-        <div class="customer-area">
-            <div class="customer-speech" id="customerText">¡Esperando clientes!</div>
-            <div class="order-emoji" id="orderEmoji">👩‍🍳</div>
+        <div class="scene-area">
+            <div class="character-name" id="charName">...</div>
+            <div class="character-emoji floating" id="charImg">👤</div>
         </div>
 
-        <div class="kitchen-grid">
-            <button class="food-btn" onclick="submitOrder('taco')">
-                <span>🌮</span> Taco Pastor
-            </button>
-            <button class="food-btn" onclick="submitOrder('quesadilla')">
-                <span>🧀</span> Quesadilla
-            </button>
-            <button class="food-btn" onclick="submitOrder('elote')">
-                <span>🌽</span> Elote
-            </button>
-            <button class="food-btn" onclick="submitOrder('refresco')">
-                <span>🥤</span> Refresco
-            </button>
+        <div class="dialogue-box">
+            <p id="dialogueText">...</p>
         </div>
-    </div>
 
-    <div id="startScreen" class="overlay">
-        <h1>👩‍🍳 ¡A cocinar!</h1>
-        <p>Atiende rápido antes de que se enojen.</p>
-        <button class="start-btn" onclick="startGame()">Abrir Puesto</button>
-    </div>
+        <div class="choices-area" id="choicesContainer">
+            </div>
 
-    <div id="gameOverScreen" class="overlay hidden">
-        <h1>😢 ¡Se acabó!</h1>
-        <p>Ganancia total: $<span id="finalScore">0</span></p>
-        <p id="rankText">Buen intento</p>
-        <button class="start-btn" onclick="startGame()">Intentar de nuevo</button>
+        <div class="title-screen" id="titleScreen">
+            <div style="font-size: 4rem;">🍲</div>
+            <h1>Antojitos La Güerita</h1>
+            <p>Donde cada platillo cuenta una historia.</p>
+            <button class="start-btn" onclick="startGame()">Abrir el Puesto</button>
+        </div>
+
+        <div class="title-screen hidden" id="endScreen">
+            <div style="font-size: 4rem;">✨</div>
+            <h1>Jornada Terminada</h1>
+            <p id="finalMessage">Gracias por escuchar a tus clientes.</p>
+            <button class="start-btn" onclick="location.reload()">Jugar de nuevo</button>
+        </div>
+
     </div>
 
     <script>
-        // LOGICA DEL JUEGO (JavaScript)
+        // --- DATOS DE LA HISTORIA ---
         
-        let score = 0;
-        let timeLeft = 30;
-        let gameInterval;
-        let currentOrder = '';
+        /* Cada "Cliente" tiene un problema y dos opciones de comida.
+           Una opción es "Perfecta" (resuena emocionalmente) y la otra es "Neutra".
+        */
         
-        // Base de datos de frases y pedidos
-        const orders = [
-            { id: 'taco', emoji: '🌮', text: '¡Dos de pastor con todo!' },
-            { id: 'quesadilla', emoji: '🧀', text: '¡Una queca con queso!' },
-            { id: 'elote', emoji: '🌽', text: '¡Un elote con chilito!' },
-            { id: 'refresco', emoji: '🥤', text: '¡Me das una coquita!' }
+        const story = [
+            {
+                id: 1,
+                name: "Don Pepe (Taxista)",
+                emoji: "👴🏽",
+                intro: "Buenas noches, Güerita. Uff, no sabes el tráfico que hay en Tlalpan. Llevo 10 horas manejando y siento el cuerpo cortado, como que me quiere dar gripa.",
+                options: [
+                    {
+                        dish: "🌮 Tacos de Suadero",
+                        desc: "Grasositos y rápidos.",
+                        reaction: "Están buenos, pero me cayeron un poco pesados para el estómago... Gracias igual.",
+                        score: 0
+                    },
+                    {
+                        dish: "🥣 Caldo de Gallina",
+                        desc: "Calientito con garbanzo y arroz.",
+                        reaction: "¡Ay, mija! Esto es justo lo que necesitaba. Siento que me revivió el alma. Gracias por cuidarme.",
+                        score: 1
+                    }
+                ]
+            },
+            {
+                id: 2,
+                name: "Sofi (Estudiante)",
+                emoji: "👩🏻‍💻",
+                intro: "Hola... oye, ¿tienes algo rápido? Tengo examen final mañana y no he dormido nada, necesito energía pero estoy súper nerviosa y me tiemblan las manos.",
+                options: [
+                    {
+                        dish: "🥤 Atole de Champurrado",
+                        desc: "Dulce, espeso y calmante.",
+                        reaction: "Mmm... está rico y me calmó los nervios. Creo que podré estudiar mejor sin tanta ansiedad. ¡Eres la mejor!",
+                        score: 1
+                    },
+                    {
+                        dish: "🌶️ Gordita de Chicharrón",
+                        desc: "Con mucha salsa roja picante.",
+                        reaction: "¡Híjole! Me enchilé tanto que se me olvidó lo que estudié, jaja. Bueno, al menos me despertó.",
+                        score: 0
+                    }
+                ]
+            },
+            {
+                id: 3,
+                name: "Doña Carmen (Vecina)",
+                emoji: "👵🏻",
+                intro: "¿Ya supiste lo de los vecinos de enfrente? ¡Un escándalo! Ay, Güerita, venía solo de paso pero el chisme está bueno y tengo tiempo de sobra.",
+                options: [
+                    {
+                        dish: "🌮 Un taco rápido",
+                        desc: "Para comer de pie.",
+                        reaction: "Ah... bueno, me lo como rápido y me voy. Luego te cuento bien el chisme completo.",
+                        score: 0
+                    },
+                    {
+                        dish: "🍽️ Orden de Enchiladas",
+                        desc: "Platillo grande para sentarse a comer.",
+                        reaction: "¡Eso! Sírvemelas bien preparadas para sentarme aquí un buen rato a platicarte todo. ¡Trae la coca!",
+                        score: 1
+                    }
+                ]
+            }
         ];
 
-        const ranks = [
-            { score: 0, text: "Novata en el comal" },
-            { score: 100, text: "Ayudante de cocina" },
-            { score: 250, text: "La Patrona del Barrio" },
-            { score: 500, text: "¡LEYENDA DE LA GARNACHA!" }
-        ];
+        let currentLevel = 0;
+        let happiness = 0;
 
         function startGame() {
-            // Reiniciar variables
-            score = 0;
-            timeLeft = 30;
-            document.getElementById('score').innerText = score;
-            document.getElementById('time').innerText = timeLeft;
-            
-            // Ocultar pantallas
-            document.getElementById('startScreen').classList.add('hidden');
-            document.getElementById('gameOverScreen').classList.add('hidden');
-            
-            // Iniciar ciclo
-            newOrder();
-            
-            // Limpiar intervalo anterior si existe
-            if(gameInterval) clearInterval(gameInterval);
-            
-            // Temporizador
-            gameInterval = setInterval(() => {
-                timeLeft--;
-                document.getElementById('time').innerText = timeLeft;
-                
-                if (timeLeft <= 0) {
-                    endGame();
-                }
-            }, 1000);
+            document.getElementById('titleScreen').classList.add('hidden');
+            loadLevel(0);
         }
 
-        function newOrder() {
-            // Elegir pedido al azar
-            const randomIndex = Math.floor(Math.random() * orders.length);
-            const order = orders[randomIndex];
-            
-            currentOrder = order.id;
+        function loadLevel(index) {
+            if (index >= story.length) {
+                endGame();
+                return;
+            }
+
+            const data = story[index];
             
             // Actualizar interfaz
-            document.getElementById('orderEmoji').innerText = order.emoji;
-            document.getElementById('customerText').innerText = order.text;
+            document.getElementById('charName').innerText = data.name;
+            document.getElementById('charImg').innerText = data.emoji;
+            document.getElementById('dialogueText').innerText = data.intro;
+
+            // Generar botones
+            const btnContainer = document.getElementById('choicesContainer');
+            btnContainer.innerHTML = ''; // Limpiar botones anteriores
+
+            data.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'choice-btn';
+                btn.innerHTML = `<strong>${opt.dish}</strong> <span>${opt.desc}</span>`;
+                btn.onclick = () => selectOption(opt, index);
+                btnContainer.appendChild(btn);
+            });
         }
 
-        function submitOrder(item) {
-            const gameBox = document.getElementById('gameBox');
+        function selectOption(option, index) {
+            // Mostrar reacción
+            document.getElementById('dialogueText').innerText = option.reaction;
             
-            if (timeLeft <= 0) return; // Si ya acabó el juego, no hacer nada
+            // Actualizar felicidad
+            happiness += option.score;
+            updateHearts();
 
-            if (item === currentOrder) {
-                // Acierto
-                score += 20; // Ganas dinero
-                timeLeft += 1; // Ganas un poco de tiempo extra
-                document.getElementById('score').innerText = score;
-                document.getElementById('time').innerText = timeLeft;
-                
-                // Efecto visual
-                gameBox.classList.remove('wrong'); // Quitar clase si existía
-                gameBox.classList.add('correct');
-                setTimeout(() => gameBox.classList.remove('correct'), 200);
+            // Limpiar botones para que el usuario solo pueda leer
+            const btnContainer = document.getElementById('choicesContainer');
+            btnContainer.innerHTML = '<button class="choice-btn" style="text-align:center; display:block;" onclick="nextLevel()">Siguiente Cliente ▶</button>';
+            
+            currentLevel = index + 1;
+        }
 
-                newOrder();
-            } else {
-                // Error
-                timeLeft -= 3; // Penalización de tiempo
-                document.getElementById('time').innerText = timeLeft;
-                
-                // Efecto visual de error
-                gameBox.classList.remove('correct');
-                gameBox.classList.add('wrong');
-                setTimeout(() => gameBox.classList.remove('wrong'), 300);
+        function nextLevel() {
+            loadLevel(currentLevel);
+        }
+
+        function updateHearts() {
+            let hearts = "";
+            for(let i=0; i<3; i++) {
+                if(i < happiness) hearts += "❤️";
+                else hearts += "🤍";
             }
+            // En este demo simple, el maximo es 3 corazones basado en 3 niveles
+            // Ajustamos visualización
+            document.getElementById('heartsDisplay').innerText = "Satisfacción: " + happiness + "/3";
         }
 
         function endGame() {
-            clearInterval(gameInterval);
-            document.getElementById('gameOverScreen').classList.remove('hidden');
-            document.getElementById('finalScore').innerText = score;
+            document.getElementById('endScreen').classList.remove('hidden');
+            const msg = document.getElementById('finalMessage');
             
-            // Calcular rango
-            let rankTitle = ranks[0].text;
-            for(let rank of ranks) {
-                if(score >= rank.score) {
-                    rankTitle = rank.text;
-                }
+            if(happiness === 3) {
+                msg.innerText = "¡Eres el corazón del barrio! Todos se fueron felices.";
+            } else if (happiness >= 1) {
+                msg.innerText = "Fue una buena noche, aunque algunos se fueron con hambre de algo más.";
+            } else {
+                msg.innerText = "Hoy no tuviste buen tino con los antojos. ¡Mañana será mejor!";
             }
-            document.getElementById('rankText').innerText = `Rango: ${rankTitle}`;
         }
+
     </script>
 </body>
 </html>
