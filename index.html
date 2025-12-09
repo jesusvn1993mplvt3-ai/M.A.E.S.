@@ -42,24 +42,18 @@
     </script>
 
     <style>
-        /* ESTILOS DE IMPRESIÓN CORREGIDOS */
+        /* ESTILOS DE IMPRESIÓN */
         @media print {
             @page { margin: 0.5cm; size: letter portrait; }
-            
-            /* Forzar que el cuerpo sea visible y tenga altura automática */
             body, html, #root { 
-                background: white; 
+                background: white;
                 -webkit-print-color-adjust: exact; 
                 width: 100%;
                 height: auto !important;
                 overflow: visible !important;
                 position: static !important;
             }
-
-            /* Ocultar todo lo que no se debe imprimir */
             .no-print, .dashboard-grid { display: none !important; }
-            
-            /* Asegurar que el modal de la orden sea visible y ocupe todo */
             .print-visible-wrapper {
                 position: static !important;
                 display: block !important;
@@ -70,40 +64,32 @@
                 background: white !important;
                 inset: auto !important;
             }
-
             .print-section-top { height: 40vh; overflow: hidden; border-bottom: 2px dashed #000; margin-bottom: 1vh; display: flex; flex-direction: column; }
             .print-section-bottom { height: 55vh; display: block; }
-            
             table { border-collapse: collapse; width: 100%; border: 2px solid black; table-layout: fixed; }
             th, td { border: 1px solid black; word-wrap: break-word; }
-            
             .threading-table-print { font-size: 9pt; }
             .threading-table-print th { background-color: #ddd !important; }
-            
-            /* TABLA DE PAQUETES OPTIMIZADA */
             .package-table-print { font-size: 9pt; width: 100%; border: 2px solid black !important; }
             .package-table-print th { 
-                background-color: #e5e7eb !important; 
+                background-color: #e5e7eb !important;
                 font-weight: 800; 
                 text-transform: uppercase; 
-                font-size: 7pt; /* Letra más pequeña para encabezados */
-                padding: 1px; 
+                font-size: 7pt;
+                padding: 1px;
                 border: 1px solid black !important;
             }
             .package-table-print td { 
-                padding: 1px; 
+                padding: 1px;
                 height: 25px; 
                 vertical-align: middle; 
                 border: 1px solid black !important;
                 font-size: 8pt;
             }
-            
-            /* Quitar borde derecho de la última columna */
             .package-table-print th:last-child,
             .package-table-print td:last-child {
                 border-right: none !important;
             }
-
             .manual-input { color: transparent; }
             .print-only { display: block !important; }
         }
@@ -116,7 +102,6 @@
         .pkg-list { overflow-y: auto; flex-grow: 1; margin-top: 10px; padding-right: 4px; }
         .pkg-list::-webkit-scrollbar { width: 6px; }
         .pkg-list::-webkit-scrollbar-thumb { background: #64748b; border-radius: 4px; }
-        
         .obs-input { background: transparent; border: none; color: #cbd5e1; width: 100%; font-size: 10px; border-bottom: 1px solid #475569; }
         .obs-input:focus { outline: none; border-bottom: 1px solid #94a3b8; color: white; }
     </style>
@@ -126,15 +111,15 @@
 
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
-
+        
         const firebaseConfig = {
-            apiKey: "AIzaSyBqHgV4vDat1-VmZfKbiPg7nuiX-ROcexw",
-            authDomain: "cirineo-cec21.firebaseapp.com",
-            projectId: "cirineo-cec21",
-            storageBucket: "cirineo-cec21.firebasestorage.app",
-            messagingSenderId: "620210618284",
-            appId: "1:620210618284:web:482bab9bf74650fff18409",
-            measurementId: "G-B7YLM78RVW"
+            apiKey: "AIzaSyCQTsg5pkyOOUtUz2-3D7vz5nsKV40xNWo",
+            authDomain: "maes-6ac53.firebaseapp.com",
+            projectId: "maes-6ac53",
+            storageBucket: "maes-6ac53.firebasestorage.app",
+            messagingSenderId: "298060807774",
+            appId: "1:298060807774:web:2e027a9217363cfaaf7ecf",
+            measurementId: "G-0KCFFE9TJD"
         };
 
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
@@ -142,13 +127,12 @@
 
         const Icon = ({ name, size = 18, className }) => <i data-lucide={name} width={size} height={size} className={className}></i>;
         const toUppercase = (handler) => (e) => { e.target.value = e.target.value.toUpperCase(); handler(e); };
-
+        
         const generateSmartID = (partida, pieces, maquina) => {
             const piecePrefixes = pieces.map(p => p.pieza.substring(0, 2).toUpperCase()).join('/');
             return `${partida}-${piecePrefixes}-M${maquina}`;
         };
 
-        // **MODIFICACIÓN 2: Nueva función para generar paquetes con nombre de pieza**
         const generatePackages = (pieces, packageSize, partida) => {
             let packages = [];
             let pkgCounter = 1;
@@ -160,7 +144,6 @@
 
                 for (let i = 1; i <= n; i++) {
                     const cantidad = (i === n) ? (total % size || size) : size;
-                    // Código único basado en la pieza (no en la partida global)
                     const codigoUnico = `${piecePrefix}_${i}_DE_${n}`; 
                     packages.push({ 
                         id: Date.now() + Math.random() + pkgCounter, 
@@ -168,7 +151,7 @@
                         cantidad: cantidad, 
                         paqueteNum: i, 
                         paquetesDePieza: n, 
-                        codigoUnico: codigoUnico, // Muestra el código basado en pieza
+                        codigoUnico: codigoUnico,
                         finished: false 
                     });
                     pkgCounter++;
@@ -180,7 +163,6 @@
         // --- COMPONENTE BOTÓN DE INSTALACIÓN ---
         const InstallButton = () => {
             const [deferredPrompt, setDeferredPrompt] = useState(null);
-
             useEffect(() => {
                 const handler = (e) => {
                     e.preventDefault();
@@ -189,16 +171,13 @@
                 window.addEventListener('beforeinstallprompt', handler);
                 return () => window.removeEventListener('beforeinstallprompt', handler);
             }, []);
-
             const handleInstall = async () => {
                 if (!deferredPrompt) return;
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
                 if (outcome === 'accepted') setDeferredPrompt(null);
             };
-
             if (!deferredPrompt) return null;
-
             return (
                 <button onClick={handleInstall} className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-2 rounded font-bold shadow flex items-center gap-2 text-xs animate-pulse">
                     <Icon name="download-cloud" size={16}/> INSTALAR APP
@@ -282,7 +261,7 @@
             );
         };
 
-        // --- COMPONENTE DE IMPORTACIÓN (CON BOTÓN CERRAR CLARO) ---
+        // --- COMPONENTE DE IMPORTACIÓN ---
         const ImportModal = ({ onClose, onImport }) => {
             const [text, setText] = useState('');
             const [error, setError] = useState(null);
@@ -306,7 +285,7 @@
                     
                     rows.slice(1).forEach((r, i) => {
                         const piezas = parseFloat(getVal(r, 'PIEZAS'));
-                        const codigoUnico = getVal(r, 'CODIGO'); // Importado
+                        const codigoUnico = getVal(r, 'CODIGO'); 
                         let pkgNum = i + 1;
                         if (!isNaN(piezas)) {
                             totalPiezas += piezas;
@@ -319,17 +298,14 @@
                     const lycra = getVal(firstRow, 'LYCRA');
                     if (nylon) threading.push({ id: 1, guia: '1', material: `NYLON ${nylon}`, sis: '', porcentaje: '' });
                     if (lycra) threading.push({ id: 2, guia: '2', material: `LYCRA ${lycra}`, sis: '', porcentaje: '' });
-
                     onImport({ codigo: getVal(firstRow, 'MODELO'), cliente: getVal(firstRow, 'CLIENTE'), maquina: getVal(firstRow, 'MAQUINA'), partida: getVal(firstRow, 'PARTIDA'), pieces: [{ id: Date.now(), pieza: getVal(firstRow, 'DESCRIPCION') || 'ESTANDAR', programa: '', talla: getVal(firstRow, 'TALLA') || 'UNITALLA', totalPedido: totalPiezas, peso: '', tiempo: '' }], threading: threading, predefinedPackages: predefinedPackages });
                 } catch (e) { setError(e.message); }
             };
-
             return (
                 <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
                     <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-2xl relative">
                         <div className="flex justify-between items-center mb-4 border-b pb-2">
                             <h3 className="font-bold text-xl text-green-700 flex items-center gap-2"><Icon name="file-spreadsheet"/> Importar Excel</h3>
-                            {/* BOTÓN CERRAR - Ahora más visible y funcional */}
                             <button onClick={onClose} className="bg-red-500 hover:bg-red-600 text-white rounded-md p-2 shadow-lg flex items-center gap-1 font-bold text-xs transition-transform hover:scale-105">
                                 <Icon name="x" size={18}/> CERRAR
                             </button>
@@ -349,7 +325,6 @@
         const SmartImage = ({ repoUrls, codigo, className }) => {
             const [imgSrc, setImgSrc] = useState(null);
             const [attempt, setAttempt] = useState({ urlIndex: 0, extension: 'jpg' });
-
             useEffect(() => {
                 if (!repoUrls || !repoUrls.length || !codigo) { setImgSrc(null); return; }
                 setAttempt({ urlIndex: 0, extension: 'jpg' });
@@ -372,12 +347,10 @@
                     setAttempt({ ...attempt, extension: 'fail' });
                 }
             };
-
             if (attempt.extension === 'fail' || !imgSrc) return <div className={`bg-slate-100 flex flex-col items-center justify-center text-slate-300 ${className}`}><Icon name="image-off" size={48} className="mb-2"/><span className="text-[10px] text-center px-2">No imagen</span></div>;
             return <img src={imgSrc} onError={handleError} className={className} />;
         };
 
-        // **MODIFICACIÓN 1: Campo isEditing agregado al formulario**
         // --- FORMULARIO DE ORDEN (CREAR Y EDITAR) ---
         const MultiOrderForm = ({ config, onCancel, initialOrder, clientHistory, inventory, isEditing }) => {
             const [header, setHeader] = useState(initialOrder ? { codigo: initialOrder.codigo, cliente: initialOrder.cliente, maquina: initialOrder.maquina, partida: initialOrder.partida || '', fechaInicio: initialOrder.fechaInicio || new Date().toISOString().split('T')[0] } : { codigo: '', cliente: '', maquina: '', partida: '', fechaInicio: new Date().toISOString().split('T')[0] });
@@ -392,10 +365,8 @@
 
             const handleSubmit = async () => {
                 if(!header.codigo || !header.cliente || !header.maquina || !header.partida) return alert("Faltan datos.");
-                
-                let finalPackages = initialOrder?.progreso?.filter(p => p.finished) || []; // Mantener paquetes terminados si se está editando
+                let finalPackages = initialOrder?.progreso?.filter(p => p.finished) || []; 
                 if (predefinedPackages) {
-                     // Si se importó, usar los paquetes importados, manteniendo el estado 'finished'
                     if (isEditing) {
                         const newPredefined = initialOrder.progreso.map(p => {
                             const original = initialOrder.progreso.find(op => op.id === p.id);
@@ -405,12 +376,9 @@
                     } else {
                         finalPackages = predefinedPackages;
                     }
-
                 } else {
-                    // **MODIFICACIÓN 2: Usar la nueva función para generar paquetes**
                     const newPackages = generatePackages(pieces, packageSize, header.partida);
                     if(isEditing) {
-                         // Si se edita y no fue importado, regenerar paquetes no terminados y juntar con los terminados
                          const finishedIds = new Set(finalPackages.map(p=>p.id));
                          finalPackages = [...finalPackages, ...newPackages.filter(p=>!finishedIds.has(p.id))];
                     } else {
@@ -419,10 +387,9 @@
                 }
 
                 const displayId = generateSmartID(header.partida, pieces, header.maquina);
-                
                 const orderPayload = { 
                     ...header, 
-                    id: isEditing ? initialOrder.id : Date.now(), // Usar ID existente si se edita
+                    id: isEditing ? initialOrder.id : Date.now(), 
                     displayId, 
                     subPiecesData: pieces.map(p => ({...p, totalPedido: Number(p.totalPedido)})), 
                     progreso: finalPackages, 
@@ -431,22 +398,20 @@
                     status: initialOrder?.status || 'EN PROCESO', 
                     totalPedido: pieces.reduce((a,b)=>a+Number(b.totalPedido),0) 
                 };
-                
                 try { 
-                    await db.collection('orders').doc(String(orderPayload.id)).set(orderPayload); // set para crear o actualizar
-                    alert(`Orden ${isEditing ? 'Actualizada' : 'Guardada'}`); 
+                    await db.collection('orders').doc(String(orderPayload.id)).set(orderPayload);
+                    alert(`Orden ${isEditing ? 'Actualizada' : 'Guardada'}`);
                     onCancel(); 
                 } catch(e) { 
-                    console.error(e); 
+                    console.error(e);
                     alert("Error al guardar"); 
                 }
             };
-
             return (
                 <div className="bg-white p-6 rounded shadow-xl max-w-4xl mx-auto my-4 overflow-y-auto h-[90vh]">
                     <div className="flex justify-between items-center mb-4 border-b pb-2">
                         <h2 className="font-bold text-xl flex items-center gap-2">
-                            <Icon name={isEditing ? "file-edit" : "file-plus"}/> {isEditing ? 'Editar Orden' : 'Nueva Orden'}
+                             <Icon name={isEditing ? "file-edit" : "file-plus"}/> {isEditing ? 'Editar Orden' : 'Nueva Orden'}
                         </h2>
                         <button onClick={onCancel} className="text-red-500 font-bold">Cancelar</button>
                     </div>
@@ -479,12 +444,12 @@
             );
         };
 
-        // --- VISUALIZACIÓN E IMPRESIÓN (CON BOTÓN EDITAR) ---
-        const OrderView = ({ order, config, onBack, onEdit }) => { // onEdit agregado
+        // --- VISUALIZACIÓN E IMPRESIÓN (CON EXPORTACIÓN A EXCEL) ---
+        const OrderView = ({ order, config, onBack, onEdit }) => { 
             const [entry, setEntry] = useState({ tejedor: '', fecha: new Date().toISOString().split('T')[0], defectos: '', agujas: '' });
             
             const markPackage = async (pkgId) => {
-                if(!entry.tejedor) return alert("Ingresa las iniciales del tejedor");
+                if(!entry.tejedor) return alert("Por favor selecciona un TEJEDOR");
                 const newProgreso = order.progreso.map(p => p.id === pkgId ? {...p, finished: true, tejedor: entry.tejedor, fecha: entry.fecha, defectos: entry.defectos, agujas: entry.agujas} : p);
                 await db.collection('orders').doc(String(order.id)).update({progreso: newProgreso});
             };
@@ -494,22 +459,101 @@
                 await db.collection('orders').doc(String(order.id)).update({progreso: newProgreso});
             };
 
+            const toggleArchive = async () => {
+                const isArchived = order.status === 'ARCHIVADO';
+                const msg = isArchived ? "¿Desarchivar esta orden?" : "¿Marcar orden como TERMINADA y archivarla?";
+                if(window.confirm(msg)){
+                    await db.collection('orders').doc(String(order.id)).update({
+                        status: isArchived ? 'EN PROCESO' : 'ARCHIVADO'
+                    });
+                    onBack();
+                }
+            };
+
+            // --- FUNCIÓN PARA EXPORTAR A EXCEL (CSV) ---
+            const exportOrderToCSV = () => {
+                // Definimos las cabeceras compatibles con la importación
+                const headers = [
+                    "PARTIDA", 
+                    "MODELO", 
+                    "CLIENTE", 
+                    "MAQUINA", 
+                    "DESCRIPCION", 
+                    "TALLA", 
+                    "PIEZAS", 
+                    "CODIGO", 
+                    "TEJEDOR", 
+                    "FECHA",
+                    "DEFECTOS",
+                    "AGUJAS",
+                    "OBSERVACIONES"
+                ];
+
+                // Mapeamos cada paquete (fila del progreso) a una fila del Excel
+                const rows = order.progreso.map(p => {
+                    // Buscamos la talla correspondiente a la pieza
+                    const subPiece = order.subPiecesData.find(sp => sp.pieza === p.piezaNombre);
+                    const talla = subPiece ? subPiece.talla : 'UNITALLA';
+
+                    return [
+                        order.partida,           // PARTIDA
+                        order.codigo,            // MODELO
+                        order.cliente,           // CLIENTE
+                        order.maquina,           // MAQUINA
+                        p.piezaNombre,           // DESCRIPCION
+                        talla,                   // TALLA
+                        p.cantidad,              // PIEZAS
+                        p.codigoUnico || '',     // CODIGO (ID Único del paquete)
+                        p.finished ? p.tejedor : '', // TEJEDOR
+                        p.finished ? p.fecha : '',   // FECHA
+                        p.finished ? p.defectos : '', // DEFECTOS
+                        p.finished ? p.agujas : '',   // AGUJAS
+                        p.observaciones || ''    // OBSERVACIONES
+                    ].map(field => `"${String(field || '').replace(/"/g, '""')}"`).join(','); // Escapar comillas para CSV
+                });
+
+                // Unimos cabeceras y filas
+                const csvContent = "\uFEFF" + [headers.join(','), ...rows].join('\n'); // \uFEFF es para que Excel reconozca acentos (BOM)
+
+                // Crear blob y descargar
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.setAttribute("download", `${order.partida}_${order.codigo}_EXPORT.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
             return (
                 <div className="bg-white min-h-screen relative">
                     <div className="no-print p-4 border-b flex justify-between bg-slate-50 sticky top-0 z-10 shadow-sm">
                         <button onClick={onBack} className="flex items-center gap-2 text-slate-600 font-bold"><Icon name="arrow-left"/> Volver</button>
                         <div className="flex gap-2">
-                             {/* Botón de Editar */}
+                             {/* Botón Exportar Excel */}
+                             <button onClick={exportOrderToCSV} className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded font-bold text-xs flex items-center gap-1 shadow transition-transform active:scale-95">
+                                 <Icon name="file-spreadsheet"/> EXPORTAR EXCEL
+                             </button>
+
+                             {/* Botón de Archivar */}
+                             <button onClick={toggleArchive} className={`px-3 py-1 rounded font-bold text-xs flex items-center gap-1 text-white ${order.status === 'ARCHIVADO' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-slate-600 hover:bg-slate-700'}`}>
+                                 <Icon name={order.status === 'ARCHIVADO' ? "refresh-ccw" : "archive"}/> 
+                                 {order.status === 'ARCHIVADO' ? 'DESARCHIVAR' : 'ARCHIVAR ORDEN'}
+                             </button>
+
                              <button onClick={() => onEdit(order)} className="bg-indigo-600 text-white px-3 py-1 rounded font-bold text-xs flex items-center gap-1 hover:bg-indigo-700">
-                                <Icon name="file-edit"/> EDITAR
+                                 <Icon name="file-edit"/> EDITAR
                              </button>
                              <button onClick={() => window.print()} className="bg-slate-900 text-white px-3 py-1 rounded font-bold text-xs flex items-center gap-1 hover:bg-slate-700">
-                                <Icon name="printer"/> IMPRIMIR
+                                 <Icon name="printer"/> IMPRIMIR
                              </button>
                         </div>
                     </div>
                     
                     <div className="p-8 print:p-0">
+                        {order.status === 'ARCHIVADO' && <div className="bg-orange-100 border-l-4 border-orange-500 text-orange-700 p-4 mb-4 font-bold text-center no-print">ESTA ORDEN ESTÁ ARCHIVADA / TERMINADA</div>}
+
                         <div className="print-section-top">
                              <div className="flex justify-between items-start border-b-4 border-black pb-2 mb-2">
                                 <div>
@@ -523,7 +567,7 @@
                                 </div>
                              </div>
                             
-                            <div className="flex gap-2 flex-grow overflow-hidden">
+                             <div className="flex gap-2 flex-grow overflow-hidden">
                                 <div className="w-7/12 flex flex-col gap-2">
                                     <div className="border-2 border-black">
                                         <div className="flex bg-gray-200 border-b border-black font-bold text-xs uppercase p-1">
@@ -561,7 +605,7 @@
 
                         <div className="print-section-bottom print-only">
                              <div className="border-b border-black font-bold mb-1 text-sm flex justify-between">
-                                <span>CONTROL DE TEJIDO - PARTIDA {order.partida}</span>
+                                 <span>CONTROL DE TEJIDO - PARTIDA {order.partida}</span>
                                 <span>TOTAL PIEZAS: {order.totalPedido}</span>
                              </div>
                              <table className="package-table-print">
@@ -591,7 +635,6 @@
                                     {order.progreso?.map((p, idx) => (
                                         <tr key={p.id}>
                                             <td className="text-center font-bold border-r border-black">{idx+1}</td>
-                                            {/* Modificado para que si no tiene codigoUnico (paquetes no importados) muestre la pieza */}
                                             <td className="pl-1 font-mono text-[8px] border-r border-black truncate" title={p.codigoUnico || p.piezaNombre}>{p.codigoUnico || p.piezaNombre}</td>
                                             <td className="text-center font-bold border-r border-black">{p.cantidad}</td>
                                             <td className="manual-input border-r border-black">{p.finished ? p.tejedor : '_'}</td>
@@ -607,24 +650,54 @@
 
                         <div className="no-print mt-4">
                             <div className="bg-slate-100 p-4 rounded border mb-6">
-                                <h3 className="font-bold text-lg mb-2 text-slate-700">Registro Digital</h3>
-                                <div className="flex gap-2 items-end mb-2">
-                                    <input placeholder="TEJEDOR" value={entry.tejedor} onChange={toUppercase(e=>setEntry({...entry,tejedor:e.target.value}))} className="border p-2 rounded w-32"/>
-                                    <input type="date" value={entry.fecha} onChange={e=>setEntry({...entry,fecha:e.target.value})} className="border p-2 rounded"/>
+                                <h3 className="font-bold text-lg mb-2 text-slate-700">Registro Digital Simplificado</h3>
+                                <div className="flex gap-4 items-end mb-4 bg-white p-3 rounded shadow-sm border">
+                                    
+                                    {/* SELECCIÓN SIMPLIFICADA DE TEJEDOR */}
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">TEJEDOR</label>
+                                        <select 
+                                            value={entry.tejedor} 
+                                            onChange={e=>setEntry({...entry, tejedor: e.target.value})} 
+                                            className="border-2 border-slate-300 p-2 rounded w-40 font-bold text-indigo-700 focus:border-indigo-500 outline-none"
+                                        >
+                                            <option value="">Seleccionar...</option>
+                                            <option value="BALTA">BALTA</option>
+                                            <option value="ANDRÉS">ANDRÉS</option>
+                                        </select>
+                                    </div>
+
+                                    {/* SELECCIÓN DE FECHA CON CALENDARIO */}
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">FECHA</label>
+                                        <input 
+                                            type="date" 
+                                            value={entry.fecha} 
+                                            onChange={e=>setEntry({...entry, fecha: e.target.value})} 
+                                            className="border-2 border-slate-300 p-2 rounded font-mono cursor-pointer hover:bg-slate-50"
+                                        />
+                                    </div>
                                 </div>
-                                <div className="max-h-64 overflow-y-auto bg-white border rounded">
+                                
+                                <div className="max-h-80 overflow-y-auto bg-white border rounded shadow-inner">
                                     <table className="w-full text-xs text-left">
-                                        <thead className="bg-slate-200 sticky top-0"><tr><th className="p-2">CÓDIGO/PIEZA</th><th className="p-2">Pzs</th><th className="p-2">Estado</th><th className="p-2">Acción</th></tr></thead>
+                                        <thead className="bg-slate-200 sticky top-0 shadow-sm z-0">
+                                            <tr>
+                                                <th className="p-3">CÓDIGO/PIEZA</th>
+                                                <th className="p-3">Pzs</th>
+                                                <th className="p-3">Estado</th>
+                                                <th className="p-3">Acción</th>
+                                            </tr>
+                                        </thead>
                                         <tbody>
                                             {order.progreso.map(p=>(
-                                                <tr key={p.id} className="border-b">
-                                                    {/* Mostrar codigoUnico si existe, sino piezaNombre */}
-                                                    <td className="p-2 font-mono" title={p.codigoUnico || p.piezaNombre}>{p.codigoUnico || p.piezaNombre}</td>
-                                                    <td className="p-2 font-bold">{p.cantidad}</td>
-                                                    <td className="p-2">{p.finished ? <span className="text-green-600 font-bold">LISTO ({p.tejedor})</span> : <span className="text-slate-400">PENDIENTE</span>}</td>
-                                                    <td className="p-2">{!p.finished 
-                                                        ? <button onClick={()=>markPackage(p.id)} disabled={!entry.tejedor} className="bg-green-100 text-green-700 px-2 py-1 rounded font-bold disabled:opacity-50">Registrar</button>
-                                                        : <button onClick={()=>unmarkPackage(p.id)} className="bg-red-100 text-red-700 px-2 py-1 rounded font-bold">Deshacer</button>}
+                                                <tr key={p.id} className="border-b hover:bg-slate-50 transition-colors">
+                                                    <td className="p-3 font-mono" title={p.codigoUnico || p.piezaNombre}>{p.codigoUnico || p.piezaNombre}</td>
+                                                    <td className="p-3 font-bold">{p.cantidad}</td>
+                                                    <td className="p-3">{p.finished ? <span className="text-green-600 font-bold bg-green-100 px-2 py-1 rounded-full text-[10px]">LISTO ({p.tejedor})</span> : <span className="text-slate-400 font-medium">PENDIENTE</span>}</td>
+                                                    <td className="p-3">{!p.finished 
+                                                        ? <button onClick={()=>markPackage(p.id)} disabled={!entry.tejedor} className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded font-bold hover:bg-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed transition">Registrar</button>
+                                                        : <button onClick={()=>unmarkPackage(p.id)} className="bg-red-100 text-red-700 px-3 py-1 rounded font-bold hover:bg-red-200 transition">Deshacer</button>}
                                                     </td>
                                                 </tr>
                                             ))}
@@ -661,19 +734,16 @@
             return (<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-6 rounded w-96"><h3 className="font-bold mb-4">Configuración Imágenes</h3><div className="mb-2 max-h-40 overflow-y-auto">{localUrls.map((u,i)=><div key={i} className="text-xs truncate mb-1 border p-1 flex justify-between"><span>{u}</span><button onClick={()=>setLocalUrls(localUrls.filter((_,x)=>x!==i))} className="text-red-500 font-bold">X</button></div>)}</div><div className="flex gap-2 mb-4"><input value={newUrl} onChange={e=>setNewUrl(e.target.value)} className="border p-1 flex-1 text-xs" placeholder="URL GitHub Raw"/><button onClick={()=>{if(newUrl)setLocalUrls([...localUrls,newUrl]);setNewUrl('')}} className="bg-blue-100 text-blue-700 px-2 font-bold">+</button></div><button onClick={save} className="bg-slate-900 text-white w-full py-2 rounded font-bold">Guardar</button></div></div>);
         };
 
-        // **MODIFICACIÓN 3: Nueva Galería de Imágenes**
         const ImageGallery = ({ config, onClose, orders }) => {
             const [filter, setFilter] = useState('');
             const allCodes = useMemo(() => {
                 const uniqueCodes = new Set(orders.map(o => o.codigo).filter(c => c));
                 return Array.from(uniqueCodes).sort();
             }, [orders]);
-
             const filteredCodes = useMemo(() => {
                 if (!filter) return allCodes;
                 return allCodes.filter(c => c.toUpperCase().includes(filter.toUpperCase()));
             }, [allCodes, filter]);
-
             return (
                 <div className="fixed inset-0 bg-black/80 z-[60] flex flex-col items-center justify-center p-4">
                     <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-4xl h-full flex flex-col">
@@ -683,13 +753,7 @@
                                 <Icon name="x" size={18}/> CERRAR
                             </button>
                         </div>
-                        <input
-                            type="text"
-                            placeholder="Filtrar por código de modelo..."
-                            value={filter}
-                            onChange={(e) => setFilter(e.target.value)}
-                            className="w-full p-2 mb-4 border rounded shadow-sm"
-                        />
+                        <input type="text" placeholder="Filtrar por código de modelo..." value={filter} onChange={(e) => setFilter(e.target.value)} className="w-full p-2 mb-4 border rounded shadow-sm" />
                         <div className="flex-grow overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 p-2">
                             {config.repoUrls && config.repoUrls.map((repo, idx) => (
                                 <div key={idx} className="col-span-full border-b pb-2 mb-2">
@@ -720,7 +784,8 @@
             const [formProps, setFormProps] = useState({ initialOrder: null, isEditing: false }); 
             const [showSettings, setShowSettings] = useState(false);
             const [showImport, setShowImport] = useState(false);
-            const [showGallery, setShowGallery] = useState(false); // Estado para la galería
+            const [showGallery, setShowGallery] = useState(false);
+            const [viewMode, setViewMode] = useState('active'); // 'active' o 'history'
 
             useEffect(() => {
                 const u1 = db.collection('orders').onSnapshot(s => setOrders(s.docs.map(d=>d.data())));
@@ -729,34 +794,39 @@
                 setTimeout(()=>lucide.createIcons(), 500);
                 return () => { u1(); u2(); u3(); };
             }, []);
-            useEffect(()=>lucide.createIcons(), [view, orders]);
+            useEffect(()=>lucide.createIcons(), [view, orders, viewMode]);
 
-            const activeOrders = orders.filter(o => o.status !== 'ARCHIVADO');
+            // FILTRO MODIFICADO PARA SOPORTAR HISTORIAL
+            const displayedOrders = useMemo(() => {
+                if(viewMode === 'active') {
+                    return orders.filter(o => o.status !== 'ARCHIVADO');
+                } else {
+                    return orders.filter(o => o.status === 'ARCHIVADO');
+                }
+            }, [orders, viewMode]);
+
             const allClients = [...new Set(orders.map(o => o.cliente))].sort();
-
+            
             const handleImportData = (data) => {
                 setFormProps({ initialOrder: data, isEditing: false });
                 setShowImport(false);
                 setView('create');
             };
 
-            // **MODIFICACIÓN 1: Función para iniciar edición**
             const handleEditOrder = (order) => {
                 setFormProps({ initialOrder: order, isEditing: true });
                 setView('create');
-                setSelectedOrder(null); // Quitar vista de detalle
+                setSelectedOrder(null);
             };
 
             return (
                 <div className="h-screen bg-slate-100 overflow-hidden">
                     {view === 'create' && <div className="absolute inset-0 z-50 bg-black/50 flex items-center justify-center"><MultiOrderForm config={config} onCancel={()=>setView('dashboard')} initialOrder={formProps.initialOrder} clientHistory={allClients} inventory={inventory} isEditing={formProps.isEditing}/></div>}
                     
-                    {/* ENVOLTORIO PARA IMPRESIÓN (print-visible-wrapper) */}
                     {view === 'detail' && selectedOrder && <div className="absolute inset-0 z-40 bg-white overflow-y-auto print-visible-wrapper"><OrderView order={orders.find(o=>o.id===selectedOrder.id) || selectedOrder} config={config} onBack={()=>setView('dashboard')} onEdit={handleEditOrder}/></div>}
                     
                     {showSettings && <SettingsModal config={config} onClose={()=>setShowSettings(false)} />}
                     {showImport && <ImportModal onClose={()=>setShowImport(false)} onImport={handleImportData} />}
-                    {/* **MODIFICACIÓN 3: Mostrar Galería** */}
                     {showGallery && <ImageGallery config={config} onClose={()=>setShowGallery(false)} orders={orders} />}
 
                     <div className="dashboard-grid">
@@ -764,34 +834,54 @@
                             <div className="flex justify-between items-center mb-4">
                                 <h1 className="text-2xl font-black text-slate-800 flex gap-2 items-center">
                                     <Icon name="layout-dashboard"/> 
-                                    <span>PLANTA</span>
+                                    <span>{viewMode === 'active' ? 'PLANTA' : 'HISTORIAL'}</span>
                                     <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded ml-2">v2.1 PWA</span>
                                 </h1>
                                 <div className="flex gap-2 items-center">
                                     <InstallButton />
+                                    
+                                    {/* BOTÓN PARA CAMBIAR ENTRE ACTIVOS E HISTORIAL */}
+                                    <button onClick={()=>setViewMode(viewMode === 'active' ? 'history' : 'active')} className={`px-4 py-2 rounded font-bold shadow flex items-center gap-2 text-xs transition ${viewMode === 'active' ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-slate-700 text-white'}`}>
+                                        <Icon name={viewMode === 'active' ? 'history' : 'activity'}/> 
+                                        {viewMode === 'active' ? 'HISTORIAL' : 'VER PLANTA'}
+                                    </button>
+
                                     <button onClick={()=>setShowGallery(true)} className="bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2 text-xs"><Icon name="image-search"/> GALERÍA</button>
                                     <button onClick={()=>setShowSettings(true)} className="bg-slate-300 hover:bg-slate-400 text-slate-800 p-2 rounded shadow"><Icon name="settings"/></button>
-                                    <button onClick={()=>{setFormProps({initialOrder:null, isEditing: false}); setView('create')}} className="bg-indigo-600 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2"><Icon name="plus"/> MANUAL</button>
-                                    <button onClick={()=>setShowImport(true)} className="bg-green-600 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2"><Icon name="file-spreadsheet"/> IMPORTAR</button>
+                                    
+                                    {viewMode === 'active' && (
+                                        <>
+                                            <button onClick={()=>{setFormProps({initialOrder:null, isEditing: false}); setView('create')}} className="bg-indigo-600 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2"><Icon name="plus"/> MANUAL</button>
+                                            <button onClick={()=>setShowImport(true)} className="bg-green-600 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2"><Icon name="file-spreadsheet"/> IMPORTAR</button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                {activeOrders.sort((a,b)=>b.id-a.id).map(o => {
+                                {displayedOrders.sort((a,b)=>b.id-a.id).map(o => {
                                     const pct = Math.round((o.progreso.filter(p=>p.finished).length / o.progreso.length)*100);
                                     return (
-                                        <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className="bg-white p-3 rounded shadow border-l-4 border-indigo-500 cursor-pointer hover:shadow-lg transition">
-                                            <div className="flex justify-between items-start"><div className="font-bold text-lg">{o.codigo}</div><div className="bg-slate-200 text-slate-700 text-xs px-2 py-1 rounded font-bold">MQ-{o.maquina}</div></div>
+                                        <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className={`p-3 rounded shadow border-l-4 cursor-pointer hover:shadow-lg transition ${o.status === 'ARCHIVADO' ? 'bg-slate-200 border-slate-500 opacity-75' : 'bg-white border-indigo-500'}`}>
+                                            <div className="flex justify-between items-start">
+                                                <div className="font-bold text-lg">{o.codigo}</div>
+                                                <div className="bg-slate-200 text-slate-700 text-xs px-2 py-1 rounded font-bold">MQ-{o.maquina}</div>
+                                            </div>
                                             <div className="text-xs font-bold text-indigo-800 mt-1">PARTIDA: {o.partida}</div>
                                             <div className="text-[10px] text-slate-400">Total: {o.totalPedido} pzs</div>
-                                            <div className="mt-2 w-full bg-slate-100 h-2 rounded overflow-hidden"><div className="bg-green-500 h-full" style={{width:`${pct}%`}}></div></div>
+                                            <div className="mt-2 w-full bg-slate-100 h-2 rounded overflow-hidden">
+                                                <div className={`${o.status === 'ARCHIVADO' ? 'bg-slate-500' : 'bg-green-500'} h-full`} style={{width:`${pct}%`}}></div>
+                                            </div>
+                                            {o.status === 'ARCHIVADO' && <div className="text-center text-[10px] font-bold text-slate-500 mt-1">ARCHIVADO</div>}
                                         </div>
                                     );
                                 })}
+                                {displayedOrders.length === 0 && <div className="col-span-4 text-center text-slate-400 py-10 font-bold">No hay órdenes en esta vista.</div>}
                             </div>
                         </div>
                         
-                        <DashboardBottom activeOrders={activeOrders} />
+                        {viewMode === 'active' && <DashboardBottom activeOrders={displayedOrders} />}
+                        {viewMode === 'history' && <div className="bg-slate-800 text-white flex items-center justify-center p-10 font-bold text-xl opacity-50">MODO HISTORIAL - SOLO LECTURA</div>}
                         
                     </div>
                 </div>
