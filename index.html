@@ -17,10 +17,10 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
     <style>
-        /* ESTILOS DE IMPRESIÓN (4x5 pulgadas) */
+        /* ESTILOS DE IMPRESIÓN (4x6 pulgadas) */
         @media print {
             @page {
-                size: 4in 5in; 
+                size: 4in 6in; /* AQUI: AJUSTADO A 6 PULGADAS */
                 margin: 0;
             }
             body { margin: 0; padding: 0; background-color: white; }
@@ -29,7 +29,7 @@
             .print-area { position: absolute; left: 0; top: 0; width: 100%; }
             .ticket {
                 width: 4in;
-                height: 5in;
+                height: 6in; /* AQUI: AJUSTADO A 6 PULGADAS */
                 page-break-after: always;
                 break-after: page;
                 display: flex;
@@ -43,14 +43,23 @@
             }
             .ticket:last-child { page-break-after: auto; }
             .no-print { display: none !important; }
-            /* Asegura que la imagen se imprima */
             .ticket-image { max-height: 1.5in; } 
+
+            /* Estilo específico para impresión individual */
+            .temp-print-container {
+                position: absolute;
+                left: 0;
+                top: 0;
+            }
+            .temp-print-container .ticket {
+                display: flex; 
+            }
         }
 
         /* Estilos de Previsualización en pantalla */
         .preview-card {
             width: 300px;
-            height: 375px; 
+            height: 450px; /* AQUI: AJUSTADO LA PROPORCIÓN (300px * 6/4 = 450px) */
             overflow: hidden;
             border: 1px dashed #ccc;
             transform: scale(0.9);
@@ -66,8 +75,9 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // --- TU CONFIGURACIÓN DE FIREBASE ---
-        const firebaseConfig = {
+        // --- Configuración Global ---
+        const GITHUB_REPO_URL = "https://github.com/jesusvn1993mplvt3-ai/CIRINEO";
+        const FIREBASE_CONFIG = {
             apiKey: "AIzaSyBqHgV4vDat1-VmZfKbiPg7nuiX-ROcexw",
             authDomain: "cirineo-cec21.firebaseapp.com",
             projectId: "cirineo-cec21",
@@ -78,14 +88,16 @@
         };
         
         if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
+            firebase.initializeApp(FIREBASE_CONFIG);
         }
         const db = firebase.firestore();
 
-        // Iconos SVG simples (Printer, Refresh, Archive)
+        // Iconos SVG simples
         const IconPrinter = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>);
         const IconRefresh = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M3 21v-5h5"></path></svg>);
         const IconArchive = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"></rect><path d="M21 8v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"></path><path d="M10 12h4"></path></svg>);
+        const IconGithub = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.37-1-3.3.38-1.15.38-2.35 0-3.5 0 0-1 0-3 1.5.85-.22 1.5-1.2 1.5-2.5 0-1.25-1.12-2.5-2.5-2.5h-.5c-1.38 0-2.5 1.12-2.5 2.5 0 1.25.65 2.28 1.5 2.5-2 1.5-3 1.5-3 1.5-1.75 0-2.87-1.25-3.5-2.5s-1.75-2.5-2.5-2.5h-.5c-1.38 0-2.5 1.12-2.5 2.5 0 1.25.65 2.28 1.5 2.5-2 1.5-3 1.5-3 1.5-.73 0-1.85-.35-2.5-1A9 9 0 0 0 3 12a9 9 0 0 0 6 8.5c-.75.5-1 1.25-1 2V22"></path></svg>);
+        const IconPrintIndividual = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect><path d="M12 21v-3"></path></svg>);
 
 
         // COMPONENTE: PAPELETA (Ticket)
@@ -103,12 +115,12 @@
             const originColor = origin === 'SANTONI' ? 'text-indigo-800 border-indigo-800' : 'text-teal-800 border-teal-800';
             const originBg = origin === 'SANTONI' ? 'bg-indigo-100' : 'bg-teal-100';
 
-            // Lógica para determinar color y URL de imagen
             let displayColor = order.color || "---";
             if (displayColor === "---" && order.threading && order.threading.length > 0) {
                  displayColor = order.threading[0].material || "Varios";
             }
-            const imageUrl = `https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/images/${order.codigo}.jpg`;
+            // URL de la imagen: Usa el campo 'codigo' + .jpg
+            const imageUrl = `${GITHUB_REPO_URL}/raw/main/images/${order.codigo}.jpg`;
 
 
             return (
@@ -124,13 +136,17 @@
                     {/* Cuerpo: Imagen y Datos */}
                     <div className="flex-grow flex gap-2 mb-2">
                         {/* Imagen del Producto */}
-                        <div className="w-1/3 flex-shrink-0 flex items-center justify-center">
+                        <div className="w-1/3 flex-shrink-0 flex items-center justify-center border border-gray-300 rounded overflow-hidden p-1 bg-white">
                             <img 
                                 src={imageUrl} 
                                 alt={order.codigo} 
-                                className="ticket-image w-full h-auto object-contain border border-gray-300 rounded" 
-                                // Ocultar si la imagen no carga
-                                onError={(e) => { e.target.style.display='none'; e.target.closest('div').classList.add('bg-slate-100', 'text-xs', 'text-slate-400'); e.target.closest('div').innerHTML = 'No Image'; }}
+                                className="ticket-image w-full h-auto object-contain" 
+                                onError={(e) => { 
+                                    e.target.style.display='none'; 
+                                    const container = e.target.closest('div');
+                                    container.classList.add('bg-slate-100', 'text-xs', 'text-slate-400', 'font-mono', 'p-2'); 
+                                    container.innerHTML = 'IMAGEN NO ENCONTRADA'; 
+                                }}
                             />
                         </div>
                         
@@ -185,6 +201,7 @@
             const [loading, setLoading] = useState(true);
             const [groupedTickets, setGroupedTickets] = useState({});
             const [statusMessage, setStatusMessage] = useState("");
+            const [generatedTickets, setGeneratedTickets] = useState(0);
 
             const fetchAllOrders = async () => {
                 setLoading(true);
@@ -202,7 +219,6 @@
                         .get();
                     const calcetinData = calcetinSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), origen: 'CALCETÍN', collectionName: 'orders_calcetin' }));
 
-                    // 3. Combinar
                     const allOrders = [...santoniData, ...calcetinData];
                     setOrders(allOrders);
                     generateTickets(allOrders);
@@ -221,7 +237,6 @@
                 let totalTicketCount = 0;
 
                 ordersData.forEach(order => {
-                    // Determinar el número total de paquetes (usando progreso, predefined, o fallback)
                     let totalPacks = 1;
                     if (order.progreso && order.progreso.length > 0) {
                          totalPacks = order.progreso.length;
@@ -231,7 +246,6 @@
                          totalPacks = parseInt(order.paquetesTotal) || 1; 
                     }
 
-                    // Agrupar por ID de Orden
                     ticketsBuffer[order.id] = { 
                         orderData: order, 
                         tickets: [], 
@@ -253,18 +267,47 @@
                 });
 
                 setGroupedTickets(ticketsBuffer);
-                // Usamos este estado para el contador de impresión
                 setGeneratedTickets(totalTicketCount); 
             };
 
-            const handlePrint = () => {
+            // FUNCIÓN DE IMPRESIÓN INDIVIDUAL
+            const handlePrintIndividual = (orderId) => {
+                const groupContainer = document.getElementById(`print-group-${orderId}`);
+                if (!groupContainer) {
+                    alert('No se encontraron papeletas para esta orden.');
+                    return;
+                }
+
+                // 1. Clonar el contenedor específico del área oculta
+                const tempContainer = groupContainer.cloneNode(true);
+                tempContainer.id = "temp-print-container"; // ID temporal único
+                tempContainer.classList.add("temp-print-container");
+                
+                // 2. Ocultar el contenido de la pantalla y el área de impresión principal
+                const originalDisplay = document.body.style.display;
+                document.body.style.display = 'none';
+
+                // 3. Insertar el contenedor clonado en el body para que se imprima
+                document.body.appendChild(tempContainer);
+                
+                // 4. Llamar a la impresión
+                window.print();
+
+                // 5. Limpiar y restaurar
+                setTimeout(() => {
+                    document.body.removeChild(tempContainer);
+                    document.body.style.display = originalDisplay;
+                }, 100); 
+            };
+
+            const handlePrintAll = () => {
                 window.print();
             };
 
             const handleArchiveAll = async () => {
                 if (!orders.length) return;
 
-                if (!confirm(`¿Estás seguro de archivar las ${orders.length} órdenes (generando ${generatedTickets} papeletas) que se están mostrando? Esta acción es irreversible.`)) return;
+                if (!confirm(`¿Estás seguro de archivar las ${orders.length} órdenes (generando ${generatedTickets} papeletas) que se están mostrando? Esta acción es irreversible y cambiará su estado a 'ARCHIVADO'.`)) return;
                 
                 setStatusMessage("Archivando órdenes...");
                 
@@ -279,16 +322,12 @@
                 } catch (error) {
                     console.error("Error al archivar lotes:", error);
                     setStatusMessage("Error al archivar las órdenes: " + error.message);
-                    alert("Hubo un error al archivar las órdenes. Revisa la consola.");
                 }
             };
 
             useEffect(() => {
                 fetchAllOrders();
             }, []);
-
-            // Estado para el total de tickets generados
-            const [generatedTickets, setGeneratedTickets] = useState(0);
 
             return (
                 <div className="min-h-screen">
@@ -297,10 +336,19 @@
                         {/* Header Panel */}
                         <div className="bg-white rounded-xl shadow-lg p-4 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
                             <div>
-                                <h1 className="text-2xl font-bold text-slate-800">Impresión de Papeletas</h1>
+                                <h1 className="text-2xl font-bold text-slate-800">Impresión de Papeletas (4" x 6")</h1>
                                 <p className="text-sm text-slate-500">{statusMessage}</p>
                             </div>
-                            <div className="flex gap-3">
+                            <div className="flex gap-3 flex-wrap justify-end">
+                                <a 
+                                    href={GITHUB_REPO_URL} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="flex items-center gap-2 px-3 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-800 transition"
+                                >
+                                    <IconGithub />
+                                    <span>Repositorio (Imágenes)</span>
+                                </a>
                                 <button onClick={fetchAllOrders} className="p-3 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition" title="Recargar">
                                     <IconRefresh />
                                 </button>
@@ -313,12 +361,12 @@
                                     <span>ARCHIVAR ÓRDENES</span>
                                 </button>
                                 <button 
-                                    onClick={handlePrint}
+                                    onClick={handlePrintAll}
                                     disabled={generatedTickets === 0}
                                     className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-md transition disabled:opacity-50"
                                 >
                                     <IconPrinter />
-                                    <span>IMPRIMIR ({generatedTickets})</span>
+                                    <span>IMPRIMIR TODO ({generatedTickets})</span>
                                 </button>
                             </div>
                         </div>
@@ -337,25 +385,34 @@
                             </div>
                         )}
 
-                        {/* Grid de Vista Previa AGRUPADA */}
+                        {/* Grupos de Órdenes */}
                         {!loading && generatedTickets > 0 && (
                             <div className="space-y-6">
-                                <h3 className="text-lg font-bold text-slate-700 pl-2 border-l-4 border-indigo-500">Vista Previa Agrupada por Orden</h3>
+                                <h3 className="text-lg font-bold text-slate-700 pl-2 border-l-4 border-indigo-500">Órdenes Activas ({orders.length})</h3>
                                 {Object.values(groupedTickets).map((group) => (
                                     <div key={group.orderData.id} className="bg-white rounded-xl shadow-lg p-4">
-                                        <div className={`flex items-center gap-4 p-2 mb-4 rounded-lg ${group.orderData.origen === 'SANTONI' ? 'bg-indigo-50 border-indigo-200' : 'bg-teal-50 border-teal-200'} border`}>
-                                            <div className="text-xl font-black">{group.orderData.codigo}</div>
-                                            <div className="text-sm font-semibold text-gray-700 flex-grow">Cliente: {group.orderData.cliente}</div>
-                                            <div className="font-bold text-lg">{group.totalTickets} Papeletas</div>
+                                        <div className={`flex flex-col sm:flex-row items-start sm:items-center gap-4 p-2 mb-4 rounded-lg ${group.orderData.origen === 'SANTONI' ? 'bg-indigo-50 border-indigo-200' : 'bg-teal-50 border-teal-200'} border`}>
+                                            <div className="text-xl font-black flex-shrink-0">{group.orderData.codigo}</div>
+                                            <div className="text-sm font-semibold text-gray-700 flex-grow truncate">Cliente: {group.orderData.cliente} | Máquina: {group.orderData.maquina}</div>
+                                            <div className="font-bold text-lg flex-shrink-0">{group.totalTickets} Papeletas</div>
+                                            
+                                            {/* BOTÓN DE IMPRESIÓN INDIVIDUAL */}
+                                            <button 
+                                                onClick={() => handlePrintIndividual(group.orderData.id)}
+                                                className="flex items-center gap-1 px-3 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition text-sm flex-shrink-0"
+                                            >
+                                                <IconPrintIndividual />
+                                                Imprimir Orden
+                                            </button>
                                         </div>
                                         
                                         <div className="flex flex-wrap justify-start gap-6">
-                                            {/* Mostrar solo el primer ticket del grupo en la vista previa para ahorrar espacio */}
+                                            {/* Vista Previa */}
                                             <div className="preview-card shadow-lg">
                                                 {group.tickets[0]}
                                             </div>
                                             <div className="text-slate-500 flex items-center">
-                                                ... y {group.totalTickets - 1} más no mostradas en la vista previa.
+                                                ... y **{group.totalTickets - 1}** más no mostradas en la vista previa.
                                             </div>
                                         </div>
                                     </div>
@@ -364,9 +421,13 @@
                         )}
                     </div>
 
-                    {/* Área oculta real de impresión (AGRUPADA) */}
+                    {/* Área oculta real de impresión (Contiene todos los tickets) */}
                     <div className="print-area hidden">
-                        {Object.values(groupedTickets).flatMap(group => group.tickets)}
+                        {Object.values(groupedTickets).map(group => (
+                            <div key={group.orderData.id} id={`print-group-${group.orderData.id}`} className="ticket-group-container">
+                                {group.tickets}
+                            </div>
+                        ))}
                     </div>
                 </div>
             );
