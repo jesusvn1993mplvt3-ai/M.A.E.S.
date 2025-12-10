@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Impresión de Papeletas - Cirineo</title>
+    <title>Impresión y Archivo de Papeletas - Cirineo</title>
 
     <link id="appIcon" rel="icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
     <meta name="theme-color" content="#334155">
@@ -43,26 +43,20 @@
             }
             .ticket:last-child { page-break-after: auto; }
             .no-print { display: none !important; }
+            /* Asegura que la imagen se imprima */
+            .ticket-image { max-height: 1.5in; } 
         }
 
-        /* Estilos generales */
-        .barcode-strip {
-            height: 30px;
-            width: 100%;
-            background: repeating-linear-gradient(90deg, black 0px, black 2px, white 2px, white 3px, black 3px, black 6px);
-            margin-bottom: 5px;
-            opacity: 0.8;
-        }
-        
-        /* Previsualización en pantalla */
+        /* Estilos de Previsualización en pantalla */
         .preview-card {
             width: 300px;
-            height: 375px; /* Proporción similar a 4x5 */
+            height: 375px; 
             overflow: hidden;
             border: 1px dashed #ccc;
             transform: scale(0.9);
             transform-origin: top center;
             background: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
@@ -88,42 +82,37 @@
         }
         const db = firebase.firestore();
 
-        // Iconos SVG simples
-        const IconPrinter = () => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-        );
-        const IconRefresh = () => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M3 21v-5h5"></path></svg>
-        );
+        // Iconos SVG simples (Printer, Refresh, Archive)
+        const IconPrinter = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>);
+        const IconRefresh = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M3 21v-5h5"></path></svg>);
+        const IconArchive = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"></rect><path d="M21 8v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"></path><path d="M10 12h4"></path></svg>);
+
 
         // COMPONENTE: PAPELETA (Ticket)
         const Ticket = ({ order, currentPack, totalPacks, origin }) => {
-            // Intentar formatear fecha, si falla usar string vacío
-            let dateStr = "";
+            let dateStr = "---";
             try {
                 if (order.createdAt) {
-                    // Soporte para timestamp string o firebase timestamp
                     const d = new Date(order.createdAt);
                     if (!isNaN(d.getTime())) {
                         dateStr = d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: '2-digit' });
-                    } else {
-                        dateStr = order.createdAt.substring(0, 10);
                     }
                 }
-            } catch (e) { dateStr = "---"; }
+            } catch (e) { /* silent */ }
 
             const originColor = origin === 'SANTONI' ? 'text-indigo-800 border-indigo-800' : 'text-teal-800 border-teal-800';
             const originBg = origin === 'SANTONI' ? 'bg-indigo-100' : 'bg-teal-100';
 
-            // Buscar color en threading o usar campo color si existe
+            // Lógica para determinar color y URL de imagen
             let displayColor = order.color || "---";
             if (displayColor === "---" && order.threading && order.threading.length > 0) {
-                 // Intentar adivinar color principal del hilo si no hay campo color
                  displayColor = order.threading[0].material || "Varios";
             }
+            const imageUrl = `https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/images/${order.codigo}.jpg`;
+
 
             return (
-                <div className="ticket bg-white">
+                <div className="ticket bg-white flex flex-col justify-between">
                     {/* Header */}
                     <div className="flex justify-between items-center border-b-2 border-black pb-2 mb-2">
                         <h2 className="text-xl font-black tracking-tighter">CIRINEO</h2>
@@ -132,52 +121,60 @@
                         </span>
                     </div>
 
-                    {/* Cuerpo */}
-                    <div className="flex-grow space-y-3">
-                        <div>
-                            <div className="text-xs text-gray-500 uppercase font-bold">Modelo / Partida</div>
-                            <div className="text-xl font-black leading-none truncate">{order.codigo}</div>
-                            <div className="text-sm font-bold text-gray-700">{order.partida}</div>
+                    {/* Cuerpo: Imagen y Datos */}
+                    <div className="flex-grow flex gap-2 mb-2">
+                        {/* Imagen del Producto */}
+                        <div className="w-1/3 flex-shrink-0 flex items-center justify-center">
+                            <img 
+                                src={imageUrl} 
+                                alt={order.codigo} 
+                                className="ticket-image w-full h-auto object-contain border border-gray-300 rounded" 
+                                // Ocultar si la imagen no carga
+                                onError={(e) => { e.target.style.display='none'; e.target.closest('div').classList.add('bg-slate-100', 'text-xs', 'text-slate-400'); e.target.closest('div').innerHTML = 'No Image'; }}
+                            />
                         </div>
                         
-                         <div>
-                            <div className="text-xs text-gray-500 uppercase font-bold">Cliente</div>
-                            <div className="text-lg font-semibold leading-tight truncate">{order.cliente}</div>
-                        </div>
+                        {/* Datos */}
+                        <div className="w-2/3 space-y-2">
+                            <div>
+                                <div className="text-xs text-gray-500 uppercase font-bold">Modelo / Partida</div>
+                                <div className="text-xl font-black leading-none truncate">{order.codigo}</div>
+                                <div className="text-sm font-bold text-gray-700">{order.partida}</div>
+                            </div>
 
-                        <div className="grid grid-cols-2 gap-2 mt-2 border-t pt-2">
-                             <div>
-                                <div className="text-xs text-gray-500 uppercase font-bold">Detalles / Color</div>
-                                <div className="font-mono text-xs font-bold truncate">{displayColor}</div>
-                            </div>
-                            <div>
-                                <div className="text-xs text-gray-500 uppercase font-bold">Fecha</div>
-                                <div className="font-mono text-sm">{dateStr}</div>
-                            </div>
-                            <div>
-                                <div className="text-xs text-gray-500 uppercase font-bold">Pedido Total</div>
-                                <div className="font-mono text-sm">{order.totalPedido} pzs</div>
-                            </div>
-                            <div>
-                                <div className="text-xs text-gray-500 uppercase font-bold">Máquina</div>
-                                <div className="font-mono text-sm font-bold">#{order.maquina}</div>
+                            <div className="grid grid-cols-2 gap-1 text-[10px]">
+                                 <div>
+                                    <div className="text-xs text-gray-500 uppercase font-bold">Color</div>
+                                    <div className="font-mono font-bold truncate">{displayColor}</div>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-gray-500 uppercase font-bold">Pedido Total</div>
+                                    <div className="font-mono font-bold">{order.totalPedido} pzs</div>
+                                </div>
+                                 <div>
+                                    <div className="text-xs text-gray-500 uppercase font-bold">Fecha</div>
+                                    <div className="font-mono">{dateStr}</div>
+                                </div>
+                                <div>
+                                    <div className="text-xs text-gray-500 uppercase font-bold">Máquina</div>
+                                    <div className="font-mono font-bold">#{order.maquina}</div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Número de Paquete Grande */}
                     <div className="mt-2 py-2 border-t-2 border-black text-center">
-                        <div className="text-xs font-bold text-gray-600 mb-1 uppercase tracking-widest">Paquete</div>
+                        <div className="text-xs font-bold text-gray-600 mb-1 uppercase tracking-widest">PAQUETE</div>
                         <div className="flex items-baseline justify-center space-x-2">
                             <span className="text-6xl font-black text-black leading-none">{currentPack}</span>
                             <span className="text-xl font-bold text-gray-400">/ {totalPacks}</span>
                         </div>
                     </div>
-
-                    {/* Footer */}
-                    <div className="mt-2 flex flex-col items-center">
-                        <div className="barcode-strip"></div>
-                        <div className="text-[10px] font-mono tracking-widest">{order.id}-{currentPack}</div>
+                    
+                    {/* Pie de página con ID de orden */}
+                    <div className="text-center text-[8px] font-mono mt-1 text-gray-500">
+                        ID Orden: {order.id}
                     </div>
                 </div>
             );
@@ -186,73 +183,112 @@
         const App = () => {
             const [orders, setOrders] = useState([]);
             const [loading, setLoading] = useState(true);
-            const [generatedTickets, setGeneratedTickets] = useState([]);
+            const [groupedTickets, setGroupedTickets] = useState({});
             const [statusMessage, setStatusMessage] = useState("");
 
             const fetchAllOrders = async () => {
                 setLoading(true);
-                setStatusMessage("Conectando a Firebase...");
+                setStatusMessage("Conectando a Firebase y buscando órdenes 'EN PROCESO'...");
                 try {
                     // 1. Obtener Santoni (Colección: 'orders')
                     const santoniSnap = await db.collection('orders')
-                        .where('status', '==', 'EN PROCESO') // Asumo que usas 'EN PROCESO' según Santoni.html
+                        .where('status', '==', 'EN PROCESO')
                         .get();
-                    const santoniData = santoniSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), origen: 'SANTONI' }));
+                    const santoniData = santoniSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), origen: 'SANTONI', collectionName: 'orders' }));
 
                     // 2. Obtener Calcetín (Colección: 'orders_calcetin')
                     const calcetinSnap = await db.collection('orders_calcetin')
-                        .where('status', '==', 'EN PROCESO') // Igual aquí
+                        .where('status', '==', 'EN PROCESO')
                         .get();
-                    const calcetinData = calcetinSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), origen: 'CALCETÍN' }));
+                    const calcetinData = calcetinSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), origen: 'CALCETÍN', collectionName: 'orders_calcetin' }));
 
                     // 3. Combinar
                     const allOrders = [...santoniData, ...calcetinData];
                     setOrders(allOrders);
                     generateTickets(allOrders);
-                    setStatusMessage(`Cargado: ${allOrders.length} órdenes activas.`);
+                    setStatusMessage(`Cargado: ${allOrders.length} órdenes en proceso.`);
 
                 } catch (error) {
                     console.error("Error fetching data:", error);
-                    setStatusMessage("Error: " + error.message);
+                    setStatusMessage("Error al cargar datos: " + error.message);
                 } finally {
                     setLoading(false);
                 }
             };
 
             const generateTickets = (ordersData) => {
-                let ticketsBuffer = [];
+                let ticketsBuffer = {};
+                let totalTicketCount = 0;
+
                 ordersData.forEach(order => {
-                    // Usamos 'predefinedPackages' si existen (importados de Excel) o calculamos
+                    // Determinar el número total de paquetes (usando progreso, predefined, o fallback)
                     let totalPacks = 1;
-                    
-                    if (order.predefinedPackages && order.predefinedPackages.length > 0) {
-                        totalPacks = order.predefinedPackages.length;
-                    } else if (order.progreso && order.progreso.length > 0) {
+                    if (order.progreso && order.progreso.length > 0) {
                          totalPacks = order.progreso.length;
+                    } else if (order.predefinedPackages && order.predefinedPackages.length > 0) {
+                        totalPacks = order.predefinedPackages.length;
                     } else {
-                         // Fallback si no hay progreso generado aun
                          totalPacks = parseInt(order.paquetesTotal) || 1; 
                     }
 
+                    // Agrupar por ID de Orden
+                    ticketsBuffer[order.id] = { 
+                        orderData: order, 
+                        tickets: [], 
+                        totalTickets: totalPacks 
+                    };
+
                     for (let i = 1; i <= totalPacks; i++) {
-                        ticketsBuffer.push({
-                            orderData: order,
-                            currentPack: i,
-                            totalPacks: totalPacks,
-                            uniqueId: `${order.id}_${i}`
-                        });
+                        ticketsBuffer[order.id].tickets.push(
+                            <Ticket 
+                                key={`${order.id}_${i}`}
+                                order={order} 
+                                currentPack={i} 
+                                totalPacks={totalPacks} 
+                                origin={order.origen}
+                            />
+                        );
+                        totalTicketCount++;
                     }
                 });
-                setGeneratedTickets(ticketsBuffer);
+
+                setGroupedTickets(ticketsBuffer);
+                // Usamos este estado para el contador de impresión
+                setGeneratedTickets(totalTicketCount); 
+            };
+
+            const handlePrint = () => {
+                window.print();
+            };
+
+            const handleArchiveAll = async () => {
+                if (!orders.length) return;
+
+                if (!confirm(`¿Estás seguro de archivar las ${orders.length} órdenes (generando ${generatedTickets} papeletas) que se están mostrando? Esta acción es irreversible.`)) return;
+                
+                setStatusMessage("Archivando órdenes...");
+                
+                const archivePromises = orders.map(order => {
+                    return db.collection(order.collectionName).doc(order.id).update({ status: 'ARCHIVADO' });
+                });
+
+                try {
+                    await Promise.all(archivePromises);
+                    alert(`Se archivaron ${orders.length} órdenes correctamente.`);
+                    fetchAllOrders(); // Recargar la lista
+                } catch (error) {
+                    console.error("Error al archivar lotes:", error);
+                    setStatusMessage("Error al archivar las órdenes: " + error.message);
+                    alert("Hubo un error al archivar las órdenes. Revisa la consola.");
+                }
             };
 
             useEffect(() => {
                 fetchAllOrders();
             }, []);
 
-            const handlePrint = () => {
-                window.print();
-            };
+            // Estado para el total de tickets generados
+            const [generatedTickets, setGeneratedTickets] = useState(0);
 
             return (
                 <div className="min-h-screen">
@@ -269,12 +305,20 @@
                                     <IconRefresh />
                                 </button>
                                 <button 
+                                    onClick={handleArchiveAll}
+                                    disabled={orders.length === 0}
+                                    className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <IconArchive />
+                                    <span>ARCHIVAR ÓRDENES</span>
+                                </button>
+                                <button 
                                     onClick={handlePrint}
-                                    disabled={generatedTickets.length === 0}
-                                    className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={generatedTickets === 0}
+                                    className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-md transition disabled:opacity-50"
                                 >
                                     <IconPrinter />
-                                    <span>IMPRIMIR ({generatedTickets.length})</span>
+                                    <span>IMPRIMIR ({generatedTickets})</span>
                                 </button>
                             </div>
                         </div>
@@ -286,44 +330,43 @@
                             </div>
                         )}
 
-                        {!loading && generatedTickets.length === 0 && (
+                        {!loading && generatedTickets === 0 && (
                             <div className="text-center py-12 bg-white rounded-xl shadow border border-slate-200">
                                 <h3 className="text-xl font-bold text-slate-500">No hay paquetes pendientes</h3>
                                 <p className="text-slate-400 mt-2">Asegúrate de que las órdenes estén en estado "EN PROCESO".</p>
                             </div>
                         )}
 
-                        {/* Grid de Vista Previa */}
-                        {!loading && generatedTickets.length > 0 && (
-                            <div>
-                                <h3 className="text-lg font-bold text-slate-700 mb-4 pl-2 border-l-4 border-indigo-500">Vista Previa</h3>
-                                <div className="flex flex-wrap justify-center gap-6">
-                                    {generatedTickets.map((ticket) => (
-                                        <div key={ticket.uniqueId} className="preview-card shadow-lg">
-                                            <Ticket 
-                                                order={ticket.orderData} 
-                                                currentPack={ticket.currentPack} 
-                                                totalPacks={ticket.totalPacks} 
-                                                origin={ticket.orderData.origen}
-                                            />
+                        {/* Grid de Vista Previa AGRUPADA */}
+                        {!loading && generatedTickets > 0 && (
+                            <div className="space-y-6">
+                                <h3 className="text-lg font-bold text-slate-700 pl-2 border-l-4 border-indigo-500">Vista Previa Agrupada por Orden</h3>
+                                {Object.values(groupedTickets).map((group) => (
+                                    <div key={group.orderData.id} className="bg-white rounded-xl shadow-lg p-4">
+                                        <div className={`flex items-center gap-4 p-2 mb-4 rounded-lg ${group.orderData.origen === 'SANTONI' ? 'bg-indigo-50 border-indigo-200' : 'bg-teal-50 border-teal-200'} border`}>
+                                            <div className="text-xl font-black">{group.orderData.codigo}</div>
+                                            <div className="text-sm font-semibold text-gray-700 flex-grow">Cliente: {group.orderData.cliente}</div>
+                                            <div className="font-bold text-lg">{group.totalTickets} Papeletas</div>
                                         </div>
-                                    ))}
-                                </div>
+                                        
+                                        <div className="flex flex-wrap justify-start gap-6">
+                                            {/* Mostrar solo el primer ticket del grupo en la vista previa para ahorrar espacio */}
+                                            <div className="preview-card shadow-lg">
+                                                {group.tickets[0]}
+                                            </div>
+                                            <div className="text-slate-500 flex items-center">
+                                                ... y {group.totalTickets - 1} más no mostradas en la vista previa.
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>
 
-                    {/* Área oculta real de impresión */}
+                    {/* Área oculta real de impresión (AGRUPADA) */}
                     <div className="print-area hidden">
-                        {generatedTickets.map((ticket) => (
-                            <Ticket 
-                                key={ticket.uniqueId}
-                                order={ticket.orderData} 
-                                currentPack={ticket.currentPack} 
-                                totalPacks={ticket.totalPacks} 
-                                origin={ticket.orderData.origen}
-                            />
-                        ))}
+                        {Object.values(groupedTickets).flatMap(group => group.tickets)}
                     </div>
                 </div>
             );
