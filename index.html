@@ -19,6 +19,11 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     
     <style>
+        /* Tipografía: Usaremos una pila de fuentes sans-serif moderna */
+        body {
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+        }
+
         /* Estilos base para la tipografía y el fondo (Responsive) */
         .dashboard-grid {
             display: flex;
@@ -40,27 +45,14 @@
             }
         }
         
-        /* Estilos mejorados para el texto dinámico */
-        .status-text {
-            font-size: 2.5rem; /* 40px en móvil */
-            font-weight: 800;
-            line-height: 1.3;
-            text-align: center;
-            text-shadow: 0 0 10px rgba(0,0,0,0.8);
-            min-height: 120px;
+        /* Animación de Parpadeo (Flicker) para la cuadrícula de estado */
+        @keyframes flicker {
+            0%, 100% { opacity: 0.95; }
+            50% { opacity: 0.3; }
+            52% { opacity: 0.6; }
+            54% { opacity: 0.3; }
+            56% { opacity: 0.95; }
         }
-        @media (min-width: 768px) {
-            .status-text {
-                font-size: 3.5rem; /* 56px en escritorio */
-                min-height: 150px;
-            }
-        }
-        
-        /* Animación de Transición del Texto */
-        .status-enter { opacity: 0; transform: scale(0.9) translateY(20px); }
-        .status-enter-active { opacity: 1; transform: scale(1) translateY(0); transition: opacity 0.5s, transform 0.5s; }
-        .status-exit { opacity: 1; transform: scale(1) translateY(0); }
-        .status-exit-active { opacity: 0; transform: scale(1.1) translateY(-20px); transition: opacity 0.4s, transform 0.4s; }
         
         /* Estilos del Radio y Scrollbars */
         .radio-list { max-height: 180px; overflow-y: auto; }
@@ -79,7 +71,7 @@
             return <i data-lucide={name} width={size} height={size} className={className}></i>;
         };
 
-        // --- Configuración de Firebase (Mantén esto en un lugar seguro y privado) ---
+        // --- Configuración de Firebase (Se mantiene) ---
         const firebaseConfig = {
             apiKey: "AIzaSyBqHgV4vDat1-VmZfKbiPg7nuiX-ROcexw",
             authDomain: "cirineo-cec21.firebaseapp.com",
@@ -129,24 +121,20 @@
             let date;
             
             try {
-                // 1. Handle Firebase Timestamp (needs .toDate())
                 if (timestamp.toDate) { 
                     date = timestamp.toDate();
                 } 
-                // 2. Handle standard date formats (string/number)
                 else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
                     date = new Date(timestamp);
                 } 
-                // 3. Handle Date objects
                 else if (timestamp instanceof Date) {
                     date = timestamp;
                 } else {
                     return { days: 0, hours: 0 }; 
                 }
                 
-                if (isNaN(date.getTime())) return { days: 0, hours: 0 }; // Invalid date
+                if (isNaN(date.getTime())) return { days: 0, hours: 0 };
             } catch (e) {
-                // Si algo falla al parsear la fecha (error de Firebase o formato), devolvemos 0
                 return { days: 0, hours: 0 };
             }
 
@@ -157,26 +145,23 @@
         };
 
         const calculateOrderStatus = (order) => {
-            // Safety check for basic required data
-            if (!order || !order.progreso || !order.createdAt || !order.maquina) {
-                return { statusMessage: "⚠️ Error: Datos de orden incompletos o nulos.", isWarning: true, maquina: 'N/A', codigo: order?.codigo || 'N/A' };
+            // Safety check: returns NULL if essential data is missing (NEW: Filters out incomplete data)
+            if (!order || !order.progreso || !order.createdAt || !order.maquina || !order.codigo) {
+                return null;
             }
 
             try {
                 const finishedPackages = order.progreso.filter(p => p.finished).length;
                 const totalPackages = order.progreso.length;
                 
-                // Use a safe reduce for total pieces finished
                 const piecesFinished = order.progreso.filter(p => p.finished).reduce((sum, p) => sum + (Number(p.cantidad) || 0), 0);
                 const piecesLeft = (Number(order.totalPedido) || 0) - piecesFinished;
                 
                 const efficiency = totalPackages > 0 ? (finishedPackages / totalPackages) * 100 : 0;
                 
-                // Find the latest update time (defaulting to creation time)
                 let lastUpdateTime = order.createdAt; 
                 order.progreso.forEach(p => {
                     if (p.fecha) {
-                        // Safe way to compare dates regardless of them being Timestamp objects or strings
                         const pDate = p.fecha.toDate ? p.fecha.toDate() : new Date(p.fecha);
                         const lastDate = lastUpdateTime.toDate ? lastUpdateTime.toDate() : new Date(lastUpdateTime);
                         if (pDate.getTime() > lastDate.getTime()) {
@@ -188,7 +173,6 @@
                 const timeSinceCreation = calculateTimeDiff(order.createdAt);
                 const timeSinceLastUpdate = calculateTimeDiff(lastUpdateTime);
                 
-                // Calculation of totalMinutesLeft (protected by null check on subPiecesData)
                 let totalMinutesLeft = 0;
                 if (order.subPiecesData && Array.isArray(order.subPiecesData)) {
                     order.subPiecesData.forEach(p => {
@@ -207,26 +191,84 @@
                 let isWarning = false;
 
                 if (piecesLeft <= 0) {
-                    statusMessage = `✅ Orden ${order.codigo} (Máquina #${order.maquina}) TERMINADA.`;
+                    statusMessage = `✅ ORDEN ${order.codigo} (MAQ #${order.maquina}) TERMINADA`;
                 } else if (timeSinceLastUpdate.days >= 3) {
-                    statusMessage = `🔴 Maq #${order.maquina}: Modelo ${order.codigo}. La orden se ingresó hace ${timeSinceCreation.days} días y no ha habido **actualización** en ${timeSinceLastUpdate.days} días.`;
+                    statusMessage = `🔴 MAQ #${order.maquina}: Modelo ${order.codigo}. Sin actualización en ${timeSinceLastUpdate.days} días.`;
                     isWarning = true;
                 } else if (totalHoursLeft > 0) {
-                     statusMessage = `⏱️ Máquina #${order.maquina}: Faltan ${daysLeft} días y ${hoursLeft} hrs para terminar el modelo ${order.codigo}. Eficiencia: ${efficiency.toFixed(0)}%.`;
+                     statusMessage = `⏱️ MAQ #${order.maquina}: Falta ${daysLeft}D ${hoursLeft}H. Efic: ${efficiency.toFixed(0)}%.`;
                      if (efficiency < 50) isWarning = true;
                 } else {
-                     statusMessage = `Máquina #${order.maquina}: Modelo ${order.codigo}. En proceso.`;
+                     statusMessage = `MAQ #${order.maquina}: Modelo ${order.codigo}. EN PROCESO.`;
                 }
 
                 return { statusMessage, isWarning, maquina: order.maquina, codigo: order.codigo };
             } catch (e) {
-                // En caso de un error crítico inesperado en el cálculo, registramos el error y mostramos un mensaje seguro.
+                // If a critical error occurs during complex calculation, filter it out.
                  console.error(`❌ Error Crítico al procesar orden ${order.codigo || 'N/A'}:`, e);
-                 return { statusMessage: `❌ Error Crítico al procesar orden ${order.codigo || 'N/A'}.`, isWarning: true, maquina: order?.maquina || 'N/A', codigo: order?.codigo || 'N/A' };
+                 return null; 
             }
         };
 
-        // --- COMPONENTES ---
+        // --- NUEVO COMPONENTE: Cuadrícula de Estado Parpadeante ---
+
+        const StatusTile = ({ text, isWarning, theme }) => {
+            // Randomize visual properties for the techno-effect
+            const randomOpacity = useMemo(() => Math.random() * (0.95 - 0.4) + 0.4, []); 
+            const randomDuration = useMemo(() => Math.random() * (4 - 1.5) + 1.5, []);
+
+            const tileBg = isWarning ? 'bg-red-800/80' : 'bg-sky-800/80';
+            const textColor = isWarning ? theme.warningColor : theme.accentColor;
+
+            return (
+                <div 
+                    className={`p-3 rounded-lg shadow-xl transition-all border border-current/20 font-mono overflow-hidden`}
+                    style={{ 
+                        opacity: randomOpacity,
+                        animation: `flicker ${randomDuration}s infinite alternate` 
+                    }}
+                >
+                    <p className={`text-xs lg:text-sm font-bold truncate ${textColor}`}>
+                        {text}
+                    </p>
+                </div>
+            );
+        };
+
+        const FlickeringStatusGrid = ({ allStatuses, theme }) => {
+            const TILE_COUNT = 30; // Un poco más grande para llenar bien el espacio
+            
+            // Generate and randomize data points
+            const dataPoints = useMemo(() => {
+                if (allStatuses.length === 0) return Array(TILE_COUNT).fill({ text: "Conectando con la Matriz de Datos...", isWarning: false });
+                
+                const points = [];
+                for (let i = 0; i < TILE_COUNT; i++) {
+                    // Cycle through the statuses array
+                    points.push(allStatuses[i % allStatuses.length]);
+                }
+                
+                // Shuffle the array to make the display random
+                for (let i = points.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [points[i], points[j]] = [points[j], points[i]];
+                }
+                
+                return points;
+            }, [allStatuses]);
+            
+
+            return (
+                <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2 lg:gap-3 mt-10 w-full">
+                    {dataPoints.map((data, index) => (
+                        <StatusTile key={index} text={data.text} isWarning={data.isWarning} theme={theme} />
+                    ))}
+                </div>
+            );
+        };
+
+
+        // --- COMPONENTES EXISTENTES (Actualizados con la lógica de tema) ---
 
         const Clock = ({ theme }) => {
             const [time, setTime] = useState(new Date());
@@ -254,13 +296,21 @@
             ];
             const headerColor = theme.textColor.replace('text-', 'text-');
             const dividerColor = theme.textColor === 'text-white' ? 'border-slate-700' : 'border-slate-300';
-
+            
+            // Estilos mucho más llamativos: Shadow 2xl, Scale más agresivo y ring en hover.
             return (
                 <div className={`mt-8 pt-4 border-t ${dividerColor}`}>
                     <h3 className={`font-extrabold text-xl mb-4 flex items-center gap-2 ${headerColor}`}><Icon name="link" size={20} className={theme.accentColor.replace('text-', '')}/> Accesos Rápidos</h3>
                     <div className="space-y-4">
                         {buttons.map((btn) => (
-                            <a key={btn.name} href={btn.url} target="_blank" rel="noopener noreferrer" className={`w-full flex items-center justify-between p-4 rounded-xl font-bold text-white shadow-xl transition-all transform hover:scale-[1.03] ${btn.color}`}>
+                            <a 
+                                key={btn.name} 
+                                href={btn.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className={`w-full flex items-center justify-between p-5 rounded-2xl font-black text-white shadow-2xl transition-all transform hover:scale-[1.05] ring-2 ring-offset-2 ring-transparent hover:ring-white/50 ${btn.color}`}
+                                style={{ textShadow: '0 0 5px rgba(0,0,0,0.5)' }}
+                            >
                                 <span className="text-lg">{btn.name}</span>
                                 <Icon name={btn.icon} size={28}/>
                             </a>
@@ -358,7 +408,6 @@
         };
 
         const WeatherWidget = ({ theme }) => {
-            // Datos simulados (Puedes reemplazar esto con una API de clima real más adelante)
             const city = "LEÓN, GTO.";
             const temp = "25°C";
             const icon = "sun";
@@ -408,18 +457,17 @@
         const App = () => {
             const [orders, setOrders] = useState([]);
             const [inventory, setInventory] = useState([]);
-            const [dynamicText, setDynamicText] = useState("Conectando con la base de datos...");
-            const [textKey, setTextKey] = useState(0); 
-            const [isWarning, setIsWarning] = useState(false);
-            const [currentThemeId, setCurrentThemeId] = useState(localStorage.getItem('dashboardTheme') || 'darkIndustrial'); // Cargar tema guardado
+            // Ya no se usa dynamicText ni isWarning para el display principal, pero se mantienen los datos de origen
+            const [currentThemeId, setCurrentThemeId] = useState(localStorage.getItem('dashboardTheme') || 'darkIndustrial');
             
             const theme = themeConfig[currentThemeId];
 
-            // Guardar el tema seleccionado en localStorage
+            // Guarda el tema en localStorage
             useEffect(() => {
                 localStorage.setItem('dashboardTheme', currentThemeId);
             }, [currentThemeId]);
             
+            // Carga inicial de datos
             useEffect(() => {
                 const u1 = db.collection('orders').where('status', '!=', 'ARCHIVADO').onSnapshot(s => setOrders(s.docs.map(d=>d.data()).filter(d=>d.progreso && d.progreso.length > 0)));
                 const u2 = db.collection('inventory').doc('main').onSnapshot(d => setInventory(d.data()?.items || []));
@@ -430,23 +478,28 @@
                 const statuses = [];
                 const inventoryCopy = [...inventory];
                 
-                // 1. Agregar estados de Inventario
-                for (let i = 0; i < Math.min(3, inventoryCopy.length); i++) {
-                    const randomIndex = Math.floor(Math.random() * inventoryCopy.length);
-                    const item = inventoryCopy.splice(randomIndex, 1)[0]; 
-                    
-                    const text = `📊 INVENTARIO: ${item.material} ${item.calibre || ''} Stock ${Number(item.stock).toFixed(1)} kg.`;
+                // 1. Agregar estados de Inventario (Solo los que están bajos o al azar)
+                const lowStockItems = inventoryCopy.filter(item => Number(item.stock) < Number(item.minStock));
+                
+                // Mezcla ítems bajos y ítems normales para tener variedad
+                const mixedItems = [...lowStockItems];
+                inventoryCopy.forEach(item => {
+                    if (!mixedItems.includes(item)) mixedItems.push(item);
+                });
+                
+                for (let i = 0; i < Math.min(6, mixedItems.length); i++) {
+                    const item = mixedItems[i];
+                    const text = `📊 INV: ${item.material} ${item.calibre || ''} Stock ${Number(item.stock).toFixed(1)} kg.`;
                     const isWarn = Number(item.stock) < Number(item.minStock);
                     
-                    if (isWarn) {
-                         statuses.push({ text: `⚠️ ${text} (STOCK BAJO)`, isWarning: true, type: 'inventory-low' });
-                    } else {
-                         statuses.push({ text: text, isWarning: false, type: 'inventory-ok' });
-                    }
+                    statuses.push({ text: isWarn ? `⚠️ ${text}` : text, isWarning: isWarn, type: 'inventory' });
                 }
 
-                // 2. Agregar estados de Órdenes
-                const relevantOrders = orders.map(calculateOrderStatus).filter(s => s.isWarning || s.statusMessage.includes('Faltan'));
+                // 2. Agregar estados de Órdenes (Solo órdenes activas con tiempo restante o advertencia)
+                const relevantOrders = orders
+                    .map(calculateOrderStatus)
+                    .filter(s => s); // FILTRADO CLAVE: Solo se incluyen los resultados que NO son nulos (sin errores/datos incompletos)
+                    
                 relevantOrders.forEach(status => {
                     statuses.push({
                         text: status.statusMessage,
@@ -455,63 +508,37 @@
                     });
                 });
                 
-                // Si la lista de estados es pobre, se añaden mensajes de bienvenida y estado general.
-                if (statuses.length < 3) {
-                     statuses.unshift({ text: "Operación en Línea. Revisando el flujo de producción...", isWarning: false, type: 'idle' });
-                }
-                 if (statuses.length < 2) {
-                     statuses.unshift({ text: "Bienvenido a Sweaters Liliana. Sistema en línea.", isWarning: false, type: 'welcome' });
+                // 3. Mensajes de estado general/bienvenida
+                if (statuses.length < 5) { // Garantizamos que haya algunos mensajes de relleno si la BD está vacía/pequeña
+                     statuses.push({ text: "OPERACIÓN EN LÍNEA. FLUJO DE DATOS ESTABLE.", isWarning: false, type: 'idle' });
+                     statuses.push({ text: "BIENVENIDO. SISTEMA DE PRODUCCIÓN V01.", isWarning: false, type: 'welcome' });
                 }
 
                 return statuses;
             }, [orders, inventory]);
             
-            // Lógica del timer para alternar el texto
-            useEffect(() => {
-                if (allStatuses.length === 0) return;
-
-                let currentIndex = 0;
-                const updateStatus = () => {
-                    const status = allStatuses[currentIndex % allStatuses.length];
-                    setDynamicText(status.text);
-                    setIsWarning(status.isWarning);
-                    setTextKey(prev => prev + 1);
-
-                    currentIndex++;
-                };
-
-                updateStatus(); // Ejecutar inmediatamente al cargar
-                const interval = setInterval(updateStatus, 6000); // Cambiar cada 6 segundos
-
-                return () => clearInterval(interval);
-            }, [allStatuses]);
-
-            // Aplicar el tema al <body> y el color de acento para el scrollbar
+            // Aplicar el tema al <body>
             useEffect(() => {
                 document.body.className = theme.primaryBg;
                 // Ajuste para el color de la barra de desplazamiento
                 document.documentElement.style.setProperty('--accent-color', theme.accentColor.replace('text-', '#'));
             }, [theme]);
             
-            // Determinar la clase para el texto dinámico (Advertencia o Acento)
-            const dynamicTextColorClass = isWarning ? theme.warningColor : theme.accentColor;
 
             return (
                 <div className="dashboard-grid">
                     {/* --- Contenido Principal (Visualización de Datos) --- */}
-                    <div className={`main-content p-8 lg:p-12 flex items-center justify-center transition-colors ${theme.primaryBg}`}>
-                        <div className="text-center w-full max-w-4xl mx-auto">
-                            <h1 className={`text-5xl lg:text-7xl font-extrabold ${theme.accentColor} mb-4 tracking-tighter`}>
+                    <div className={`main-content p-4 lg:p-12 flex flex-col items-center justify-center transition-colors ${theme.primaryBg}`}>
+                        <div className="text-center w-full max-w-6xl mx-auto">
+                            <h1 className={`text-5xl lg:text-7xl font-extrabold ${theme.accentColor} mb-2 tracking-tighter`}>
                                 SWEATERS LILIANA
                             </h1>
-                            <h2 className={`text-xl lg:text-2xl font-bold ${theme.textColor} opacity-70 mb-10`}>
+                            <h2 className={`text-lg lg:text-xl font-bold ${theme.textColor} opacity-70 mb-8`}>
                                 DASHBOARD PRINCIPAL <span className="text-yellow-500">2026 v01</span>
                             </h2>
                             
-                            {/* Visualizador de Estado Dinámico */}
-                            <div key={textKey} className={`status-text mx-auto status-enter status-enter-active ${dynamicTextColorClass}`}>
-                                {dynamicText}
-                            </div>
+                            {/* NUEVA CUADRÍCULA DE ESTADO */}
+                            <FlickeringStatusGrid allStatuses={allStatuses} theme={theme} />
                             
                             <div className="mt-12 w-full max-w-lg mx-auto">
                                 <Clock theme={theme} />
