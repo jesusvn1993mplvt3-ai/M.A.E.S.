@@ -2,80 +2,142 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Textil Cloud - Cirineo v3.0</title>
     
-    <title>MAES26 Control + Planeación</title>
-
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#0f172a">
-
-    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link id="appIcon" rel="icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
+    <link id="appAppleIcon" rel="apple-touch-icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
+    <meta name="theme-color" content="#1e293b">
+    
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        const manifest = {
+            "name": "Sistema Textil Cloud",
+            "short_name": "Cirineo",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#f1f5f9",
+            "theme_color": "#1e293b",
+            "icons": [{
+                "src": "https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico",
+                "sizes": "192x192",
+                "type": "image/ico"
+            }]
+        };
+        const stringManifest = JSON.stringify(manifest);
+        const blob = new Blob([stringManifest], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(blob);
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = manifestURL;
+        document.head.appendChild(link);
+    </script>
+
     <style>
+        /* ESTILOS DE IMPRESIÓN GENERALES */
         @media print {
-            .no-print { display: none !important; }
-            body { background: white !important; color: black !important; }
-            .report-page { 
-                margin: 0; 
-                padding: 10mm;
-                color: black !important;
-                background: white !important;
-                min-height: 297mm; /* A4 height */
+            body, html, #root { 
+                background: white;
+                -webkit-print-color-adjust: exact; 
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            .no-print, .dashboard-grid { display: none !important; }
+            ::-webkit-scrollbar { display: none; }
+        }
+
+        /* ESTILO: CARTA VERTICAL (ORDEN NORMAL) */
+        @media print {
+            body:not(.print-mode-ticket) @page { 
+                size: letter portrait; 
+                margin: 1cm; 
+            }
+            body:not(.print-mode-ticket) .print-visible-wrapper {
+                display: block !important;
+                width: 100% !important;
+            }
+            body:not(.print-mode-ticket) .ticket-container {
+                display: none !important;
+            }
+            
+            /* Estilos específicos Carta */
+            body:not(.print-mode-ticket) h1 { font-size: 36pt !important; line-height: 0.9 !important; margin-bottom: 5px; }
+            body:not(.print-mode-ticket) table { border-collapse: collapse; width: 100%; border: 3px solid black; table-layout: fixed; margin-bottom: 8px; }
+            body:not(.print-mode-ticket) th { background-color: #d1d5db !important; color: black !important; font-weight: 900 !important; font-size: 11pt !important; border: 2px solid black !important; }
+            body:not(.print-mode-ticket) td { border: 2px solid black !important; padding: 4px !important; font-size: 12pt !important; font-weight: 700 !important; color: black !important; }
+            body:not(.print-mode-ticket) .machine-number-val { font-size: 60pt !important; font-weight: 900; line-height: 0.8; }
+            body:not(.print-mode-ticket) .print-only { display: block !important; }
+        }
+
+        /* ESTILO: PAPELETA 4x6 (ETIQUETAS) */
+        @media print {
+            body.print-mode-ticket @page {
+                size: 6in 4in landscape;
+                margin: 0;
+            }
+            body.print-mode-ticket {
+                width: 6in;
+                height: 4in;
+            }
+            body.print-mode-ticket .print-visible-wrapper { display: none !important; } /* Ocultar carta */
+            
+            body.print-mode-ticket .ticket-container {
+                display: flex !important;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                width: 6in;
+                height: 4in;
+                page-break-after: always;
+                overflow: hidden;
+                padding: 10px;
+                border: 1px dashed #ccc; /* Guía de corte visual si imprime en papel continuo */
+                box-sizing: border-box;
+            }
+            body.print-mode-ticket .ticket-content {
+                width: 100%;
+                height: 100%;
+                border: 4px solid black;
+                border-radius: 10px;
+                padding: 10px;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
             }
         }
 
-        .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-        .slot-input {
-            background: transparent; border: none; outline: none; text-align: center; width: 100%;
-            font-weight: bold; padding: 0; z-index: 1; position: relative;
-        }
-        .slot-input:focus { background: #1e293b; color: #60a5fa; }
-        .slot-input::placeholder { color: #475569; font-weight: normal; font-size: 8px; }
-        .password-mask { -webkit-text-security: disc; text-security: disc; }
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes zoomIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        .animate-zoom-in { animation: zoomIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        .machine-circle { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .machine-circle.selected { transform: scale(1.1); box-shadow: 0 0 15px rgba(34, 197, 94, 0.6); }
-        .planning-info { color: #facc15; background-color: rgba(120, 53, 15, 0.1); border-radius: 4px; padding: 1px 3px; font-weight: bold; font-size: 8px; }
-        
-        /* Report Modal Styles */
-        .report-page {
-            background-color: #f8fafc;
-            color: #1e293b;
-            padding: 30px;
-            font-family: sans-serif;
-        }
-        .report-header h1 { font-size: 24px; font-weight: bold; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-bottom: 10px; }
-        .report-section { margin-bottom: 20px; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; }
-        .report-section h2 { font-size: 18px; font-weight: bold; color: #1e40af; margin-bottom: 10px; }
-        .report-data div { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dotted #cbd5e1; font-size: 14px; }
-        .report-label { font-weight: 500; color: #475569; }
-        .report-value { font-weight: 700; }
-        .report-material-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        .report-material-table th, .report-material-table td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; font-size: 13px; }
-        .report-material-table th { background-color: #f1f5f9; color: #1e293b; }
+        .print-only { display: none; }
+        .ticket-container { display: none; } /* Oculto en pantalla normal */
+
+        /* Dashboard Styles */
+        .dashboard-grid { display: grid; grid-template-rows: 60vh 1fr; height: 100vh; overflow: hidden; }
+        .top-pane { overflow-y: auto; border-bottom: 4px solid #334155; }
+        .bottom-pane { overflow-x: auto; background: #1e293b; color: white; display: flex; padding: 10px; gap: 10px; }
+        .machine-card { min-width: 320px; background: #334155; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; height: 100%; }
+        .pkg-list { overflow-y: auto; flex-grow: 1; margin-top: 10px; padding-right: 4px; }
+        .pkg-list::-webkit-scrollbar { width: 6px; }
+        .pkg-list::-webkit-scrollbar-thumb { background: #64748b; border-radius: 4px; }
+        .obs-input { background: transparent; border: none; color: #cbd5e1; width: 100%; font-size: 10px; border-bottom: 1px solid #475569; }
+        .obs-input:focus { outline: none; border-bottom: 1px solid #94a3b8; color: white; }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-200 font-sans fixed inset-0 overflow-hidden">
+<body class="bg-slate-100 text-slate-800 font-sans">
+    <div id="root"></div>
 
-    <div id="root" class="h-full"></div>
-
-    <script type="text/babel" data-type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-        import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-
-        const { useState, useEffect, useMemo } = React;
-
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+        
         const firebaseConfig = {
             apiKey: "AIzaSyBqHgV4vDat1-VmZfKbiPg7nuiX-ROcexw",
             authDomain: "cirineo-cec21.firebaseapp.com",
@@ -86,482 +148,742 @@
             measurementId: "G-B7YLM78RVW"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
-        const ROLES = { 
-            ADMIN: 'admin', 
-            COMMENTATOR: 'commentator', 
-            OBSERVER: 'observer', 
-            DEVELOPMENT: 'development',
-            OPERATOR: 'operator'
-        };
+        const Icon = ({ name, size = 18, className }) => <i data-lucide={name} width={size} height={size} className={className}></i>;
+        const toUppercase = (handler) => (e) => { e.target.value = e.target.value.toUpperCase(); handler(e); };
         
-        const DEFAULT_USERS = {
-            '1111': { name: 'Marco Espinoza', role: ROLES.ADMIN, area: 'Administración', canManageOrders: true },
-            '0000': { name: 'Prisciliano Espinoza', role: ROLES.COMMENTATOR, area: 'Comentarios' },
-            '2222': { name: 'Susana', role: ROLES.OBSERVER, area: 'Observación', canManageOrders: true, canViewGraph: true }, 
-            '1352': { name: 'Vallejo', role: ROLES.DEVELOPMENT, area: 'Desarrollo', canManageOrders: true, canViewGraph: true, canManageUsers: true }, 
-            '3333': { name: 'Tejido', role: ROLES.OPERATOR, area: 'Operadores Gral' },
-            '1392': { name: 'Andrés', role: ROLES.OPERATOR, area: 'Tejido (A)', allowedSlots: [0] },
-            '7914': { name: 'Balta', role: ROLES.OPERATOR, area: 'Tejido (B)', allowedSlots: [1] }
+        const generateSmartID = (partida, pieces, maquina) => {
+            const piecePrefixes = pieces.map(p => p.pieza.substring(0, 2).toUpperCase()).join('/');
+            return `${partida}-${piecePrefixes}-M${maquina}`;
         };
 
-        const MACHINES = [
-            { id: 'm35', name: 'MAQ 35', type: 'SANTONI SM8' }, { id: 'm39', name: 'MAQ 39', type: 'SANTONI SM8' },
-            { id: 'm40', name: 'MAQ 40', type: 'SANTONI SM8' }, { id: 'm36', name: 'MAQ 36', type: 'CIXING GE82' },
-            { id: 'm38', name: 'MAQ 38', type: 'SANTONI SM8' }, { id: 'm37', name: 'MAQ 37', type: 'SANTONI SM8' },
-            { id: 'm29', name: 'MAQ 29', type: 'SANTONI EVO4' }, { id: 'm28', name: 'MAQ 28', type: 'SANTONI EVO4' },
-            { id: 'm27', name: 'MAQ 27', type: 'SANTONI EVO4' }, { id: 'm33', name: 'MAQ 33', type: 'SANTONI EVO4' },
-            { id: 'm1',  name: 'MAQ 1',  type: 'CIXING' }, { id: 'm30', name: 'MAQ 30', type: 'CIXING GE82' },
-            { id: 'm31', name: 'MAQ 31', type: 'CIXING GE82' }, { id: 'm6',  name: 'MAQ 6',  type: 'CIXING GE82' },
-            { id: 'm32', name: 'MAQ 32', type: 'CIXING GE82' }, { id: 'm13', name: 'MAQ 13', type: 'SANTONI EVO4' },
-            { id: 'm12', name: 'MAQ 12', type: 'SANTONI EVO4' }, { id: 'm24', name: 'MAQ 24', type: 'SANTONI EVO4' },
-            { id: 'm8',  name: 'MAQ 8',  type: 'SANTONI TOP2' },
-        ];
+        const generatePackages = (pieces, packageSize, partida) => {
+            let packages = [];
+            let pkgCounter = 1;
+            pieces.forEach(p => {
+                const total = Number(p.totalPedido) || 0;
+                const size = Number(packageSize) || total;
+                const n = Math.ceil(total / size);
+                const piecePrefix = p.pieza.substring(0, 3).toUpperCase();
 
-        const generateCalendar = () => {
-            const dates = [];
-            const months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
-            const start = new Date(2025, 8, 1); 
-            const end = new Date(2026, 11, 31);
-            let idx = 0;
-            for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
-                dates.push({
-                    index: idx++,
-                    id: `${['DOMINGO','LUNES','MARTES','MIERCOLES','JUEVES','VIERNES','SABADO'][d.getDay()]} ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`,
-                    shortDay: ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'][d.getDay()],
-                    dateNum: d.getDate(),
-                    month: months[d.getMonth()],
-                    monthIndex: d.getMonth(),
-                    year: d.getFullYear(), 
-                    isoDate: d.toISOString().split('T')[0] 
-                });
-            }
-            return dates;
+                for (let i = 1; i <= n; i++) {
+                    const cantidad = (i === n) ? (total % size || size) : size;
+                    const codigoUnico = `${piecePrefix}_${i}_DE_${n}`; 
+                    packages.push({ 
+                        id: Date.now() + Math.random() + pkgCounter, 
+                        piezaNombre: p.pieza, 
+                        cantidad: cantidad, 
+                        paqueteNum: i, 
+                        paquetesDePieza: n, 
+                        codigoUnico: codigoUnico, 
+                        finished: false 
+                    });
+                    pkgCounter++;
+                }
+            });
+            return packages;
         };
 
-        const ALL_ROWS = generateCalendar();
-        const INITIAL_STATE = (() => {
-            const todayISO = new Date().toISOString().split('T')[0];
-            const foundIndex = ALL_ROWS.findIndex(r => r.isoDate === todayISO);
-            const safeIndex = foundIndex !== -1 ? foundIndex : 0;
-            return { weekOffset: Math.floor(safeIndex / 7), selectedDayIndex: safeIndex % 7 };
-        })();
+        // --- HOOK PARA ESCÁNER DE CÓDIGO DE BARRAS ---
+        const useBarcodeScanner = (onScan) => {
+            useEffect(() => {
+                let buffer = '';
+                let lastKeyTime = Date.now();
 
-        const getWeekLabel = (weekRows) => {
-            if (!weekRows || weekRows.length === 0) return '';
-            const f = weekRows[0], l = weekRows[weekRows.length - 1];
-            return f.month === l.month ? `${f.month} ${f.year}` : `${f.month} - ${l.month} ${l.year}`;
+                const handleKeyDown = (e) => {
+                    const target = e.target;
+                    // Ignorar si el usuario está escribiendo en un input
+                    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+
+                    const char = e.key;
+                    const currentTime = Date.now();
+
+                    // Si pasa mucho tiempo entre teclas, reiniciar buffer (diferencia escritura manual vs escáner)
+                    if (currentTime - lastKeyTime > 100) {
+                        buffer = '';
+                    }
+                    lastKeyTime = currentTime;
+
+                    if (char === 'Enter') {
+                        if (buffer.length > 5) { // Longitud mínima para considerar código válido
+                            onScan(buffer);
+                        }
+                        buffer = '';
+                    } else if (char.length === 1) {
+                        buffer += char;
+                    }
+                };
+
+                window.addEventListener('keydown', handleKeyDown);
+                return () => window.removeEventListener('keydown', handleKeyDown);
+            }, [onScan]);
         };
 
-        // --- CÁLCULO DE CONSUMOS (MODIFICADO PARA PARTES) ---
-        const calculateConsumptionDetails = (order, producedQty = 0) => {
-            if (!order) return { totalNeeded: 0, consumption: [], totalYarnKilos: 0, producedYarnKilos: 0 };
-
-            const materials = order.materials || [];
-            const waste = 1 + (Number(order.wastePercentage) / 100);
+        // --- COMPONENTE PAPELETA INDIVIDUAL (4x6) ---
+        const PackageTicket = ({ order, pkg }) => {
+            const canvasRef = useRef(null);
             
-            let totalYarnGramsNeeded = 0;
-            let totalYarnGramsConsumed = 0;
-
-            // Lógica para Pedidos Compuestos vs Simples
-            if (order.parts && order.parts.length > 0) {
-                // Sumar consumo de cada parte
-                order.parts.forEach(part => {
-                    const partQty = Number(part.qty);
-                    const partWeight = Number(part.weight); // Peso individual de la parte
-                    const partProduced = Number(part.produced || 0); // Este valor debe venir pre-calculado en metrics o pasarse aquí, 
-                                                                     // pero para simplificar, usaremos el totalYarnKilos guardado o recálculo simple.
-                                                                     
-                    // Como producedQty viene global (o es difícil de separar aquí sin metrics), 
-                    // calcularemos el Total Necesario basado en la estructura.
-                    totalYarnGramsNeeded += (partQty * partWeight);
-                    
-                    // El consumo real es más complejo si no tenemos el produced de cada parte aquí.
-                    // Asumiremos que producedYarnKilos se pasa correctamente o se deriva proporcionalmente si es simple.
-                    // Para reportes precisos de "Consumido hasta hoy" en compuestos, necesitamos pasar las metricas completas.
-                    // *Ajuste*: Usaremos la lógica de metricas para el consumido real si es posible, si no, aproximación.
-                });
-                
-                // Si producedQty es 0, es un calculo estático. Si tiene valor, intentamos usarlo.
-                // Para simplificar en esta vista:
-                // El Total Necesario es exacto. El consumido lo basaremos en el % de avance global del pedido.
-            } else {
-                // Pedido Simple
-                totalYarnGramsNeeded = Number(order.totalQty) * Number(order.pieceWeightGrams);
-            }
-
-            // Aplicar Merma al Total
-            totalYarnGramsNeeded = totalYarnGramsNeeded * waste;
-            const totalYarnKilos = totalYarnGramsNeeded / 1000;
-
-            // Consumo Real (Aproximación basada en lo que se le pase a la función)
-            // En el reporte pasamos metrics.produced, pero en compuestos metrics.produced es engañoso (mezcla peras con manzanas).
-            // Usaremos una variable 'producedYarnKilos' si existe en el orden (guardada) o calculada externamente.
-            // Para mantener compatibilidad:
-            let producedKilosCalc = 0;
-            if (order.parts && order.metricsProducedBytes) { 
-                 // Si pudiéramos pasar el peso consumido real...
-                 // Simplificación: usaremos el metrics.producedYarnKilos si viene de metrics.
-            } 
-            
-            // Re-calculo de consumido basado en input externo (generalmente correcto para simples)
-            // Para compuestos, el `producedQty` no sirve de mucho. Se debe manejar en `calculateOrderMetrics` el peso consumido real.
-            
-            // 3. Detailed Consumption
-            const consumption = materials
-                .filter(m => m.name && m.percentage)
-                .map(m => {
-                    const percent = Number(m.percentage) / 100;
-                    const kilosNeeded = (totalYarnKilos * percent);
-                    // El consumido lo dejamos en 0 aquí si no hay datos precisos, se llenará en el reporte
-                    return { 
-                        name: m.name, 
-                        percentage: m.percentage, 
-                        kilosNeeded: kilosNeeded,
-                        kilosConsumed: 0 // Placeholder
-                    };
-                });
-            
-            return { totalNeeded: order.totalQty, consumption, totalYarnKilos, producedYarnKilos: 0 };
-        };
-
-
-        // --- CÁLCULO PROYECCIÓN Y DESVIACIÓN (MODIFICADO) ---
-        const calculateOrderMetrics = (machineId, order, allProductionData, allRows, globalHiddenDays) => {
-            const metrics = { 
-                isPlanned: false, finishDate: null, totalNeeded: 0, progress: 0, produced: 0, 
-                dailyCapacity: 0, plannedToDate: 0, deviation: 0, status: 'OK',
-                activePart: null, partsStatus: [], totalYarnConsumed: 0
-            };
-            
-            if (!order || !order.startDate) return metrics;
-            
-            const todayISO = new Date().toISOString().split('T')[0];
-            const dailyHours = order.operators && Array.isArray(order.operators) ? order.operators.length * 12 : Number(order.dailyHours || 12);
-            const dailyMinutesCapacity = dailyHours * 60;
-            const disabledDates = order.disabledDates || [];
-            
-            metrics.dailyCapacity = dailyMinutesCapacity; // Ahora en minutos para unificar
-            metrics.isPlanned = true;
-
-            // --- LÓGICA DIFERENCIADA: SIMPLE VS COMPUESTO ---
-            const isComposite = order.parts && order.parts.length > 0;
-            
-            // 1. Calcular Totales Requeridos
-            let totalMinutesNeeded = 0;
-            let totalQtyNeeded = 0; // Solo referencial para compuestos
-            
-            if (isComposite) {
-                order.parts.forEach(p => {
-                    totalMinutesNeeded += Number(p.qty) * Number(p.time);
-                    totalQtyNeeded += Number(p.qty);
-                });
-            } else {
-                totalMinutesNeeded = Number(order.totalQty) * Number(order.timePerPieceMin);
-                totalQtyNeeded = Number(order.totalQty);
-            }
-
-            // 2. Calcular Producción Real (Iterando días)
-            let totalMinutesProduced = 0;
-            let totalItemsProduced = 0;
-            let totalYarnConsumedGrams = 0;
-            const wasteMult = 1 + (Number(order.wastePercentage || 0) / 100);
-
-            // Estructura temporal para trackear partes
-            let partsTracker = isComposite ? order.parts.map(p => ({...p, produced: 0})) : [];
-
-            const startIndex = allRows.findIndex(r => r.isoDate === order.startDate);
-            const todayIndex = allRows.findIndex(r => r.isoDate === todayISO);
-
-            if (startIndex !== -1) {
-                for (let i = startIndex; i < allRows.length; i++) {
-                    const row = allRows[i];
-                    // Si ya pasamos hoy, dejamos de sumar producción real (solo proyectamos)
-                    const isFuture = i > todayIndex; 
-                    if (isFuture) break;
-
-                    const machineData = allProductionData[row.id]?.[machineId];
-                    if (machineData && machineData.slots) {
-                        machineData.slots.forEach(slot => {
-                            if (slot.qty && slot.qty > 0) {
-                                const slotModel = (slot.model || '').toUpperCase().trim();
-                                const qty = Number(slot.qty);
-                                
-                                if (isComposite) {
-                                    // Buscar a qué parte corresponde
-                                    const partIdx = partsTracker.findIndex(p => p.name.toUpperCase() === slotModel);
-                                    if (partIdx !== -1) {
-                                        partsTracker[partIdx].produced += qty;
-                                        totalMinutesProduced += (qty * Number(partsTracker[partIdx].time));
-                                        totalItemsProduced += qty;
-                                        totalYarnConsumedGrams += (qty * Number(partsTracker[partIdx].weight));
-                                    }
-                                    // Si no coincide el nombre exacto, no se suma (o se podría sumar a un 'desconocido')
-                                } else {
-                                    // Pedido simple: sumamos todo lo que haya en la máquina (asumiendo que es del pedido activo)
-                                    // Opcional: validar nombre modelo
-                                    totalMinutesProduced += (qty * Number(order.timePerPieceMin));
-                                    totalItemsProduced += qty;
-                                    totalYarnConsumedGrams += (qty * Number(order.pieceWeightGrams));
-                                }
-                            }
+            useEffect(() => {
+                if (canvasRef.current) {
+                    // Generamos código: ID_ORDEN + "-" + ID_PAQUETE
+                    // Esto asegura unicidad para el escáner
+                    const barcodeValue = `${order.id}-${pkg.id}`;
+                    try {
+                        JsBarcode(canvasRef.current, barcodeValue, {
+                            format: "CODE128",
+                            displayValue: false, // No mostrar el texto largo abajo, pondremos uno custom
+                            height: 60,
+                            width: 2,
+                            margin: 0
                         });
+                    } catch (e) {
+                        console.error("Error barcode", e);
                     }
                 }
-            }
-
-            metrics.produced = totalItemsProduced; // En compuestos es la suma de piezas heterogéneas
-            metrics.progress = totalMinutesNeeded > 0 ? Math.min(100, (totalMinutesProduced / totalMinutesNeeded) * 100) : 0;
-            metrics.partsStatus = partsTracker;
-            metrics.totalYarnConsumed = (totalYarnConsumedGrams * wasteMult) / 1000; // KG con merma
-
-            // 3. Determinar Parte Activa (Solo Compuestos)
-            if (isComposite) {
-                metrics.activePart = partsTracker.find(p => p.produced < p.qty) || null;
-            }
-
-            // 4. Calcular Planeado hasta la fecha (Deviation)
-            // Calculamos cuántos minutos DEBERÍAMOS llevar
-            let plannedMinutesToDate = 0;
-            if (startIndex !== -1) {
-                for (let i = startIndex; i < todayIndex; i++) { // Hasta ayer
-                     const row = allRows[i];
-                     if (!globalHiddenDays.includes(row.id) && !disabledDates.includes(row.isoDate)) {
-                         plannedMinutesToDate += dailyMinutesCapacity;
-                     }
-                }
-            }
-            
-            // Deviation en minutos (negativo = atraso)
-            const minutesDeviation = totalMinutesProduced - plannedMinutesToDate;
-            // Convertimos deviation a "Piezas equivalentes" para mostrar algo entendible, 
-            // o simplemente mostramos tiempo. Para mantener compatibilidad visual, usaremos 
-            // un promedio de tiempo por pieza o simplemente mostraremos horas.
-            // Para simplificar: Deviation se queda en unidades arbitrarias o usamos % de desviación.
-            // En la UI, si es compuesto, mostraremos "X min/horas atraso". 
-            // Truco: Para reutilizar el campo 'deviation' (que es numérico), lo dejaremos en minutos si es compuesto.
-            metrics.deviation = isComposite ? Math.round(minutesDeviation / 60) : (totalItemsProduced - (plannedMinutesToDate / Number(order.timePerPieceMin))); 
-            metrics.plannedToDate = isComposite ? Math.round(plannedMinutesToDate / 60) + ' hrs' : Math.floor(plannedMinutesToDate / Number(order.timePerPieceMin));
-
-            // Status Check
-            const criticalDelayMinutes = dailyMinutesCapacity * 1.5; 
-            if (minutesDeviation < -criticalDelayMinutes) metrics.status = 'ATRASO CRÍTICO';
-            else if (minutesDeviation < 0) metrics.status = 'ATRASO LEVE';
-            
-            // 5. Proyección Final
-            const remainingMinutes = Math.max(0, totalMinutesNeeded - totalMinutesProduced);
-            
-            if (remainingMinutes <= 0) {
-                metrics.finishDate = todayISO;
-                metrics.status = 'COMPLETADO';
-                metrics.progress = 100;
-                metrics.totalNeeded = 0;
-                return metrics;
-            }
-            
-            metrics.totalNeeded = isComposite ? 0 : (Number(order.totalQty) - totalItemsProduced); // En compuesto no hay un "total needed" único de piezas
-
-            // Proyección día a día desde hoy
-            let projMinutes = remainingMinutes;
-            let currentIdx = startIndex !== -1 ? startIndex : 0;
-            if (todayIndex > currentIdx) currentIdx = todayIndex;
-
-            for (let i = currentIdx; i < allRows.length; i++) {
-                const row = allRows[i];
-                if (globalHiddenDays.includes(row.id) || disabledDates.includes(row.isoDate)) continue;
-                
-                projMinutes -= dailyMinutesCapacity;
-                if (projMinutes <= 0) {
-                    metrics.finishDate = row.isoDate;
-                    return metrics;
-                }
-            }
-
-            metrics.finishDate = null; // +60 días
-            return metrics;
-        };
-
-        const ProductionSlot = ({ slotData, index, disabled, onUpdate }) => {
-            const [localModel, setLocalModel] = useState(slotData?.model || '');
-            const [localQty, setLocalQty] = useState('');
-            const [isDirty, setIsDirty] = useState(false);
-
-            useEffect(() => {
-                if (!isDirty) { 
-                    setLocalModel(slotData?.model || ''); 
-                    setLocalQty(slotData?.qty ?? ''); 
-                }
-            }, [slotData, isDirty]);
-
-            const handleSave = (e) => {
-                e?.preventDefault();
-                if (localModel !== (slotData?.model || '')) onUpdate(index, 'model', localModel);
-                if (String(localQty) !== String(slotData?.qty ?? '')) onUpdate(index, 'qty', localQty);
-                setIsDirty(false);
-            };
-
-            const handleChange = (f, v) => { if (f==='model') setLocalModel(v); else setLocalQty(v); setIsDirty(true); };
-            const handleKeyDown = (e) => { if (e.key === 'Enter') { e.preventDefault(); handleSave(); e.target.blur(); } };
+            }, [order, pkg]);
 
             return (
-                <div className={`flex flex-col border border-slate-700/50 rounded overflow-hidden h-full relative ${disabled ? 'bg-slate-900/20 opacity-40' : 'bg-slate-800'} ${isDirty ? 'border-yellow-500/50' : ''}`}>
-                    <input type="text" placeholder="MOD" value={localModel} onChange={(e) => handleChange('model', e.target.value)} onKeyDown={handleKeyDown} disabled={disabled} className="slot-input text-[8px] text-yellow-500 uppercase border-b border-slate-700/50 h-1/2" />
-                    <input type="number" placeholder="CANT" value={localQty} onChange={(e) => handleChange('qty', e.target.value)} onKeyDown={handleKeyDown} disabled={disabled} className="slot-input text-[10px] text-white h-1/2" />
-                    {isDirty && !disabled && (<div className="absolute inset-y-0 right-0 w-8 flex items-center justify-center bg-gradient-to-l from-slate-900 via-slate-900/80 to-transparent z-10 animate-zoom-in"><button onClick={handleSave} className="bg-green-600 text-white rounded-full p-1 shadow-lg hover:scale-110"><i data-lucide="check" className="w-3 h-3"></i></button></div>)}
-                </div>
-            );
-        };
-
-        // --- GESTIÓN DE USUARIOS MODAL ---
-        const UserManagementModal = ({ onClose, users, onSaveUser, onDeleteUser }) => {
-            const [editingUser, setEditingUser] = useState(null);
-            const [pin, setPin] = useState('');
-            const [name, setName] = useState('');
-            const [role, setRole] = useState(ROLES.OPERATOR);
-            const [area, setArea] = useState('');
-
-            const allUsersArray = Object.entries(users).map(([pin, data]) => ({ pin, ...data }));
-            const availableRoles = Object.values(ROLES);
-
-            const startEdit = (user) => {
-                setEditingUser(user);
-                setPin(user.pin);
-                setName(user.name);
-                setRole(user.role);
-                setArea(user.area || '');
-            };
-
-            const handleSave = () => {
-                if (!pin || !name || !role) { alert('Todos los campos son obligatorios'); return; }
-                if (pin.length !== 4 || isNaN(Number(pin))) { alert('PIN debe ser 4 dígitos'); return; }
-                
-                const payload = { 
-                    name, role, area,
-                    canManageOrders: editingUser ? editingUser.canManageOrders : role === ROLES.ADMIN || role === ROLES.OBSERVER || role === ROLES.DEVELOPMENT,
-                    canViewGraph: editingUser ? editingUser.canViewGraph : role === ROLES.ADMIN || role === ROLES.OBSERVER || role === ROLES.DEVELOPMENT,
-                    canManageUsers: editingUser ? editingUser.canManageUsers : role === ROLES.DEVELOPMENT,
-                };
-                if (role === ROLES.OPERATOR) payload.allowedSlots = editingUser?.allowedSlots || [];
-
-                onSaveUser(pin, payload);
-                setEditingUser(null); setPin(''); setName(''); setRole(ROLES.OPERATOR); setArea('');
-            };
-
-            return (
-                <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in" onClick={onClose}>
-                    <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col border border-slate-700 overflow-hidden" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900 no-print">
-                            <h3 className="font-bold text-white uppercase tracking-wider text-sm flex items-center gap-2"><i data-lucide="users" className="w-5 h-5 text-yellow-400"></i> Gestión de Usuarios</h3>
-                            <button onClick={onClose}><i data-lucide="x" className="text-slate-400 w-5 h-5"></i></button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar flex gap-6">
-                            <div className="w-1/3 shrink-0 bg-slate-900 p-4 rounded-xl border border-slate-700 h-fit sticky top-0">
-                                <h4 className="text-lg font-bold text-white mb-4">{editingUser ? 'Editar' : 'Crear'}</h4>
-                                <div className="space-y-3">
-                                    <input type="number" value={pin} onChange={e => setPin(e.target.value.slice(0, 4))} disabled={!!editingUser} placeholder="PIN" className="w-full bg-slate-700 text-white p-2 rounded" />
-                                    <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Nombre" className="w-full bg-slate-700 text-white p-2 rounded" />
-                                    <input type="text" value={area} onChange={e => setArea(e.target.value)} placeholder="Área" className="w-full bg-slate-700 text-white p-2 rounded" />
-                                    <select value={role} onChange={e => setRole(e.target.value)} className="w-full bg-slate-700 text-white p-2 rounded"><option value={ROLES.OPERATOR}>Operador</option><option value={ROLES.ADMIN}>Admin</option></select>
-                                </div>
-                                <button onClick={handleSave} className="mt-4 w-full bg-green-600 text-white py-2 rounded font-bold">Guardar</button>
+                <div className="ticket-container">
+                    <div className="ticket-content">
+                        {/* Header Papeleta */}
+                        <div className="flex justify-between items-start border-b-2 border-black pb-1">
+                            <div className="w-2/3">
+                                <h2 className="font-black text-2xl uppercase truncate">{order.cliente}</h2>
+                                <div className="text-sm font-bold">PARTIDA: {order.partida}</div>
+                                <div className="text-xs font-mono">MOD: {order.codigo}</div>
                             </div>
-                            <div className="flex-1 space-y-3">
-                                {allUsersArray.map(u => (
-                                    <div key={u.pin} className="bg-slate-900 p-4 rounded border border-slate-700 flex justify-between items-center">
-                                        <div><p className="font-bold text-white">{u.name}</p><p className="text-sm text-blue-400">{u.role}</p></div>
-                                        <div className="flex gap-2"><button onClick={() => startEdit(u)} className="p-2 bg-slate-700 rounded"><i data-lucide="pencil" className="w-4 h-4 text-blue-400"></i></button><button onClick={() => onDeleteUser(u.pin)} className="p-2 bg-red-900/50 rounded"><i data-lucide="trash-2" className="w-4 h-4 text-red-400"></i></button></div>
-                                    </div>
-                                ))}
+                            <div className="w-1/3 text-right">
+                                <div className="bg-black text-white text-xs font-bold text-center">MAQ</div>
+                                <div className="text-4xl font-black text-center leading-none">{order.maquina}</div>
+                            </div>
+                        </div>
+
+                        {/* Cuerpo Principal */}
+                        <div className="flex-grow flex items-center justify-between py-2">
+                            <div className="flex flex-col justify-center w-1/2">
+                                <div className="text-xs font-bold text-slate-500 uppercase">CONTENIDO</div>
+                                <div className="text-lg font-black leading-tight uppercase mb-1">{pkg.piezaNombre}</div>
+                                <div className="text-xs font-bold border border-black inline-block px-1 rounded">
+                                    PAQ {pkg.paqueteNum} / {pkg.paquetesDePieza}
+                                </div>
+                            </div>
+                            <div className="w-1/2 flex flex-col items-end justify-center">
+                                <div className="text-xs font-bold text-slate-500 uppercase text-right w-full">CANTIDAD</div>
+                                <div className="text-7xl font-black text-right">{pkg.cantidad}</div>
+                                <div className="text-xs font-bold text-center w-full mt-1">PIEZAS</div>
+                            </div>
+                        </div>
+
+                        {/* Footer / Barcode */}
+                        <div className="border-t-2 border-black pt-2 flex flex-col items-center justify-center">
+                            <canvas ref={canvasRef} className="max-w-full h-16"></canvas>
+                            <div className="text-[10px] font-mono mt-1 text-center w-full">
+                                {pkg.codigoUnico} | REF: {pkg.id.toString().slice(-6)}
                             </div>
                         </div>
                     </div>
                 </div>
             );
         };
-        
-        // --- REPORTE MODAL (MODIFICADO) ---
-        const ReportModal = ({ onClose, machineId, order, metrics, orderManagerRef }) => {
-            if (!order || !machineId) return null;
 
-            const machine = MACHINES.find(m => m.id === machineId);
-            const isComposite = order.parts && order.parts.length > 0;
-            const consumptionData = calculateConsumptionDetails(order, metrics.produced);
-            
-            // Consumo Real en Kilos (Calculado en metrics para compuestos, o en consumptionData para simples)
-            const consumedKilosReal = isComposite ? metrics.totalYarnConsumed : consumptionData.producedYarnKilos;
+        // --- COMPONENTE DASHBOARD COMPONENTS (Igual que antes) ---
+        const InstallButton = () => { /* ... (Sin cambios) */
+             const [deferredPrompt, setDeferredPrompt] = useState(null);
+            useEffect(() => {
+                const handler = (e) => { e.preventDefault(); setDeferredPrompt(e); };
+                window.addEventListener('beforeinstallprompt', handler);
+                return () => window.removeEventListener('beforeinstallprompt', handler);
+            }, []);
+            const handleInstall = async () => {
+                if (!deferredPrompt) return;
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') setDeferredPrompt(null);
+            };
+            if (!deferredPrompt) return null;
+            return (
+                <button onClick={handleInstall} className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-2 rounded font-bold shadow flex items-center gap-2 text-xs animate-pulse">
+                    <Icon name="download-cloud" size={16}/> INSTALAR APP
+                </button>
+            );
+        };
 
-            // Para compuestos, Total Requerido
-            const totalRequiredKilos = isComposite ? (consumptionData.totalYarnKilos) : consumptionData.totalYarnKilos;
+        const MachineCard = ({ maquina, orders }) => {
+            const [is24Hours, setIs24Hours] = useState(true);
+            const pendingPackages = useMemo(() => {
+                let pkgs = [];
+                orders.forEach(o => {
+                    const incomplete = o.progreso?.filter(p => !p.finished) || [];
+                    incomplete.forEach(p => {
+                        const pieceData = o.subPiecesData?.find(sp => sp.pieza === p.piezaNombre) || o;
+                        const timePerPiece = Number(pieceData.tiempo) || 0;
+                        pkgs.push({ ...p, parentOrderId: o.id, orderCode: o.codigo, partida: o.partida, timeTotal: (p.cantidad * timePerPiece) });
+                    });
+                });
+                return pkgs; 
+            }, [orders]);
 
-            const isCompleted = metrics.finishDate && metrics.status === 'COMPLETADO';
-            
-            const handleDownloadWord = () => {
-                const reportContent = document.querySelector('.report-page').outerHTML;
-                const htmlContent = `<html><head><meta charset="UTF-8"></head><body>${reportContent}</body></html>`;
-                const blob = new Blob([htmlContent], { type: 'application/msword;charset=utf-8' });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = `Reporte_${machine.name}_${order.model}.doc`;
-                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            const updateObs = async (pkgId, parentOrderId, newVal) => {
+                const order = orders.find(o => o.id === parentOrderId);
+                if(!order) return;
+                const newProgreso = order.progreso.map(p => p.id === pkgId ? {...p, observaciones: newVal} : p);
+                await db.collection('orders').doc(String(parentOrderId)).update({progreso: newProgreso});
             };
 
+            const totalMinutesLeft = pendingPackages.reduce((sum, p) => sum + p.timeTotal, 0);
+            const hoursPerDay = is24Hours ? 24 : 12;
+            const daysLeft = totalMinutesLeft > 0 ? (totalMinutesLeft / 60 / hoursPerDay).toFixed(1) : 0;
+            const hoursLeft = (totalMinutesLeft / 60).toFixed(1);
+
             return (
-                <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in no-print" onClick={onClose}>
-                    <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-4xl h-[95vh] flex flex-col border border-slate-700 overflow-hidden" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900 no-print">
-                            <h3 className="font-bold text-white uppercase tracking-wider text-sm">Reporte: {machine.name} - {order.model}</h3>
-                            <div className="flex gap-2"><button onClick={() => window.print()} className="px-3 bg-red-600 rounded text-white font-bold">PDF</button><button onClick={handleDownloadWord} className="px-3 bg-blue-600 rounded text-white font-bold">DOC</button><button onClick={onClose}><i data-lucide="x" className="text-slate-400 w-5 h-5"></i></button></div>
+                <div className="machine-card shadow-lg border border-slate-600">
+                    <div className="flex justify-between items-center border-b border-slate-500 pb-2 mb-2">
+                        <div>
+                            <div className="text-xs text-slate-400 font-bold uppercase">Máquina</div>
+                            <div className="text-3xl font-black text-yellow-400">#{maquina}</div>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-0 custom-scrollbar report-page">
-                            <div className="report-header"><h1>REPORTE - {order.model} {isComposite ? '(COMPUESTO)' : ''}</h1></div>
-                            <div className="report-section">
-                                <h2>📋 Datos del Pedido</h2>
-                                <div className="report-data">
-                                    <div><span className="report-label">Máquina:</span><span className="report-value">{machine.name}</span></div>
-                                    <div><span className="report-label">Modelo:</span><span className="report-value text-blue-700">{order.model}</span></div>
-                                    {!isComposite && <div><span className="report-label">Cantidad:</span><span className="report-value">{Number(order.totalQty).toLocaleString()} pzas</span></div>}
-                                    <div><span className="report-label">Inicio:</span><span className="report-value">{order.startDate}</span></div>
-                                    <div><span className="report-label">Fin Est.:</span><span className="report-value">{metrics.finishDate || 'Pendiente'}</span></div>
+                        <div className="text-right">
+                            <button onClick={()=>setIs24Hours(!is24Hours)} className="bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-[10px] font-bold mb-1 border border-slate-500 block w-full">
+                                {is24Hours ? '24 HORAS' : '12 HORAS'}
+                            </button>
+                            <div className="text-xs font-bold text-green-400">{daysLeft} días ({hoursLeft}h)</div>
+                        </div>
+                    </div>
+                    <div className="pkg-list space-y-1">
+                        {pendingPackages.length === 0 && <div className="text-center text-slate-500 text-xs py-4">Máquina Libre</div>}
+                        {pendingPackages.map((p, i) => (
+                            <div key={i} className="bg-slate-800 p-2 rounded flex gap-2 items-center text-xs border border-slate-700">
+                                <div className="font-black text-white text-lg w-10 text-right shrink-0">{p.cantidad}</div>
+                                <div className="w-24 shrink-0 overflow-hidden">
+                                    <div className="font-bold text-slate-300 truncate text-[10px]" title={p.piezaNombre}>{p.piezaNombre}</div>
+                                    <div className="text-[9px] text-yellow-500 font-black truncate">{p.partida}</div>
+                                </div>
+                                <div className="flex-grow pl-2 border-l border-slate-600">
+                                    <input className="obs-input placeholder-slate-600" placeholder="Observaciones..." defaultValue={p.observaciones || ''} onBlur={(e) => updateObs(p.id, p.parentOrderId, e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') e.target.blur(); }}/>
                                 </div>
                             </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
 
-                            {isComposite && (
-                                <div className="report-section">
-                                    <h2>🧩 Desglose de Partes</h2>
-                                    <table className="report-material-table">
-                                        <thead><tr><th>Parte</th><th>Total Req.</th><th>Producido</th><th>Faltante</th></tr></thead>
+        const DashboardBottom = ({ activeOrders }) => {
+            const machineGroups = useMemo(() => {
+                const groups = {};
+                activeOrders.forEach(o => { if(!groups[o.maquina]) groups[o.maquina] = []; groups[o.maquina].push(o); });
+                return Object.keys(groups).sort((a,b) => parseInt(a)-parseInt(b)).map(k => ({ id: k, orders: groups[k] }));
+            }, [activeOrders]);
+
+            return (
+                <div className="bottom-pane shadow-inner">
+                    {machineGroups.map(g => <MachineCard key={g.id} maquina={g.id} orders={g.orders} />)}
+                    {machineGroups.length === 0 && <div className="text-slate-500 w-full flex items-center justify-center font-bold">No hay producción activa</div>}
+                </div>
+            );
+        };
+
+        // --- COMPONENTE DE IMPORTACIÓN (Igual) ---
+        const ImportModal = ({ onClose, onImport }) => {
+             const [text, setText] = useState('');
+            const [error, setError] = useState(null);
+
+            const handleProcess = () => {
+                if (!text.trim()) return;
+                try {
+                    const delimiter = text.includes('\t') ? '\t' : ',';
+                    const rows = text.trim().split('\n').map(r => r.split(delimiter));
+                    if (rows.length < 2) throw new Error("Datos insuficientes.");
+                    const headers = rows[0].map(h => h.trim().toUpperCase().replace(/"/g, ''));
+                    const getVal = (row, colName) => { const idx = headers.indexOf(colName); return idx !== -1 && row[idx] ? row[idx].trim().replace(/"/g, '') : ''; };
+
+                    if (headers.indexOf('PARTIDA') === -1) throw new Error("Falta columna 'PARTIDA'");
+                    if (headers.indexOf('CODIGO') === -1) throw new Error("Falta columna 'CODIGO'");
+                    if (headers.indexOf('PIEZAS') === -1) throw new Error("Falta columna 'PIEZAS'");
+
+                    const predefinedPackages = [];
+                    let totalPiezas = 0;
+                    const firstRow = rows[1]; 
+                    
+                    rows.slice(1).forEach((r, i) => {
+                        const piezas = parseFloat(getVal(r, 'PIEZAS'));
+                        const codigoUnico = getVal(r, 'CODIGO'); 
+                        let pkgNum = i + 1;
+                        if (!isNaN(piezas)) {
+                            totalPiezas += piezas;
+                            predefinedPackages.push({ 
+                                id: Date.now() + i, 
+                                piezaNombre: getVal(r, 'DESCRIPCION') || 'ESTANDAR', 
+                                cantidad: piezas, 
+                                paqueteNum: pkgNum, 
+                                paquetesDePieza: rows.length - 1, 
+                                codigoUnico: codigoUnico, 
+                                finished: false 
+                            });
+                        }
+                    });
+
+                    const threading = [];
+                    const nylon = getVal(firstRow, 'NYLON');
+                    const lycra = getVal(firstRow, 'LYCRA');
+                    if (nylon) threading.push({ id: 1, guia: '1', material: `NYLON ${nylon}`, sis: '', porcentaje: '' });
+                    if (lycra) threading.push({ id: 2, guia: '2', material: `LYCRA ${lycra}`, sis: '', porcentaje: '' });
+                    
+                    onImport({ 
+                        codigo: getVal(firstRow, 'MODELO'), 
+                        cliente: getVal(firstRow, 'CLIENTE'), 
+                        maquina: getVal(firstRow, 'MAQUINA'), 
+                        partida: getVal(firstRow, 'PARTIDA'), 
+                        subPiecesData: [{ 
+                            id: Date.now(), 
+                            pieza: getVal(firstRow, 'DESCRIPCION') || 'ESTANDAR', 
+                            programa: '', 
+                            talla: getVal(firstRow, 'TALLA') || 'UNITALLA', 
+                            totalPedido: totalPiezas, 
+                            peso: '', 
+                            tiempo: '' 
+                        }], 
+                        threading: threading, 
+                        predefinedPackages: predefinedPackages,
+                        createdAt: new Date().toLocaleString('es-MX')
+                    });
+                } catch (e) { setError(e.message); }
+            };
+            return (
+                <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
+                    <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-2xl relative">
+                        <div className="flex justify-between items-center mb-4 border-b pb-2">
+                            <h3 className="font-bold text-xl text-green-700 flex items-center gap-2"><Icon name="file-spreadsheet"/> Importar Excel</h3>
+                            <button onClick={onClose} className="bg-red-500 hover:bg-red-600 text-white rounded-md p-2 shadow-lg flex items-center gap-1 font-bold text-xs transition-transform hover:scale-105">
+                                <Icon name="x" size={18}/> CERRAR
+                            </button>
+                        </div>
+                        <p className="text-xs text-slate-500 mb-2">Copia y pega las celdas desde Excel.</p>
+                        <textarea value={text} onChange={(e) => { setText(e.target.value); setError(null); }} className="w-full h-64 p-3 border-2 border-slate-300 rounded font-mono text-xs focus:border-green-500 focus:outline-none" placeholder="Pegar datos..."></textarea>
+                        {error && <div className="mt-2 text-red-600 text-xs font-bold bg-red-50 p-2 rounded border border-red-200">Error: {error}</div>}
+                        <div className="flex justify-end gap-2 mt-4">
+                            <button onClick={handleProcess} className="px-6 py-2 bg-green-600 text-white font-bold rounded shadow hover:bg-green-700 flex items-center gap-2"><Icon name="check-circle" size={18}/> Procesar</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const SmartImage = ({ repoUrls, codigo, className }) => {
+             const [imgSrc, setImgSrc] = useState(null);
+            const [attempt, setAttempt] = useState({ urlIndex: 0, extension: 'jpg' });
+            useEffect(() => {
+                if (!repoUrls || !repoUrls.length || !codigo) { setImgSrc(null); return; }
+                setAttempt({ urlIndex: 0, extension: 'jpg' });
+                const base = repoUrls[0].endsWith('/') ? repoUrls[0] : repoUrls[0] + '/';
+                setImgSrc(`${base}${codigo}.jpg`);
+            }, [repoUrls, codigo]);
+
+            const handleError = () => {
+                const { urlIndex, extension } = attempt;
+                if (extension === 'jpg') {
+                    const base = repoUrls[urlIndex].endsWith('/') ? repoUrls[urlIndex] : repoUrls[urlIndex] + '/';
+                    setImgSrc(`${base}${codigo}.png`);
+                    setAttempt({ ...attempt, extension: 'png' });
+                } else if (urlIndex < repoUrls.length - 1) {
+                    const nextIdx = urlIndex + 1;
+                    const base = repoUrls[nextIdx].endsWith('/') ? repoUrls[nextIdx] : repoUrls[nextIdx] + '/';
+                    setImgSrc(`${base}${codigo}.jpg`);
+                    setAttempt({ urlIndex: nextIdx, extension: 'jpg' });
+                } else {
+                    setAttempt({ ...attempt, extension: 'fail' });
+                }
+            };
+            if (attempt.extension === 'fail' || !imgSrc) return <div className={`bg-slate-100 flex flex-col items-center justify-center text-slate-300 ${className}`}><Icon name="image-off" size={32} className="mb-2"/><span className="text-[10px] text-center px-2">Sin img</span></div>;
+            return <img src={imgSrc} onError={handleError} className={className} />;
+        };
+
+        const MultiOrderForm = ({ config, onCancel, initialOrder, clientHistory, inventory, isEditing }) => {
+            /* ... (CÓDIGO DE FORMULARIO IGUAL QUE ANTES) ... */
+             const [header, setHeader] = useState(initialOrder ? { codigo: initialOrder.codigo, cliente: initialOrder.cliente, maquina: initialOrder.maquina, partida: initialOrder.partida || '', fechaInicio: initialOrder.fechaInicio || new Date().toISOString().split('T')[0] } : { codigo: '', cliente: '', maquina: '', partida: '', fechaInicio: new Date().toISOString().split('T')[0] });
+            const [pieces, setPieces] = useState(initialOrder?.subPiecesData || [{ id: 1, pieza: 'BLUSA', programa: '', talla: 'UNITALLA', totalPedido: 100, peso: '150', tiempo: '' }]);
+            const [threadingData, setThreadingData] = useState(initialOrder?.threading || []);
+            const predefinedPackages = initialOrder?.predefinedPackages || (initialOrder && initialOrder.packageSize === 'VARIO' ? initialOrder.progreso : null);
+            const [packageSize, setPackageSize] = useState(initialOrder?.packageSize && initialOrder.packageSize !== 'VARIO' ? initialOrder.packageSize : 50);
+            
+            const addPiece = () => setPieces([...pieces, { id: Date.now(), pieza: '', talla: 'UNITALLA', totalPedido: '', peso: '', tiempo: '' }]);
+            const updatePiece = (id, f, v) => setPieces(pieces.map(p => p.id === id ? { ...p, [f]: v } : p));
+            const removePiece = (id) => pieces.length > 1 && setPieces(pieces.filter(p => p.id !== id));
+            
+            const totalOrderWeight = pieces.reduce((sum, p) => sum + ((Number(p.totalPedido) || 0) * (Number(p.peso) || 0)), 0);
+
+            const handleSubmit = async () => {
+                if(!header.codigo || !header.cliente || !header.maquina || !header.partida) return alert("Faltan datos.");
+                let finalPackages = initialOrder?.progreso?.filter(p => p.finished) || []; 
+                if (predefinedPackages) {
+                    if (isEditing) {
+                        const newPredefined = initialOrder.progreso.map(p => {
+                            const original = initialOrder.progreso.find(op => op.id === p.id);
+                            return {...p, finished: original?.finished || false, tejedor: original?.tejedor || '', fecha: original?.fecha || '', defectos: original?.defectos || '', agujas: original?.agujas || ''};
+                        });
+                        finalPackages = newPredefined;
+                    } else {
+                        finalPackages = predefinedPackages;
+                    }
+                } else {
+                    const newPackages = generatePackages(pieces, packageSize, header.partida);
+                    if(isEditing) {
+                         const finishedIds = new Set(finalPackages.map(p=>p.id));
+                         finalPackages = [...finalPackages, ...newPackages.filter(p=>!finishedIds.has(p.id))];
+                    } else {
+                         finalPackages = newPackages;
+                    }
+                }
+
+                if (inventory && Array.isArray(inventory)) {
+                    let updatedInventoryItems = [...inventory]; 
+                    let inventoryChanged = false;
+                    if (isEditing && initialOrder) {
+                        const oldTotalWeight = initialOrder.subPiecesData.reduce((sum, p) => sum + ((Number(p.totalPedido)||0) * (Number(p.peso)||0)), 0);
+                        const oldTotalKg = oldTotalWeight / 1000;
+                        initialOrder.threading.forEach(row => {
+                            const pct = parseFloat(row.porcentaje) || 0;
+                            if (pct > 0 && row.material) {
+                                const consumedKg = oldTotalKg * (pct / 100);
+                                const itemIndex = updatedInventoryItems.findIndex(i => i.material === row.material);
+                                if (itemIndex > -1) {
+                                    const currentStock = parseFloat(updatedInventoryItems[itemIndex].stock) || 0;
+                                    updatedInventoryItems[itemIndex] = { ...updatedInventoryItems[itemIndex], stock: (currentStock + consumedKg).toFixed(2) };
+                                    inventoryChanged = true;
+                                }
+                            }
+                        });
+                    }
+                    const newTotalKg = totalOrderWeight / 1000;
+                    threadingData.forEach(row => {
+                        const pct = parseFloat(row.porcentaje) || 0;
+                        if (pct > 0 && row.material) {
+                            const consumedKg = newTotalKg * (pct / 100);
+                            const itemIndex = updatedInventoryItems.findIndex(i => i.material === row.material);
+                            if (itemIndex > -1) {
+                                const currentStock = parseFloat(updatedInventoryItems[itemIndex].stock) || 0;
+                                const newStock = Math.max(0, currentStock - consumedKg);
+                                updatedInventoryItems[itemIndex] = { ...updatedInventoryItems[itemIndex], stock: newStock.toFixed(2) };
+                                inventoryChanged = true;
+                            }
+                        }
+                    });
+
+                    if (inventoryChanged) {
+                        try {
+                            await db.collection('inventory').doc('main').update({ items: updatedInventoryItems });
+                        } catch (err) { alert("Advertencia: Hubo un error sincronizando el inventario."); }
+                    }
+                }
+
+                const displayId = generateSmartID(header.partida, pieces, header.maquina);
+                const creationDate = isEditing ? (initialOrder.createdAt || new Date().toLocaleString('es-MX')) : (initialOrder?.createdAt || new Date().toLocaleString('es-MX'));
+
+                const orderPayload = { 
+                    ...header, 
+                    id: isEditing ? initialOrder.id : Date.now(), 
+                    displayId, 
+                    subPiecesData: pieces.map(p => ({...p, totalPedido: Number(p.totalPedido), peso: Number(p.peso)})), 
+                    progreso: finalPackages, 
+                    threading: threadingData, 
+                    packageSize: predefinedPackages ? 'VARIO' : Number(packageSize), 
+                    status: initialOrder?.status || 'EN PROCESO', 
+                    totalPedido: pieces.reduce((a,b)=>a+Number(b.totalPedido),0),
+                    createdAt: creationDate
+                };
+                try { 
+                    await db.collection('orders').doc(String(orderPayload.id)).set(orderPayload);
+                    alert(`Orden ${isEditing ? 'Actualizada' : 'Guardada'} y el Inventario ha sido ajustado.`);
+                    onCancel(); 
+                } catch(e) { 
+                    console.error(e);
+                    alert("Error al guardar"); 
+                }
+            };
+            
+            return (
+                <div className="bg-white p-6 rounded shadow-xl max-w-4xl mx-auto my-4 overflow-y-auto h-[90vh]">
+                    <div className="flex justify-between items-center mb-4 border-b pb-2">
+                        <h2 className="font-bold text-xl flex items-center gap-2">
+                             <Icon name={isEditing ? "file-edit" : "file-plus"}/> {isEditing ? 'Editar Orden' : 'Nueva Orden'}
+                        </h2>
+                        <button onClick={onCancel} className="text-red-500 font-bold">Cancelar</button>
+                    </div>
+                    <div className="grid grid-cols-12 gap-4 mb-4">
+                        <div className="col-span-3 bg-yellow-50 p-2 rounded border border-yellow-200"><label className="text-xs font-bold text-yellow-900">PARTIDA</label><input value={header.partida} onChange={toUppercase(e=>setHeader({...header, partida:e.target.value}))} className="w-full text-lg font-black p-1 bg-white border rounded uppercase" placeholder="Ej: 24NOV451" disabled={isEditing}/></div>
+                        <div className="col-span-3"><label className="text-xs font-bold">MODELO (FOTO)</label><input value={header.codigo} onChange={toUppercase(e=>setHeader({...header, codigo:e.target.value}))} className="w-full border p-2 rounded font-bold uppercase"/></div>
+                        <div className="col-span-4"><label className="text-xs font-bold">CLIENTE</label><input list="clients" value={header.cliente} onChange={toUppercase(e=>setHeader({...header, cliente:e.target.value}))} className="w-full border p-2 rounded font-bold"/><datalist id="clients">{clientHistory.map(c=><option key={c} value={c}/>)}</datalist></div>
+                        <div className="col-span-2"><label className="text-xs font-bold bg-slate-200 px-1">MÁQUINA</label><input value={header.maquina} onChange={toUppercase(e=>setHeader({...header, maquina:e.target.value}))} className="w-full border-2 border-slate-400 p-2 rounded font-black text-center"/></div>
+                    </div>
+                    <div className="mb-4 bg-slate-50 p-3 rounded">
+                        <h3 className="font-bold text-sm mb-2 flex items-center gap-2"><Icon name="layers"/> Piezas / Detalles</h3>
+                        {pieces.map((p, i) => (
+                            <div key={p.id} className="grid grid-cols-12 gap-2 mb-2 items-end border-b pb-2">
+                                <div className="col-span-3"><label className="text-[10px] font-bold">Nombre/Desc</label><input value={p.pieza} onChange={toUppercase(e=>updatePiece(p.id,'pieza',e.target.value))} className="w-full border p-1 rounded font-bold text-sm"/></div>
+                                <div className="col-span-2"><label className="text-[10px] font-bold">Talla</label><input value={p.talla} onChange={toUppercase(e=>updatePiece(p.id,'talla',e.target.value))} className="w-full border p-1 rounded text-xs"/></div>
+                                <div className="col-span-2"><label className="text-[10px] font-bold">Cant. Total</label><input type="number" value={p.totalPedido} onChange={e=>updatePiece(p.id,'totalPedido',e.target.value)} className="w-full border p-1 font-bold text-indigo-700" disabled={!!predefinedPackages}/></div>
+                                <div className="col-span-2 bg-indigo-50 px-1 rounded"><label className="text-[10px] font-bold text-indigo-800">Peso (g)</label><input type="number" value={p.peso} onChange={e=>updatePiece(p.id,'peso',e.target.value)} className="w-full border p-1 text-center font-bold" placeholder="Gramos"/></div>
+                                <div className="col-span-2"><label className="text-[10px] font-bold">Minutos/Pza</label><input type="number" value={p.tiempo} onChange={e=>updatePiece(p.id,'tiempo',e.target.value)} className="w-full border p-1 bg-yellow-50" placeholder="Calc. Tiempo"/></div>
+                                <div className="col-span-1 text-center"><button onClick={()=>removePiece(p.id)} className="text-red-500" disabled={!!predefinedPackages}><Icon name="x"/></button></div>
+                            </div>
+                        ))}
+                        {!predefinedPackages && <button onClick={addPiece} className="text-xs font-bold text-indigo-600">+ Agregar Pieza</button>}
+                        {predefinedPackages && <div className="text-xs text-green-600 font-bold mt-2"><Icon name="check"/> Paquetes cargados desde Excel ({predefinedPackages.length} filas)</div>}
+                    </div>
+
+                    <ThreadingEditor data={threadingData} onChange={setThreadingData} inventoryItems={inventory} totalWeight={totalOrderWeight} />
+
+                    <div className="flex gap-4 mt-4">
+                        {!predefinedPackages && <div className="w-32"><label className="text-xs font-bold">Pzs/Paquete</label><input type="number" value={packageSize} onChange={e=>setPackageSize(e.target.value)} className="border p-2 rounded w-full"/></div>}
+                        <button onClick={handleSubmit} className="flex-1 bg-slate-900 text-white font-bold rounded shadow hover:bg-slate-800 py-3">{isEditing ? 'GUARDAR CAMBIOS' : 'CREAR ORDEN Y AJUSTAR INVENTARIO'}</button>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- VISUALIZACIÓN E IMPRESIÓN ---
+        const OrderView = ({ order, config, onBack, onEdit }) => { 
+            const [entry, setEntry] = useState({ tejedor: '', fecha: new Date().toISOString().split('T')[0], defectos: '', agujas: '' });
+            
+            // Función para imprimir papeletas
+            const handlePrintTickets = () => {
+                document.body.classList.add('print-mode-ticket');
+                window.print();
+                document.body.classList.remove('print-mode-ticket');
+            };
+
+            const markPackage = async (pkgId) => {
+                if(!entry.tejedor) return alert("Por favor selecciona un TEJEDOR");
+                const newProgreso = order.progreso.map(p => p.id === pkgId ? {...p, finished: true, tejedor: entry.tejedor, fecha: entry.fecha, defectos: entry.defectos, agujas: entry.agujas} : p);
+                await db.collection('orders').doc(String(order.id)).update({progreso: newProgreso});
+            };
+
+            const unmarkPackage = async (pkgId) => {
+                const newProgreso = order.progreso.map(p => p.id === pkgId ? {...p, finished: false, tejedor: '', fecha: '', defectos: '', agujas: ''} : p);
+                await db.collection('orders').doc(String(order.id)).update({progreso: newProgreso});
+            };
+
+            const toggleArchive = async () => {
+                const isArchived = order.status === 'ARCHIVADO';
+                const msg = isArchived ? "¿Desarchivar esta orden?" : "¿Marcar orden como TERMINADA y archivarla?";
+                if(window.confirm(msg)){
+                    await db.collection('orders').doc(String(order.id)).update({
+                        status: isArchived ? 'EN PROCESO' : 'ARCHIVADO'
+                    });
+                    onBack();
+                }
+            };
+            
+            const minutosPorPrenda = order.subPiecesData.reduce((acc, curr) => acc + (Number(curr.tiempo) || 0), 0);
+            const piezasPorHora = minutosPorPrenda > 0 ? (60 / minutosPorPrenda).toFixed(0) : 0;
+            const piezasPorTurno = minutosPorPrenda > 0 ? ((60 / minutosPorPrenda) * 12).toFixed(0) : 0;
+
+
+            return (
+                <div className="bg-white min-h-screen relative">
+                    <div className="no-print p-4 border-b flex justify-between bg-slate-50 sticky top-0 z-10 shadow-sm">
+                        <button onClick={onBack} className="flex items-center gap-2 text-slate-600 font-bold"><Icon name="arrow-left"/> Volver</button>
+                        <div className="flex gap-2">
+                             <button onClick={toggleArchive} className={`px-3 py-1 rounded font-bold text-xs flex items-center gap-1 text-white ${order.status === 'ARCHIVADO' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-600 hover:bg-green-700'}`}>
+                                 <Icon name={order.status === 'ARCHIVADO' ? "refresh-ccw" : "archive"}/> 
+                                 {order.status === 'ARCHIVADO' ? 'DESARCHIVAR' : 'ARCHIVAR ORDEN'}
+                             </button>
+
+                             {/* BOTÓN NUEVO: IMPRIMIR PAPELETAS */}
+                             <button onClick={handlePrintTickets} className="bg-purple-600 text-white px-3 py-1 rounded font-bold text-xs flex items-center gap-1 hover:bg-purple-700">
+                                 <Icon name="tags"/> PAPELETAS (4x6)
+                             </button>
+
+                             <button onClick={() => onEdit(order)} className="bg-indigo-600 text-white px-3 py-1 rounded font-bold text-xs flex items-center gap-1 hover:bg-indigo-700">
+                                 <Icon name="file-edit"/> EDITAR
+                             </button>
+                             <button onClick={() => window.print()} className="bg-slate-900 text-white px-3 py-1 rounded font-bold text-xs flex items-center gap-1 hover:bg-slate-700">
+                                 <Icon name="printer"/> IMPRIMIR CARTA
+                             </button>
+                        </div>
+                    </div>
+                    
+                    <div className="p-8 print:p-0">
+                        {order.status === 'ARCHIVADO' && <div className="bg-orange-100 border-l-4 border-orange-500 text-orange-700 p-4 mb-4 font-bold text-center no-print">ESTA ORDEN ESTÁ ARCHIVADA / TERMINADA</div>}
+
+                        {/* --- PAPELETAS (Solo visibles en modo impresión ticket) --- */}
+                        {order.progreso?.map((p) => (
+                            <PackageTicket key={p.id} order={order} pkg={p} />
+                        ))}
+
+                        <div className="print-visible-wrapper">
+                             
+                             {/* --- ENCABEZADO CARTA NORMAL --- */}
+                             <div className="flex justify-between items-start mb-4 border-b-4 border-black pb-2">
+                                <div className="w-8/12">
+                                    <h1 className="font-black uppercase tracking-tighter">{order.cliente}</h1>
+                                    <div className="flex gap-6 items-baseline header-info">
+                                        <div className="uppercase">PARTIDA: {order.partida}</div>
+                                        <div className="text-slate-700 uppercase">MOD: {order.codigo}</div>
+                                    </div>
+                                </div>
+                                <div className="w-3/12 text-right">
+                                    <div className="machine-number-box">MÁQUINA</div>
+                                    <div className="machine-number-val">{order.maquina}</div>
+                                </div>
+                             </div>
+                            
+                             <div className="flex gap-4">
+                                <div className="w-7/12 flex flex-col gap-2">
+                                    <table className="mb-0">
+                                        <thead>
+                                            <tr><th className="text-left">PIEZA</th><th className="w-20">TALLA</th><th className="w-20">TOTAL</th></tr>
+                                        </thead>
                                         <tbody>
-                                            {metrics.partsStatus.map((p, i) => (
+                                            {order.subPiecesData.map((p,i)=>(
                                                 <tr key={i}>
-                                                    <td>{p.name}</td>
-                                                    <td>{p.qty}</td>
-                                                    <td className={p.produced >= p.qty ? 'text-green-600 font-bold' : ''}>{p.produced}</td>
-                                                    <td>{Math.max(0, p.qty - p.produced)}</td>
+                                                    <td className="truncate">{p.pieza}</td>
+                                                    <td className="text-center">{p.talla}</td>
+                                                    <td className="text-center font-black">{p.totalPedido}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    
+                                    <table className="mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th colSpan="3" className="bg-black text-white py-1 text-sm">ENHEBRADO</th>
+                                            </tr>
+                                            <tr><th className="w-12">#</th><th className="text-left">Material</th><th className="w-16">%</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            {order.threading && order.threading.map((row, i) => (
+                                                <tr key={i}>
+                                                    <td className="text-center font-bold">{row.guia}</td>
+                                                    <td className="truncate">{row.material}</td>
+                                                    <td className="text-center font-bold">{row.porcentaje}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+
+                                    <div className="flex gap-2 mt-1">
+                                        <div className="w-1/2 border-2 border-black flex flex-col justify-center items-center p-2">
+                                            <span className="text-sm font-bold uppercase w-full text-center border-b-2 border-black mb-1">PZS/HR</span>
+                                            <span className="text-3xl font-black">{piezasPorHora}</span>
+                                        </div>
+                                        <div className="w-1/2 border-2 border-black flex flex-col justify-center items-center p-2">
+                                            <span className="text-sm font-bold uppercase w-full text-center border-b-2 border-black mb-1">PZS/12H</span>
+                                            <span className="text-3xl font-black">{piezasPorTurno}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="w-5/12 border-2 border-black flex items-center justify-center relative bg-white overflow-hidden p-2 h-auto">
+                                     <SmartImage repoUrls={config.repoUrls} codigo={order.codigo} className="max-h-64 w-full object-contain"/>
+                                </div>
+                            </div>
+                        
+                            <div className="print-section-bottom print-only mt-4">
+                                <div className="border-b-4 border-black font-bold mb-1 text-sm flex justify-between items-end">
+                                    <span>CONTROL DE TEJIDO</span>
+                                    <span>{new Date().toLocaleDateString('es-MX')}</span>
+                                </div>
+                                <table className="package-table-print">
+                                    <colgroup>
+                                        <col style={{width: '6%'}} />
+                                        <col style={{width: '24%'}} /> 
+                                        <col style={{width: '10%'}} />
+                                        <col style={{width: '12%'}} />
+                                        <col style={{width: '12%'}} />
+                                        <col style={{width: '8%'}} />
+                                        <col style={{width: '8%'}} />
+                                        <col style={{width: '20%'}} /> 
+                                    </colgroup>
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>CÓDIGO</th> 
+                                            <th>Cant</th>
+                                            <th>Tej</th>
+                                            <th>Fec</th>
+                                            <th>Def</th>
+                                            <th>Agj</th>
+                                            <th>OBS</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {order.progreso?.map((p, idx) => (
+                                            <tr key={p.id}>
+                                                <td className="text-center font-bold">{idx+1}</td>
+                                                <td className="pl-1 font-mono truncate" title={p.codigoUnico || p.piezaNombre}>{p.codigoUnico || p.piezaNombre}</td>
+                                                <td className="text-center font-bold">{p.cantidad}</td>
+                                                <td className="manual-input">{p.finished ? p.tejedor : '_'}</td>
+                                                <td className="manual-input">{p.finished ? p.fecha : '_'}</td>
+                                                <td className="manual-input">{p.finished ? p.defectos : '_'}</td>
+                                                <td className="manual-input">{p.finished ? p.agujas : '_'}</td>
+                                                <td className="manual-input">{p.observaciones || '_'}</td> </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                             </div>
+                        </div>
+
+                        {/* --- VISTA NORMAL DE ESCRITORIO --- */}
+                        <div className="no-print mt-4">
+                            <div className="bg-slate-100 p-4 rounded border mb-6">
+                                <div className="flex justify-between items-center mb-2">
+                                    <h3 className="font-bold text-lg text-slate-700">Registro Digital</h3>
+                                    <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold border border-green-300 flex items-center gap-1">
+                                        <Icon name="scan-barcode" size={14}/> MODO ESCÁNER ACTIVO
+                                    </div>
+                                </div>
+                                <div className="flex gap-4 items-end mb-4 bg-white p-3 rounded shadow-sm border">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">TEJEDOR (MANUAL)</label>
+                                        <select 
+                                            value={entry.tejedor} 
+                                            onChange={e=>setEntry({...entry, tejedor: e.target.value})} 
+                                            className="border-2 border-slate-300 p-2 rounded w-40 font-bold text-indigo-700 focus:border-indigo-500 outline-none"
+                                        >
+                                            <option value="">Seleccionar...</option>
+                                            <option value="BALTA">BALTA</option>
+                                            <option value="ANDRÉS">ANDRÉS</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">FECHA</label>
+                                        <input 
+                                            type="date" 
+                                            value={entry.fecha} 
+                                            onChange={e=>setEntry({...entry, fecha: e.target.value})} 
+                                            className="border-2 border-slate-300 p-2 rounded font-mono cursor-pointer hover:bg-slate-50"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="max-h-80 overflow-y-auto bg-white border rounded shadow-inner">
+                                    <table className="w-full text-xs text-left">
+                                        <thead className="bg-slate-200 sticky top-0 shadow-sm z-0">
+                                            <tr>
+                                                <th className="p-3">CÓDIGO/PIEZA</th>
+                                                <th className="p-3">Pzs</th>
+                                                <th className="p-3">Estado</th>
+                                                <th className="p-3">Acción</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {order.progreso.map(p=>(
+                                                <tr key={p.id} className="border-b hover:bg-slate-50 transition-colors">
+                                                    <td className="p-3 font-mono" title={p.codigoUnico || p.piezaNombre}>{p.codigoUnico || p.piezaNombre}</td>
+                                                    <td className="p-3 font-bold">{p.cantidad}</td>
+                                                    <td className="p-3">{p.finished ? <span className="text-green-600 font-bold bg-green-100 px-2 py-1 rounded-full text-[10px]">LISTO ({p.tejedor})</span> : <span className="text-slate-400 font-medium">PENDIENTE</span>}</td>
+                                                    <td className="p-3">{!p.finished 
+                                                        ? <button onClick={()=>markPackage(p.id)} disabled={!entry.tejedor} className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded font-bold hover:bg-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed transition">Registrar</button>
+                                                        : <button onClick={()=>unmarkPackage(p.id)} className="bg-red-100 text-red-700 px-3 py-1 rounded font-bold hover:bg-red-200 transition">Deshacer</button>}
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
                                     </table>
                                 </div>
-                            )}
-
-                            <div className="report-section">
-                                <h2>📈 Avance</h2>
-                                <div className="report-data">
-                                    <div><span className="report-label">Progreso Global:</span><span className="report-value text-blue-700">{metrics.progress.toFixed(1)}%</span></div>
-                                    <div><span className="report-label">Desviación (Tiempo):</span><span className={metrics.deviation < 0 ? 'text-red-700' : 'text-green-700'}>{metrics.deviation} {isComposite ? 'Horas aprox' : 'Piezas'}</span></div>
-                                </div>
-                            </div>
-
-                            <div className="report-section">
-                                <h2>🧵 Consumo Hilo (Englobado)</h2>
-                                <div className="report-data">
-                                    <div><span className="report-label">Merma:</span><span className="report-value text-red-700">{order.wastePercentage}%</span></div>
-                                    <div><span className="report-label">Total Requerido:</span><span className="report-value text-blue-700 text-lg">{totalRequiredKilos.toFixed(2)} KG</span></div>
-                                    <div><span className="report-label">Consumido (Estimado):</span><span className="report-value text-green-700 text-lg">{consumedKilosReal.toFixed(2)} KG</span></div>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -569,573 +891,289 @@
             );
         };
 
-
-        // --- GESTOR DE PEDIDOS (MODIFICADO PARA PARTES) ---
-        const OrderManager = React.forwardRef(({ onClose, onSaveOrders, onDeleteOrder, ordersData, allProductionData, allRows, hiddenDays }, ref) => {
-            const [step, setStep] = useState(1);
-            const [viewMode, setViewMode] = useState('list'); 
-            const [modelName, setModelName] = useState('');
-            const [selectedMachines, setSelectedMachines] = useState([]);
-            const [isEditing, setIsEditing] = useState(false);
-            const [showReportModal, setShowReportModal] = useState(false);
-            const [reportConfig, setReportConfig] = useState(null);
-
-            // Estado para modo compuesto
-            const [isComposite, setIsComposite] = useState(false);
-            const [parts, setParts] = useState([]); // Array de { name, qty, time, weight }
-
-            const initialConfig = useMemo(() => ({
-                totalQty: '', timePerPiece: '', startDate: new Date().toISOString().split('T')[0],
-                operators: ['Andrés', 'Balta'], disabledDates: [], pieceWeightGrams: '',
-                materials: [{name: 'LYCRA', percentage: ''}, {name: 'NYLON', percentage: ''}],
-                wastePercentage: 0
-            }), []);
-
-            const [config, setConfig] = useState(initialConfig);
-
-            // Funciones de Partes
-            const addPart = () => setParts([...parts, { name: '', qty: '', time: '', weight: '' }]);
-            const removePart = (idx) => setParts(parts.filter((_, i) => i !== idx));
-            const updatePart = (idx, field, val) => {
-                const newParts = [...parts];
-                newParts[idx][field] = val;
-                setParts(newParts);
-            };
-
-            const startNewOrderChain = (machineId) => {
-               // ... lógica existente ...
-            };
-            React.useImperativeHandle(ref, () => ({ startNewOrderChain }));
-
-            const toggleMachine = (id) => { setSelectedMachines(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id]); };
-            const toggleOperator = (op) => {
-                setConfig(prev => {
-                    const current = prev.operators;
-                    if (current.includes(op)) { if (current.length === 1) return prev; return { ...prev, operators: current.filter(o => o !== op) }; }
-                    return { ...prev, operators: [...current, op] };
-                });
-            };
+        const ThreadingEditor = ({ data, onChange, inventoryItems, totalWeight }) => {
+            const addRow = () => onChange([...data, { id: Date.now(), guia: '', material: '', sis: '', porcentaje: '0' }]);
+            const updateRow = (id, field, val) => onChange(data.map(r => r.id === id ? { ...r, [field]: val } : r));
+            const removeRow = (id) => onChange(data.filter(r => r.id !== id));
             
-            const handleStartCreate = () => {
-                setIsEditing(false); setModelName(''); setSelectedMachines([]); setConfig(initialConfig);
-                setStep(1); setViewMode('create'); setIsComposite(false); setParts([]);
-            };
+            const invList = Array.isArray(inventoryItems) ? inventoryItems : [];
 
-            const handleStartEdit = (machineId, orderData) => {
-                setIsEditing(true);
-                setModelName(orderData.model);
-                setSelectedMachines([machineId]); 
-                // Detectar si es compuesto
-                const isComp = !!(orderData.parts && orderData.parts.length > 0);
-                setIsComposite(isComp);
-                setParts(orderData.parts || []);
-
-                setConfig({
-                    totalQty: orderData.totalQty,
-                    timePerPiece: orderData.timePerPieceMin,
-                    startDate: orderData.startDate,
-                    operators: orderData.operators || ['Andrés'],
-                    disabledDates: orderData.disabledDates || [],
-                    pieceWeightGrams: orderData.pieceWeightGrams || '',
-                    materials: orderData.materials || [],
-                    wastePercentage: orderData.wastePercentage || 0,
-                });
-                setStep(1); setViewMode('create');
-            };
-
-            const handleFinalSave = () => {
-                if (selectedMachines.length === 0) return;
-                
-                selectedMachines.forEach(mid => {
-                    // Calculo de consumos para guardar
-                    let finalTotalYarnKilos = 0;
-                    const waste = 1 + (config.wastePercentage / 100);
-
-                    if (isComposite) {
-                        // Suma de partes
-                        let totalMass = 0;
-                        parts.forEach(p => totalMass += (Number(p.qty) * Number(p.weight)));
-                        finalTotalYarnKilos = (totalMass * waste) / 1000;
-                    } else {
-                         finalTotalYarnKilos = (Number(config.totalQty) * Number(config.pieceWeightGrams) * waste) / 1000;
-                    }
-
-                    const orderPayload = {
-                        model: modelName,
-                        startDate: config.startDate,
-                        operators: config.operators, 
-                        dailyHours: config.operators.length * 12, 
-                        disabledDates: config.disabledDates,
-                        materials: config.materials,
-                        wastePercentage: config.wastePercentage,
-                        totalYarnKilos: finalTotalYarnKilos,
-                        // Diferenciación
-                        parts: isComposite ? parts : [],
-                        totalQty: isComposite ? parts.reduce((a,b)=>a+Number(b.qty),0) : Number(config.totalQty),
-                        timePerPieceMin: isComposite ? 0 : Number(config.timePerPiece), // Irrelevante en compuesto
-                        pieceWeightGrams: isComposite ? 0 : Number(config.pieceWeightGrams),
-                    };
-                    onSaveOrders(mid, orderPayload);
-                });
-                setViewMode('list');
-            };
-            
-            const validateStep = (s) => {
-                if (s === 1 && !modelName) return false;
-                if (s === 2 && selectedMachines.length === 0) return false;
-                if (s === 3) {
-                    if (isComposite) {
-                        return parts.length > 0 && parts.every(p => p.name && p.qty && p.time && p.weight);
-                    }
-                    return config.totalQty && config.timePerPiece && config.pieceWeightGrams;
-                }
-                return true;
-            }
-            
-            // --- UI RENDERERS ---
-
-            const renderPartsConfig = () => (
-                <div className="space-y-4 fade-in">
-                    <h3 className="text-lg font-bold text-white text-center mb-4">Configuración de Partes</h3>
-                    <div className="bg-blue-900/20 p-3 rounded-lg text-xs text-blue-200 mb-4 border border-blue-800">
-                        <i data-lucide="info" className="inline w-4 h-4 mr-1"></i>
-                        Define cada parte (Ej: Cuerpo, Manga). El nombre será lo que el operador debe ingresar en el sistema.
+            return (
+                <div className="border rounded bg-white overflow-hidden my-4 shadow-sm">
+                    <div className="bg-slate-200 p-2 text-xs font-bold flex justify-between items-center">
+                        <span>TABLA DE ENHEBRADO Y CONSUMO</span>
+                        <div className="text-[10px] text-slate-500 font-normal">Peso Total Orden: <b>{(totalWeight/1000).toFixed(2)} Kg</b></div>
+                        <button onClick={addRow} className="text-indigo-600 font-bold bg-white px-2 py-1 rounded border shadow-sm">+ Hilo</button>
                     </div>
-                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                        {parts.map((p, i) => (
-                            <div key={i} className="bg-slate-800 p-3 rounded border border-slate-700 flex flex-col gap-2 relative">
-                                <button onClick={() => removePart(i)} className="absolute top-2 right-2 text-red-400"><i data-lucide="x" className="w-4 h-4"></i></button>
-                                <div><label className="text-[10px] text-slate-400">Nombre Parte</label><input type="text" value={p.name} onChange={e => updatePart(i, 'name', e.target.value.toUpperCase())} placeholder="EJ: CUERPO" className="w-full bg-slate-900 border border-slate-600 rounded p-1 text-white uppercase text-sm"/></div>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <div><label className="text-[10px] text-slate-400">Cant.</label><input type="number" value={p.qty} onChange={e => updatePart(i, 'qty', e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded p-1 text-white text-sm"/></div>
-                                    <div><label className="text-[10px] text-slate-400">Min/Pza</label><input type="number" value={p.time} onChange={e => updatePart(i, 'time', e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded p-1 text-white text-sm"/></div>
-                                    <div><label className="text-[10px] text-slate-400">Gr/Pza</label><input type="number" value={p.weight} onChange={e => updatePart(i, 'weight', e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded p-1 text-white text-sm"/></div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <button onClick={addPart} className="w-full py-2 bg-slate-700 rounded text-sm font-bold text-white hover:bg-slate-600">+ Agregar Parte</button>
-                    <div><label className="text-xs text-slate-400 uppercase">Fecha Inicio</label><input type="date" value={config.startDate} onChange={e => setConfig({...config, startDate: e.target.value})} className="w-full bg-slate-900 border border-slate-600 p-3 rounded text-white" /></div>
-                </div>
-            );
+                    <table className="w-full text-xs text-left">
+                        <thead className="bg-slate-50 border-b">
+                            <tr>
+                                <th className="p-2 w-16">GUÍA</th>
+                                <th className="p-2">MATERIAL (INVENTARIO)</th>
+                                <th className="p-2 w-16 text-center">%</th>
+                                <th className="p-2 w-24 text-center">Requerido</th>
+                                <th className="p-2 w-24 text-center">Stock</th>
+                                <th className="w-8"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.map((row) => {
+                                const pct = parseFloat(row.porcentaje) || 0;
+                                const requiredKg = (totalWeight * (pct / 100)) / 1000;
+                                const stockItem = invList.find(i => i.material === row.material);
+                                const stockAvailable = stockItem ? parseFloat(stockItem.stock) : 0;
+                                const isInsufficient = row.material && (requiredKg > stockAvailable);
 
-            const renderSimpleConfig = () => (
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
-                        <label className="text-xs text-slate-400 uppercase mb-2 block">Operadores</label>
-                        <div className="flex gap-2">
-                            {['Andrés', 'Balta'].map(op => {
-                                const active = config.operators.includes(op);
-                                return <button key={op} onClick={() => toggleOperator(op)} className={`flex-1 py-3 rounded-lg border font-bold text-sm ${active ? 'bg-blue-600 border-blue-400' : 'bg-slate-800'}`}>{op}</button>
+                                return (
+                                    <tr key={row.id} className={`border-b ${isInsufficient ? 'bg-red-50' : ''}`}>
+                                        <td className="p-1">
+                                            <input className="w-full border rounded p-1 text-center" placeholder="#" value={row.guia} onChange={toUppercase(e=>updateRow(row.id,'guia',e.target.value))} />
+                                        </td>
+                                        <td className="p-1 relative">
+                                            <input list="inv" className={`w-full border rounded p-1 font-bold ${isInsufficient ? 'text-red-600 border-red-300' : 'text-slate-700'}`} value={row.material} onChange={toUppercase(e=>updateRow(row.id,'material',e.target.value))} placeholder="Buscar hilo..."/>
+                                            {isInsufficient && <div className="text-[9px] text-red-600 font-black absolute right-2 top-2">⚠ FALTAN {(requiredKg - stockAvailable).toFixed(2)} Kg</div>}
+                                        </td>
+                                        <td className="p-1">
+                                            <input type="number" className="w-full border rounded p-1 text-center" value={row.porcentaje} onChange={e=>updateRow(row.id,'porcentaje',e.target.value)} />
+                                        </td>
+                                        <td className="p-1 text-center text-slate-500">
+                                            {requiredKg > 0 ? requiredKg.toFixed(2) + ' Kg' : '-'}
+                                        </td>
+                                        <td className="p-1 text-center font-bold">
+                                            {stockItem ? (
+                                                <span className={stockAvailable < requiredKg ? "text-red-600" : "text-green-600"}>
+                                                    {stockAvailable.toFixed(2)} Kg
+                                                </span>
+                                            ) : <span className="text-slate-300">-</span>}
+                                        </td>
+                                        <td className="p-1 text-center">
+                                            <button onClick={()=>removeRow(row.id)} className="text-red-400 hover:text-red-600"><Icon name="x" size={14}/></button>
+                                        </td>
+                                    </tr>
+                                );
                             })}
-                        </div>
-                    </div>
-                    <div><label className="text-xs text-slate-400 uppercase">Cantidad Total</label><input type="number" value={config.totalQty} onChange={e => setConfig({...config, totalQty: e.target.value})} className="w-full bg-slate-900 border border-slate-600 p-3 rounded text-white" /></div>
-                    <div><label className="text-xs text-slate-400 uppercase">Minutos/Pieza</label><input type="number" value={config.timePerPiece} onChange={e => setConfig({...config, timePerPiece: e.target.value})} className="w-full bg-slate-900 border border-slate-600 p-3 rounded text-white" /></div>
-                    <div><label className="text-xs text-slate-400 uppercase">Peso/Pieza (g)</label><input type="number" value={config.pieceWeightGrams} onChange={e => setConfig({...config, pieceWeightGrams: e.target.value})} className="w-full bg-slate-900 border border-slate-600 p-3 rounded text-white" /></div>
-                    <div><label className="text-xs text-slate-400 uppercase">Fecha Inicio</label><input type="date" value={config.startDate} onChange={e => setConfig({...config, startDate: e.target.value})} className="w-full bg-slate-900 border border-slate-600 p-3 rounded text-white" /></div>
-                </div>
-            );
-
-            return (
-                <div className="fixed inset-0 bg-black/95 backdrop-blur-md flex items-center justify-center z-50 p-4 fade-in" onClick={onClose}>
-                    <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl h-[90vh] flex flex-col border border-slate-700 overflow-hidden" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900">
-                            <span className="font-bold text-white uppercase">Gestión de Producción</span>
-                            <button onClick={onClose}><i data-lucide="x" className="text-slate-400 w-6 h-6"></i></button>
-                        </div>
-                        <div className="flex-1 p-6 overflow-hidden">
-                            {viewMode === 'list' ? (
-                                <div className="h-full flex flex-col">
-                                    <div className="flex justify-between mb-4"><h2 className="text-xl font-bold">Pedidos Activos</h2><button onClick={handleStartCreate} className="bg-blue-600 px-4 py-2 rounded text-white font-bold">Nuevo</button></div>
-                                    <div className="flex-1 overflow-y-auto space-y-3">
-                                        {MACHINES.filter(m => ordersData[m.id]?.totalQty > 0 || (ordersData[m.id]?.parts?.length > 0)).map(m => {
-                                            const order = ordersData[m.id];
-                                            const metrics = calculateOrderMetrics(m.id, order, allProductionData, allRows, hiddenDays);
-                                            const isComp = !!order.parts?.length;
-                                            return (
-                                                <div key={m.id} className="bg-slate-900 p-4 rounded border border-slate-700">
-                                                    <div className="flex justify-between">
-                                                        <div>
-                                                            <span className="text-blue-400 font-bold">{m.name}</span>
-                                                            <h4 className="text-lg font-black text-yellow-400">{order.model} {isComp && <span className="text-[10px] bg-slate-700 text-white px-1 rounded ml-2">MULTIEX</span>}</h4>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <span className="block text-xs font-bold text-slate-400">Avance</span>
-                                                            <span className="text-lg font-bold text-white">{metrics.progress.toFixed(0)}%</span>
-                                                        </div>
-                                                    </div>
-                                                    {isComp && metrics.activePart && <div className="mt-2 text-xs text-green-400 font-bold">Trabajando: {metrics.activePart.name}</div>}
-                                                    <div className="flex gap-2 mt-3 justify-end">
-                                                        <button onClick={() => { setReportConfig({ machineId: m.id, order, metrics }); setShowReportModal(true); }} className="p-2 bg-slate-800 text-green-400 rounded"><i data-lucide="file-text" className="w-4 h-4"></i></button>
-                                                        <button onClick={() => handleStartEdit(m.id, order)} className="p-2 bg-slate-800 text-blue-400 rounded"><i data-lucide="pencil" className="w-4 h-4"></i></button>
-                                                        <button onClick={() => handleDeleteOrder(m.id)} className="p-2 bg-slate-800 text-red-400 rounded"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
-                                                    </div>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                    {showReportModal && reportConfig && <ReportModal onClose={() => setShowReportModal(false)} {...reportConfig} orderManagerRef={ref} />}
-                                </div>
-                            ) : (
-                                <div className="flex flex-col h-full">
-                                    <div className="flex justify-between mb-6 px-2">
-                                        {[1,2,3,4,5,6].map(s => <div key={s} className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${step >= s ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-500'}`}>{s}</div>)}
-                                    </div>
-                                    <div className="flex-1 overflow-y-auto custom-scrollbar px-2">
-                                        {step === 1 && (
-                                            <div className="space-y-4">
-                                                <h3 className="text-xl font-bold text-white text-center mb-6">Modelo</h3>
-                                                <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-                                                    <label className="block text-blue-400 font-bold uppercase text-xs mb-2">Nombre del Modelo</label>
-                                                    <input type="text" value={modelName} onChange={e => setModelName(e.target.value.toUpperCase())} className="w-full bg-slate-900 text-2xl font-black text-white p-4 rounded-lg outline-none text-center uppercase" autoFocus />
-                                                </div>
-                                            </div>
-                                        )}
-                                        {step === 2 && (
-                                            <div className="grid grid-cols-4 gap-4">
-                                                {MACHINES.map(m => (
-                                                    <button key={m.id} onClick={() => toggleMachine(m.id)} className={`w-14 h-14 rounded-full flex flex-col items-center justify-center border-2 ${selectedMachines.includes(m.id) ? 'bg-green-600 border-green-400' : 'bg-slate-800 border-slate-600'}`}>
-                                                        <span className="text-[10px] font-black text-white">{m.name.replace('MAQ ','')}</span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {step === 3 && (
-                                            <div>
-                                                <div className="flex justify-center mb-6">
-                                                    <div className="bg-slate-700 p-1 rounded-lg flex">
-                                                        <button onClick={() => setIsComposite(false)} className={`px-4 py-2 rounded-md text-xs font-bold ${!isComposite ? 'bg-blue-600 text-white shadow' : 'text-slate-300'}`}>Simple</button>
-                                                        <button onClick={() => setIsComposite(true)} className={`px-4 py-2 rounded-md text-xs font-bold ${isComposite ? 'bg-blue-600 text-white shadow' : 'text-slate-300'}`}>Compuesto</button>
-                                                    </div>
-                                                </div>
-                                                {isComposite ? renderPartsConfig() : renderSimpleConfig()}
-                                            </div>
-                                        )}
-                                        {step === 4 && <div className="text-center text-slate-400 mt-10">Planeación Automática (Vista previa no disponible en edición rápida)</div>}
-                                        {step === 5 && (
-                                            <div className="space-y-4">
-                                                 <h3 className="text-xl font-bold text-white text-center">Materiales (Englobado)</h3>
-                                                 {config.materials.map((m, i) => (
-                                                     <div key={i} className="flex gap-2">
-                                                         <input value={m.name} onChange={e => {const n=[...config.materials]; n[i].name=e.target.value.toUpperCase(); setConfig({...config, materials:n})}} className="bg-slate-900 text-white p-2 rounded flex-1 uppercase" placeholder="Material" />
-                                                         <input type="number" value={m.percentage} onChange={e => {const n=[...config.materials]; n[i].percentage=e.target.value; setConfig({...config, materials:n})}} className="bg-slate-900 text-white p-2 rounded w-20 text-center" placeholder="%" />
-                                                     </div>
-                                                 ))}
-                                                 <div className="flex justify-center gap-2 mt-4">
-                                                     {[0,5,10].map(w => <button key={w} onClick={() => setConfig({...config, wastePercentage: w})} className={`px-4 py-2 border rounded ${config.wastePercentage===w ? 'bg-green-600 text-white' : 'text-slate-400'}`}>{w}% Merma</button>)}
-                                                 </div>
-                                            </div>
-                                        )}
-                                        {step === 6 && (
-                                            <div className="text-center">
-                                                <h3 className="text-xl font-bold text-white">Confirmar</h3>
-                                                <div className="mt-4 p-4 bg-slate-900 rounded border border-slate-700">
-                                                    <p className="text-yellow-400 text-lg font-bold">{modelName}</p>
-                                                    {isComposite ? <p className="text-sm text-slate-400">{parts.length} Partes definidas</p> : <p className="text-sm text-slate-400">{config.totalQty} piezas</p>}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="mt-4 pt-4 border-t border-slate-700 flex justify-between">
-                                        <button onClick={() => step > 1 ? setStep(s => s - 1) : setViewMode('list')} className="px-4 py-2 bg-slate-700 text-white rounded">Atrás</button>
-                                        <button onClick={() => step < 6 ? (validateStep(step) && setStep(s => s + 1)) : handleFinalSave()} className="px-6 py-2 bg-green-600 text-white font-bold rounded">
-                                            {step === 6 ? 'Guardar' : 'Siguiente'}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            );
-        });
-
-        const LoginScreen = ({ setAuthenticatedUser, installPrompt, onInstall, users }) => {
-            const [pin, setPin] = useState('');
-            const handleLogin = (e) => {
-                e.preventDefault();
-                const user = users[pin]; 
-                if (user) setAuthenticatedUser({ ...user, id: pin }); 
-                else alert('PIN incorrecto');
-            };
-            return (
-                <div className="flex items-center justify-center h-full bg-slate-900 p-4">
-                    <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center border border-slate-700 relative">
-                        <div className="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6 text-white shadow-lg"><i data-lucide="grid" className="w-8 h-8"></i></div>
-                        <h2 className="text-2xl font-black text-white mb-2">MAES - TEJIDO</h2>
-                        <form onSubmit={handleLogin} className="space-y-4" autoComplete="off">
-                            <input type="tel" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="• • • •" className="w-full text-center text-4xl p-4 bg-slate-900 border-2 border-slate-700 rounded-xl tracking-[0.2em] focus:border-blue-500 outline-none font-bold text-white password-mask" autoFocus />
-                            <button type="submit" className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-500 shadow-lg">INGRESAR</button>
-                        </form>
-                    </div>
+                        </tbody>
+                    </table>
+                    <datalist id="inv">
+                        {invList.map((item, idx) => (
+                            <option key={idx} value={item.material}>Stock: {item.stock}Kg | {item.color}</option>
+                        ))}
+                    </datalist>
                 </div>
             );
         };
 
-        const VisibilityModal = ({ onClose, currentHiddenMachines, currentHiddenDays, onSaveVisibility, allRows }) => {
-            const [hiddenM, setHiddenM] = useState([...currentHiddenMachines]);
-            const [hiddenD, setHiddenD] = useState([...currentHiddenDays]);
-            const [dateToHide, setDateToHide] = useState('');
-            const toggleMachine = (mid) => { if (hiddenM.includes(mid)) setHiddenM(prev => prev.filter(id => id !== mid)); else setHiddenM(prev => [...prev, mid]); };
-            const hideDate = () => { if (!dateToHide) return; const row = allRows.find(r => r.isoDate === dateToHide); if (row && !hiddenD.includes(row.id)) setHiddenD(prev => [...prev, row.id]); setDateToHide(''); };
-            const unhideDate = (rowId) => { setHiddenD(prev => prev.filter(id => id !== rowId)) };
-            const handleSave = () => { onSaveVisibility(hiddenM, hiddenD); onClose(); };
-
-            return (
-                <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in" onClick={onClose}>
-                    <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg h-[85vh] flex flex-col border border-slate-700" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900 rounded-t-2xl"><h3 className="font-bold text-lg text-white">Configuración Global</h3><button onClick={onClose}><i data-lucide="x" className="text-slate-400 w-6 h-6"></i></button></div>
-                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-6">
-                            <div><h4 className="text-xs font-bold text-blue-400 uppercase mb-2">Visibilidad Máquinas</h4><div className="grid grid-cols-2 gap-2">{MACHINES.map(m => { const isHidden = hiddenM.includes(m.id); return (<button key={m.id} onClick={() => toggleMachine(m.id)} className={`flex items-center justify-between p-2 rounded border text-sm ${isHidden ? 'bg-red-900/30 border-red-500/50 text-red-300' : 'bg-slate-900 border-slate-700 text-slate-300'}`}><span>{m.name}</span>{isHidden ? <i data-lucide="eye-off" className="w-4 h-4"></i> : <i data-lucide="eye" className="w-4 h-4 text-green-500/50"></i>}</button>) })}</div></div>
-                            <div><h4 className="text-xs font-bold text-blue-400 uppercase mb-2">Ocultar Días (Feriados Globales)</h4><div className="flex gap-2 mb-3"><input type="date" value={dateToHide} onChange={e => setDateToHide(e.target.value)} className="bg-slate-900 text-white border border-slate-600 rounded p-2 flex-1 text-sm" /><button onClick={hideDate} className="bg-slate-700 px-3 rounded text-white text-sm">Ocultar</button></div>{hiddenD.map(rid => (<div key={rid} className="flex justify-between items-center text-sm p-2 bg-slate-800 rounded mb-1"><span className="text-slate-300">{rid}</span><button onClick={() => unhideDate(rid)} className="text-red-400 text-xs font-bold">Mostrar</button></div>))}</div>
-                        </div>
-                        <div className="p-4 border-t border-slate-700 bg-slate-900 rounded-b-2xl"><button onClick={handleSave} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Guardar</button></div>
-                    </div>
-                </div>
-            )
+        const SettingsModal = ({ config, onClose }) => {
+            const [localUrls, setLocalUrls] = useState(config.repoUrls || []);
+            const [newUrl, setNewUrl] = useState('');
+            const save = async () => { await db.collection('settings').doc('config').set({ ...config, repoUrls: localUrls }); onClose(); };
+            return (<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-6 rounded w-96"><h3 className="font-bold mb-4">Configuración Imágenes</h3><div className="mb-2 max-h-40 overflow-y-auto">{localUrls.map((u,i)=><div key={i} className="text-xs truncate mb-1 border p-1 flex justify-between"><span>{u}</span><button onClick={()=>setLocalUrls(localUrls.filter((_,x)=>x!==i))} className="text-red-500 font-bold">X</button></div>)}</div><div className="flex gap-2 mb-4"><input value={newUrl} onChange={e=>setNewUrl(e.target.value)} className="border p-1 flex-1 text-xs" placeholder="URL GitHub Raw"/><button onClick={()=>{if(newUrl)setLocalUrls([...localUrls,newUrl]);setNewUrl('')}} className="bg-blue-100 text-blue-700 px-2 font-bold">+</button></div><button onClick={save} className="bg-slate-900 text-white w-full py-2 rounded font-bold">Guardar</button></div></div>);
         };
 
-        const CalendarModal = ({ onClose, onSelectDate, allRows }) => {
-            const [viewDate, setViewDate] = useState(new Date()); 
-            const handleMonthChange = (delta) => { const d = new Date(viewDate); d.setMonth(d.getMonth() + delta); setViewDate(d); };
-            const monthRows = allRows.filter(r => r.monthIndex === viewDate.getMonth() && r.year === viewDate.getFullYear());
-            const startDayOffset = ['DOM','LUN','MAR','MIE','JUE','VIE','SAB'].indexOf(monthRows[0]?.shortDay) || 0;
-
+        const ImageGallery = ({ config, onClose, orders }) => {
+             const [filter, setFilter] = useState('');
+            const allCodes = useMemo(() => {
+                const uniqueCodes = new Set(orders.map(o => o.codigo).filter(c => c));
+                return Array.from(uniqueCodes).sort();
+            }, [orders]);
+            const filteredCodes = useMemo(() => {
+                if (!filter) return allCodes;
+                return allCodes.filter(c => c.toUpperCase().includes(filter.toUpperCase()));
+            }, [allCodes, filter]);
             return (
-                <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 fade-in" onClick={onClose}>
-                    <div className="bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm border border-slate-700 p-4" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center mb-4"><button onClick={() => handleMonthChange(-1)} className="p-2 hover:bg-slate-700 rounded"><i data-lucide="chevron-left" className="text-white w-5 h-5"></i></button><span className="font-bold text-white uppercase">{viewDate.toLocaleString('es-MX', { month: 'long', year: 'numeric' })}</span><button onClick={() => handleMonthChange(1)} className="p-2 hover:bg-slate-700 rounded"><i data-lucide="chevron-right" className="text-white w-5 h-5"></i></button></div>
-                        <div className="grid grid-cols-7 gap-1 text-center mb-2">{['D','L','M','M','J','V','S'].map((d,i) => <div key={i} className="text-xs text-slate-500 font-bold">{d}</div>)}</div>
-                        <div className="grid grid-cols-7 gap-1">{Array(startDayOffset).fill(null).map((_, i) => <div key={`b-${i}`}></div>)}{monthRows.map(row => (<button key={row.id} onClick={() => onSelectDate(row)} className="aspect-square flex items-center justify-center rounded-lg hover:bg-blue-600 bg-slate-900 text-slate-200 text-sm font-bold border border-slate-700">{row.dateNum}</button>))}</div>
-                        <button onClick={onClose} className="w-full mt-4 bg-slate-700 py-2 rounded-lg text-white font-bold text-sm">Cerrar</button>
+                <div className="fixed inset-0 bg-black/80 z-[60] flex flex-col items-center justify-center p-4">
+                    <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-4xl h-full flex flex-col">
+                        <div className="flex justify-between items-center mb-4 border-b pb-2 shrink-0">
+                            <h3 className="font-bold text-xl text-indigo-700 flex items-center gap-2"><Icon name="images"/> Galería de Modelos</h3>
+                            <button onClick={onClose} className="bg-red-500 hover:bg-red-600 text-white rounded-md p-2 shadow-lg flex items-center gap-1 font-bold text-xs transition-transform hover:scale-105">
+                                <Icon name="x" size={18}/> CERRAR
+                            </button>
+                        </div>
+                        <input type="text" placeholder="Filtrar por código de modelo..." value={filter} onChange={(e) => setFilter(e.target.value)} className="w-full p-2 mb-4 border rounded shadow-sm" />
+                        <div className="flex-grow overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 p-2">
+                            {config.repoUrls && config.repoUrls.map((repo, idx) => (
+                                <div key={idx} className="col-span-full border-b pb-2 mb-2">
+                                    <h4 className="font-bold text-sm text-slate-600 mb-2">Carpeta: <span className="font-mono text-xs">{repo}</span></h4>
+                                    <div className="grid grid-cols-subgrid gap-4">
+                                        {filteredCodes.map(codigo => (
+                                            <div key={`${repo}-${codigo}`} className="aspect-square border rounded shadow overflow-hidden flex flex-col">
+                                                <SmartImage repoUrls={[repo]} codigo={codigo} className="w-full h-2/3 object-contain bg-slate-100 p-1" />
+                                                <div className="text-center text-xs font-bold p-1 bg-gray-100 h-1/3 flex items-center justify-center">{codigo}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                            {!config.repoUrls && <div className="text-center text-slate-500 col-span-full">Configura las URLs de los repositorios en Ajustes.</div>}
+                        </div>
                     </div>
                 </div>
             );
         };
 
         const App = () => {
-            const [user, setUser] = useState(null);
-            const [usersData, setUsersData] = useState(DEFAULT_USERS); 
-            const [data, setData] = useState({});
-            const [ordersData, setOrdersData] = useState({});
-            const [visibilityConfig, setVisibilityConfig] = useState({ machines: [], days: [] });
-            const [loading, setLoading] = useState(true);
-            const [weekOffset, setWeekOffset] = useState(INITIAL_STATE.weekOffset);
-            const [selectedDayIndex, setSelectedDayIndex] = useState(INITIAL_STATE.selectedDayIndex); 
-            const [showOrderManager, setShowOrderManager] = useState(false);
-            const [showVisibilityModal, setShowVisibilityModal] = useState(false);
-            const [showCalendar, setShowCalendar] = useState(false);
-            const [showUserManagementModal, setShowUserManagementModal] = useState(false);
-            const [deferredPrompt, setDeferredPrompt] = useState(null);
-            const orderManagerRef = React.useRef(); 
+            const [view, setView] = useState('dashboard');
+            const [orders, setOrders] = useState([]);
+            const [config, setConfig] = useState({});
+            const [inventory, setInventory] = useState([]); 
+            const [selectedOrder, setSelectedOrder] = useState(null);
+            const [formProps, setFormProps] = useState({ initialOrder: null, isEditing: false }); 
+            const [showSettings, setShowSettings] = useState(false);
+            const [showImport, setShowImport] = useState(false);
+            const [showGallery, setShowGallery] = useState(false);
+            const [viewMode, setViewMode] = useState('active'); 
+            const [lastScanned, setLastScanned] = useState(null); // Notificación de escáner
 
-            useEffect(() => { if (window.lucide) window.lucide.createIcons(); });
-            useEffect(() => { const handler = (e) => { e.preventDefault(); setDeferredPrompt(e); }; window.addEventListener('beforeinstallprompt', handler); return () => window.removeEventListener('beforeinstallprompt', handler); }, []);
-            
             useEffect(() => {
-                const unsubAuth = onAuthStateChanged(auth, (u) => {
-                    if (u) {
-                        const unsubDb = onSnapshot(collection(db, 'produccion_2026'), (snap) => { const d = {}; snap.forEach(doc => d[doc.id] = doc.data()); setData(d); setLoading(false); });
-                        const unsubSettings = onSnapshot(doc(db, 'settings', 'visibility'), (docSnap) => { if (docSnap.exists()) setVisibilityConfig(docSnap.data()); });
-                        const unsubOrders = onSnapshot(doc(db, 'settings', 'orders'), (docSnap) => { if (docSnap.exists()) setOrdersData(docSnap.data()); });
-                        const unsubUsers = onSnapshot(doc(db, 'settings', 'users'), (docSnap) => { 
-                            if (docSnap.exists()) { const fetchedUsers = docSnap.data(); setUsersData(fetchedUsers); if (user && !fetchedUsers[user.id]) setUser(null); } else { setDoc(doc(db, 'settings', 'users'), DEFAULT_USERS); }
-                        });
-                        return () => { unsubDb(); unsubSettings(); unsubOrders(); unsubUsers(); };
-                    } else signInAnonymously(auth);
+                const u1 = db.collection('orders').onSnapshot(s => setOrders(s.docs.map(d=>d.data())));
+                const u2 = db.collection('settings').doc('config').onSnapshot(d => setConfig(d.data() || {}));
+                const u3 = db.collection('inventory').doc('main').onSnapshot(d => {
+                     const data = d.data();
+                     setInventory(data && data.items ? data.items : []);
                 });
-                return () => unsubAuth();
-            }, [user]);
 
-            const handleUpdateSlot = async (rowId, machineId, slotIndex, field, value) => {
-                const currentMachineData = data[rowId]?.[machineId] || {};
-                const currentSlots = currentMachineData.slots || [{}, {}, {}, {}];
-                const updatedSlots = [...currentSlots];
-                if (!updatedSlots[slotIndex]) updatedSlots[slotIndex] = {};
-                if (field === 'qty') updatedSlots[slotIndex].qty = value === '' ? '' : Number(value);
-                else updatedSlots[slotIndex].model = value;
-                const newTotalActual = updatedSlots.reduce((acc, s) => acc + (Number(s?.qty) || 0), 0);
-                const updatedMachine = { ...currentMachineData, slots: updatedSlots, actual: newTotalActual };
-                await setDoc(doc(db, 'produccion_2026', rowId), { [machineId]: updatedMachine }, { merge: true });
-            };
+                setTimeout(()=>lucide.createIcons(), 500);
+                return () => { u1(); u2(); u3(); };
+            }, []);
+            useEffect(()=>lucide.createIcons(), [view, orders, viewMode]);
 
-            const handleSaveOrder = async (machineId, orderData) => { await setDoc(doc(db, 'settings', 'orders'), { [machineId]: { ...orderData, lastUpdated: serverTimestamp(), updatedBy: user.name } }, { merge: true }); };
-            const handleDeleteOrder = async (machineId) => { await setDoc(doc(db, 'settings', 'orders'), { [machineId]: { totalQty: 0, parts: [], lastUpdated: serverTimestamp() } }, { merge: true }); };
-            const handleSaveVisibility = async (hiddenMachines, hiddenDays) => { await setDoc(doc(db, 'settings', 'visibility'), { machines: hiddenMachines, days: hiddenDays }, { merge: true }); };
-            const handleSaveUser = async (pin, userData) => { try { await setDoc(doc(db, 'settings', 'users'), { ...usersData, [pin]: userData }); if (user.id === pin) setUser({...userData, id: pin}); alert('Usuario guardado'); } catch (error) { alert('Error: ' + error.message); } };
-            const handleDeleteUser = async (pinToDelete) => { if (pinToDelete === user.id) return; if (confirm(`¿Eliminar ${pinToDelete}?`)) { const { [pinToDelete]: _, ...newUsers } = usersData; await setDoc(doc(db, 'settings', 'users'), newUsers); } };
-            const handleDateSelect = (row) => { setWeekOffset(Math.floor(row.index / 7)); setShowCalendar(false); };
-
-            const canViewGraph = user && (user.canViewGraph || user.role === ROLES.ADMIN || user.role === ROLES.DEVELOPMENT || user.role === ROLES.OBSERVER);
-            const canManageUsers = user && user.role === ROLES.DEVELOPMENT; 
-            const visibleMachines = useMemo(() => MACHINES.filter(m => !visibilityConfig.machines?.includes(m.id)), [visibilityConfig.machines]);
-            const currentWeekRows = useMemo(() => { const start = weekOffset * 7; return ALL_ROWS.slice(start, start + 7); }, [weekOffset]);
-            const weekLabel = useMemo(() => getWeekLabel(currentWeekRows), [currentWeekRows]);
-            const canManageOrders = user && (user.canManageOrders || user.role === ROLES.ADMIN || user.role === ROLES.DEVELOPMENT); 
-            const canConfig = user && (user.role === ROLES.DEVELOPMENT); 
-            const canEditSlot = (machineId, slotIndex) => { if (!user) return false; if (user.role === ROLES.ADMIN || user.role === ROLES.DEVELOPMENT) return true; if (user.allowedSlots) return user.allowedSlots.includes(slotIndex); return false; };
-
-            if (!user) return <LoginScreen setAuthenticatedUser={setUser} installPrompt={deferredPrompt} onInstall={() => deferredPrompt?.prompt()} users={usersData} />;
-            if (loading) return <div className="h-screen flex items-center justify-center bg-slate-900"><i data-lucide="loader-2" className="animate-spin w-12 h-12 text-blue-500"></i></div>;
-
-            const MobileView = () => {
-                const safeIndex = selectedDayIndex >= currentWeekRows.length ? 0 : selectedDayIndex;
-                const selectedDay = currentWeekRows[safeIndex];
-                if (!selectedDay) return <div className="p-10 text-center text-slate-500">Semana sin días visibles</div>;
-                const rowId = selectedDay.id;
-                const dayData = data[rowId] || {};
-                const isHiddenDay = visibilityConfig.days?.includes(rowId);
+            // --- LÓGICA DE ESCANEO CENTRALIZADA ---
+            const handleGlobalScan = async (scannedCode) => {
+                // Formato esperado: "ORDERID-PKGID" (Ej: 170999283-170999284)
+                if (!scannedCode.includes('-')) return;
                 
-                return (
-                    <div className="flex flex-col h-full bg-slate-900">
-                        <div className="bg-slate-800 shadow-sm z-20 shrink-0 border-b border-slate-700">
-                             <div className="p-3 flex justify-between items-center bg-slate-900/50"> 
-                                <div className="flex items-center gap-2"><i data-lucide="user-check" className="w-5 h-5 text-blue-400"></i><div><p className="text-sm font-bold text-slate-100">{user.name.split(' ')[0]}</p><p className="text-[10px] text-slate-500 uppercase font-medium">{user.area}</p></div></div>
-                                <div className="flex gap-2">
-                                    {canManageUsers && <button onClick={() => setShowUserManagementModal(true)} className="w-8 h-8 bg-yellow-600 rounded-lg flex items-center justify-center text-white"><i data-lucide="users" className="w-4 h-4"></i></button>}
-                                    {canManageOrders && <button onClick={() => setShowOrderManager(true)} className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white"><i data-lucide="clipboard-list" className="w-4 h-4"></i></button>}
-                                    {canConfig && <button onClick={() => setShowVisibilityModal(true)} className="w-8 h-8 bg-slate-700 rounded-lg flex items-center justify-center text-slate-300"><i data-lucide="settings" className="w-4 h-4"></i></button>}
-                                </div>
-                            </div>
-                            <div className="flex overflow-x-auto custom-scrollbar pb-1 px-1 gap-1 bg-slate-900/50">{currentWeekRows.map((day, idx) => (<button key={day.id} onClick={() => setSelectedDayIndex(idx)} className={`flex-shrink-0 flex flex-col items-center justify-center p-2 min-w-[60px] rounded-lg my-2 transition-all ${idx === safeIndex ? 'bg-slate-700 shadow border-b-4 border-blue-500 scale-105' : 'text-slate-500 hover:bg-slate-800'}`}><span className="text-[10px] font-bold uppercase mb-0.5 text-blue-400">{day.shortDay}</span><span className={`text-lg font-black leading-none ${idx === safeIndex ? 'text-white' : 'text-slate-600'}`}>{day.dateNum}</span></button>))}</div>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-3 pb-24 custom-scrollbar">
-                            {isHiddenDay && <div className="p-4 bg-red-900/30 text-red-300 rounded-lg text-center font-bold mb-3">Día Oculto / Feriado</div>}
-                            {visibleMachines.map(m => { 
-                                const mData = dayData[m.id] || {};
-                                const slots = mData.slots || [{}, {}, {}, {}];
-                                const order = ordersData[m.id];
-                                const metrics = calculateOrderMetrics(m.id, order, data, ALL_ROWS, visibilityConfig.days || []);
-                                const isPlannedDay = metrics.isPlanned && new Date(order.startDate).toISOString().split('T')[0] <= selectedDay.isoDate && (metrics.finishDate === null || metrics.finishDate >= selectedDay.isoDate);
-                                const isComposite = order?.parts?.length > 0;
-                                
-                                return (
-                                    <div key={m.id} className="bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-700 relative overflow-hidden mb-3">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div className="flex items-center gap-2"><div className="w-8 h-8 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center"><i data-lucide="cpu" className="w-5 h-5 opacity-50"></i></div><div><h3 className="font-black text-slate-200 text-sm">{m.name.replace('MAQ ','M-')}</h3><p className="text-[10px] text-slate-500 font-medium">{m.type}</p></div></div>
-                                            {(metrics.progress > 0 || isPlannedDay) && <div className="text-[10px] font-bold text-blue-400 bg-blue-900/30 px-2 py-0.5 rounded">{metrics.progress.toFixed(0)}%</div>}
-                                        </div>
-                                        {order && (order.totalQty > 0 || isComposite) && canViewGraph && (
-                                            <div className="mb-3">
-                                                <div className="text-[10px] text-yellow-500 font-bold uppercase flex justify-between border-b border-slate-700 pb-1"><span>{order.model}</span><span>{isComposite ? 'MULTI' : order.totalQty}</span></div>
-                                                {isComposite && metrics.activePart && <div className="text-[9px] text-green-400 mt-1">Prod: {metrics.activePart.name}</div>}
-                                                <div className="h-1 w-full bg-slate-700 mt-1 rounded-full overflow-hidden"><div className="h-full bg-blue-500" style={{width: `${metrics.progress}%`}}></div></div>
-                                            </div>
-                                        )}
-                                        <div className={`rounded-lg p-2 border border-slate-700/50 ${isPlannedDay && !isHiddenDay ? 'bg-yellow-900/10' : 'bg-slate-900/50'}`}>
-                                            {isPlannedDay && !isHiddenDay && <div className="text-[8px] text-yellow-400 text-center font-bold uppercase mb-1">{order.model}</div>}
-                                            <div className="grid grid-cols-2 gap-2 mb-1"><div className="text-[9px] text-center font-bold text-blue-400 uppercase tracking-widest border-b border-blue-900 pb-1">Andrés</div><div className="text-[9px] text-center font-bold text-orange-400 uppercase tracking-widest border-b border-orange-900 pb-1">Balta</div></div>
-                                            <div className="grid grid-cols-2 gap-2 flex-1 h-16">{[0,1].map(idx => (<ProductionSlot key={idx} slotData={slots[idx]} index={idx} disabled={!canEditSlot(m.id, idx) || isHiddenDay} onUpdate={(idx, field, val) => handleUpdateSlot(rowId, m.id, idx, field, val)} />))}</div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="fixed bottom-0 left-0 w-full bg-slate-900/90 backdrop-blur border-t border-slate-700 p-3 flex justify-between items-center z-30">
-                             <button onClick={() => setWeekOffset(prev => Math.max(0, prev - 1))} className="p-3 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400"><i data-lucide="chevron-left" className="w-5 h-5"></i></button>
-                             <div className="text-center"><span className="block text-xs font-bold text-blue-400 uppercase tracking-wide">{weekLabel}</span></div>
-                             <button onClick={() => setWeekOffset(prev => prev + 1)} className="p-3 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400"><i data-lucide="chevron-right" className="w-5 h-5"></i></button>
-                        </div>
-                    </div>
-                );
+                const [orderId, pkgIdString] = scannedCode.split('-');
+                const pkgId = parseFloat(pkgIdString);
+
+                const targetOrder = orders.find(o => String(o.id) === orderId);
+
+                if (targetOrder) {
+                    const targetPkg = targetOrder.progreso.find(p => p.id === pkgId);
+                    if (targetPkg) {
+                        if (targetPkg.finished) {
+                            alert(`El paquete ${targetPkg.codigoUnico} ya estaba marcado como terminado.`);
+                            return;
+                        }
+
+                        // Actualizar en Firebase
+                        const newProgreso = targetOrder.progreso.map(p => 
+                            p.id === pkgId 
+                                ? { ...p, finished: true, tejedor: 'ESCÁNER', fecha: new Date().toISOString().split('T')[0], defectos: '', agujas: '' } 
+                                : p
+                        );
+                        
+                        try {
+                            await db.collection('orders').doc(String(targetOrder.id)).update({ progreso: newProgreso });
+                            setLastScanned(`Paquete marcado: ${targetPkg.codigoUnico}`);
+                            setTimeout(() => setLastScanned(null), 3000); // Ocultar notificación
+                        } catch(e) {
+                            console.error(e);
+                            alert("Error al actualizar paquete escaneado");
+                        }
+                    }
+                }
             };
 
-            const DesktopView = () => (
-                <div className="h-full flex flex-col bg-slate-900 overflow-hidden relative">
-                    <header className="bg-slate-800 shadow-sm border-b border-slate-700 p-3 flex justify-between items-center z-20 shrink-0">
-                        <div className="flex items-center gap-4">
-                            <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-2 rounded-lg text-white shadow-lg"><i data-lucide="factory" className="w-5 h-5"></i></div>
-                            <h1 className="font-bold text-slate-200 hidden md:block">Control MAES - Tejido</h1>
-                            <div className="flex items-center gap-2 bg-slate-900/50 p-1 rounded-lg border border-slate-700/50 ml-6">
-                                <button onClick={() => setWeekOffset(prev => Math.max(0, prev - 1))} className="p-1 hover:bg-slate-700 rounded text-slate-400"><i data-lucide="chevron-left" className="w-5 h-5"></i></button>
-                                <div className="flex items-center gap-2 px-2 cursor-pointer" onClick={() => setShowCalendar(true)}><i data-lucide="calendar" className="w-4 h-4 text-blue-400"></i><span className="text-sm font-bold text-white uppercase w-32 text-center select-none">{weekLabel}</span></div>
-                                <button onClick={() => setWeekOffset(prev => prev + 1)} className="p-1 hover:bg-slate-700 rounded text-slate-400"><i data-lucide="chevron-right" className="w-5 h-5"></i></button>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <div className="text-right px-3 py-1 bg-slate-900/50 rounded-lg border border-slate-700/50"><p className="text-sm font-bold text-blue-400">{user.name.toUpperCase()}</p><p className="text-[10px] text-slate-500 uppercase font-medium leading-none">{user.area}</p></div>
-                            <div className="flex gap-2">
-                                {canManageUsers && <button onClick={() => setShowUserManagementModal(true)} className="bg-yellow-600 hover:bg-yellow-500 text-white px-3 py-1 rounded text-sm font-bold flex items-center gap-2 shadow-lg transition-all"><i data-lucide="users" className="w-4 h-4"></i> Usuarios</button>}
-                                {canManageOrders && <button onClick={() => setShowOrderManager(true)} className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded text-sm font-bold flex items-center gap-2 shadow-lg hover:scale-105 transition-all"><i data-lucide="clipboard-list" className="w-4 h-4"></i> Pedidos</button>}
-                                {canConfig && <button onClick={() => setShowVisibilityModal(true)} className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-slate-300"><i data-lucide="settings" className="w-5 h-5"></i></button>}
-                                <button onClick={() => setUser(null)} className="p-2 text-red-400 hover:bg-red-900/20 rounded"><i data-lucide="log-out" className="w-5 h-5"></i></button>
-                            </div>
-                        </div>
-                    </header>
-                    <main className="flex-1 overflow-auto p-2 custom-scrollbar relative">
-                        <div className="bg-slate-800 rounded-xl shadow border border-slate-700 overflow-hidden h-full">
-                            <div className="overflow-auto custom-scrollbar h-full relative">
-                                <table className="w-full border-collapse">
-                                    <thead className="sticky top-0 z-20 bg-slate-900 shadow-sm border-b border-slate-700">
-                                        <tr>
-                                            <th className="sticky left-0 z-30 bg-slate-900 p-3 min-w-[120px] text-left border-r border-slate-700 text-xs font-bold text-slate-500">FECHA</th>
-                                            {visibleMachines.map(m => {
-                                                const order = ordersData[m.id];
-                                                const metrics = calculateOrderMetrics(m.id, order, data, ALL_ROWS, visibilityConfig.days || []);
-                                                const isComp = order?.parts?.length > 0;
-                                                return (
-                                                    <th key={m.id} className={`min-w-[160px] p-2 border-r border-slate-700 ${metrics.isPlanned ? 'bg-yellow-900/10' : ''}`}>
-                                                        <div className="flex flex-col items-center">
-                                                            <span className="text-xs font-bold text-blue-400">{m.name.replace('MAQ ','')}</span>
-                                                            {order && (order.totalQty > 0 || isComp) ? (
-                                                                <div className="mt-1 w-full px-2">
-                                                                    <div className="flex justify-between items-center text-[9px] font-black text-yellow-400 uppercase leading-none mb-1"><span>{order.model}</span><span>{metrics.progress.toFixed(0)}%</span></div>
-                                                                    {canViewGraph && <div className="h-1 bg-slate-700 rounded-full overflow-hidden w-full"><div className="h-full bg-blue-500" style={{width: `${metrics.progress}%`}}></div></div>}
-                                                                    <span className="block text-[8px] text-slate-500 mt-1 font-bold">Fin: <span className={metrics.status === 'COMPLETADO' ? 'text-green-400' : 'text-red-400'}>{metrics.status === 'COMPLETADO' ? 'OK' : (metrics.finishDate || '-')}</span></span>
-                                                                </div>
-                                                            ) : <span className="text-[9px] text-slate-600">Sin Orden</span>}
-                                                        </div>
-                                                    </th>
-                                                );
-                                            })}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {currentWeekRows.map(row => {
-                                            const rowId = row.id; 
-                                            const rowData = data[rowId] || {};
-                                            const isHiddenDay = visibilityConfig.days?.includes(rowId);
-                                            return (
-                                                <tr key={rowId} className={`border-b border-slate-700 hover:bg-slate-700/50 transition-colors ${isHiddenDay ? 'opacity-30' : ''}`}>
-                                                    <td className="sticky left-0 bg-slate-800 p-2 border-r border-slate-700 text-xs font-bold text-slate-400 shadow-[2px_0_5px_rgba(0,0,0,0.3)]">{row.shortDay} <br/> <span className="text-lg text-slate-200">{row.dateNum}</span></td>
-                                                    {visibleMachines.map(m => {
-                                                        const mData = rowData[m.id] || {}; 
-                                                        const slots = mData.slots || [{}, {}, {}, {}];
-                                                        const order = ordersData[m.id];
-                                                        const metrics = calculateOrderMetrics(m.id, order, data, ALL_ROWS, visibilityConfig.days || []);
-                                                        const isFinishDay = metrics.finishDate === row.isoDate && metrics.status !== 'COMPLETADO';
-                                                        const isPlannedDay = metrics.isPlanned && new Date(order.startDate).toISOString().split('T')[0] <= row.isoDate && (metrics.finishDate === null || metrics.finishDate >= row.isoDate);
-                                                        
-                                                        return (
-                                                            <td key={m.id} className={`p-1 border-r border-slate-700 relative h-[80px] ${isFinishDay ? 'bg-red-900/30 border-red-500/50' : ''} ${isPlannedDay && !isHiddenDay ? 'bg-yellow-900/10' : ''}`}>
-                                                                {isPlannedDay && !isHiddenDay && <div className="planning-info">{order.model}</div>}
-                                                                <div className="flex flex-col h-full">
-                                                                    <div className="grid grid-cols-2 gap-1 mb-0.5"><div className="text-[8px] text-center text-blue-400 font-bold bg-slate-900/50 rounded">A</div><div className="text-[8px] text-center text-orange-400 font-bold bg-slate-900/50 rounded">B</div></div>
-                                                                    <div className="grid grid-cols-2 gap-1 flex-1">{[0,1].map(idx => (<ProductionSlot key={idx} slotData={slots[idx]} index={idx} disabled={!canEditSlot(m.id, idx) || isHiddenDay} onUpdate={(idx, field, val) => handleUpdateSlot(rowId, m.id, idx, field, val)} />))}</div>
-                                                                </div>
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </main>
-                </div>
-            );
+            // Activar hook
+            useBarcodeScanner(handleGlobalScan);
+
+            const displayedOrders = useMemo(() => {
+                if(viewMode === 'active') {
+                    return orders.filter(o => o.status !== 'ARCHIVADO');
+                } else {
+                    return orders.filter(o => o.status === 'ARCHIVADO');
+                }
+            }, [orders, viewMode]);
+
+            const allClients = [...new Set(orders.map(o => o.cliente))].sort();
+            
+            const handleImportData = (data) => {
+                setFormProps({ initialOrder: data, isEditing: false });
+                setShowImport(false);
+                setView('create');
+            };
+
+            const handleEditOrder = (order) => {
+                setFormProps({ initialOrder: order, isEditing: true });
+                setView('create');
+                setSelectedOrder(null);
+            };
 
             return (
-                <div className="h-full relative">
-                    {showOrderManager && <OrderManager ref={orderManagerRef} onClose={() => setShowOrderManager(false)} onSaveOrders={handleSaveOrder} onDeleteOrder={handleDeleteOrder} ordersData={ordersData} allProductionData={data} allRows={ALL_ROWS} hiddenDays={visibilityConfig.days} />}
-                    {showVisibilityModal && <VisibilityModal onClose={() => setShowVisibilityModal(false)} currentHiddenMachines={visibilityConfig.machines || []} currentHiddenDays={visibilityConfig.days || []} onSaveVisibility={handleSaveVisibility} allRows={ALL_ROWS} />}
-                    {showCalendar && <CalendarModal onClose={() => setShowCalendar(false)} onSelectDate={handleDateSelect} allRows={ALL_ROWS} />}
-                    {canManageUsers && showUserManagementModal && <UserManagementModal onClose={() => setShowUserManagementModal(false)} users={usersData} onSaveUser={handleSaveUser} onDeleteUser={handleDeleteUser} />}
-                    <div className="block md:hidden h-full"><MobileView /></div>
-                    <div className="hidden md:block h-full"><DesktopView /></div>
+                <div className="h-screen bg-slate-100 overflow-hidden relative">
+                    {/* NOTIFICACIÓN FLOTANTE DE ESCÁNER */}
+                    {lastScanned && (
+                        <div className="fixed top-20 right-4 z-[100] bg-green-500 text-white px-6 py-4 rounded shadow-2xl animate-bounce font-bold flex items-center gap-2">
+                            <Icon name="check-circle" size={32}/>
+                            <div>
+                                <div className="text-xs uppercase opacity-75">Escáner Correcto</div>
+                                <div className="text-lg">{lastScanned}</div>
+                            </div>
+                        </div>
+                    )}
+
+                    {view === 'create' && <div className="absolute inset-0 z-50 bg-black/50 flex items-center justify-center"><MultiOrderForm config={config} onCancel={()=>setView('dashboard')} initialOrder={formProps.initialOrder} clientHistory={allClients} inventory={inventory} isEditing={formProps.isEditing}/></div>}
+                    
+                    {view === 'detail' && selectedOrder && <div className="absolute inset-0 z-40 bg-white overflow-y-auto print-visible-wrapper"><OrderView order={orders.find(o=>o.id===selectedOrder.id) || selectedOrder} config={config} onBack={()=>setView('dashboard')} onEdit={handleEditOrder}/></div>}
+                    
+                    {showSettings && <SettingsModal config={config} onClose={()=>setShowSettings(false)} />}
+                    {showImport && <ImportModal onClose={()=>setShowImport(false)} onImport={handleImportData} />}
+                    {showGallery && <ImageGallery config={config} onClose={()=>setShowGallery(false)} orders={orders} />}
+
+                    <div className="dashboard-grid">
+                        <div className="top-pane bg-slate-100 p-4">
+                            <div className="flex justify-between items-center mb-4">
+                                <h1 className="text-2xl font-black text-slate-800 flex gap-2 items-center">
+                                    <Icon name="layout-dashboard"/> 
+                                    <span>{viewMode === 'active' ? 'PLANTA' : 'HISTORIAL'}</span>
+                                    <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded ml-2">v3.0 BARCODE + PAPELETAS</span>
+                                </h1>
+                                <div className="flex gap-2 items-center">
+                                    <InstallButton />
+                                    
+                                    <button onClick={()=>setViewMode(viewMode === 'active' ? 'history' : 'active')} className={`px-4 py-2 rounded font-bold shadow flex items-center gap-2 text-xs transition ${viewMode === 'active' ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-slate-700 text-white'}`}>
+                                        <Icon name={viewMode === 'active' ? 'history' : 'activity'}/> 
+                                        {viewMode === 'active' ? 'HISTORIAL' : 'VER PLANTA'}
+                                    </button>
+
+                                    <button onClick={()=>setShowGallery(true)} className="bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2 text-xs"><Icon name="image-search"/> GALERÍA</button>
+                                    <button onClick={()=>setShowSettings(true)} className="bg-slate-300 hover:bg-slate-400 text-slate-800 p-2 rounded shadow"><Icon name="settings"/></button>
+                                    
+                                    {viewMode === 'active' && (
+                                        <>
+                                            <button onClick={()=>{setFormProps({initialOrder:null, isEditing: false}); setView('create')}} className="bg-indigo-600 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2"><Icon name="plus"/> MANUAL</button>
+                                            <button onClick={()=>setShowImport(true)} className="bg-green-600 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2"><Icon name="file-spreadsheet"/> IMPORTAR</button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {displayedOrders.sort((a,b)=>b.id-a.id).map(o => {
+                                    const pct = Math.round((o.progreso.filter(p=>p.finished).length / o.progreso.length)*100);
+                                    return (
+                                        <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className={`p-3 rounded shadow border-l-4 cursor-pointer hover:shadow-lg transition ${o.status === 'ARCHIVADO' ? 'bg-slate-200 border-slate-500 opacity-75' : 'bg-white border-indigo-500'}`}>
+                                            <div className="flex justify-between items-start">
+                                                <div className="font-bold text-lg">{o.codigo}</div>
+                                                <div className="bg-slate-200 text-slate-700 text-xs px-2 py-1 rounded font-bold">MQ-{o.maquina}</div>
+                                            </div>
+                                            <div className="text-xs font-bold text-indigo-800 mt-1">PARTIDA: {o.partida}</div>
+                                            <div className="text-[10px] text-slate-400">Total: {o.totalPedido} pzs</div>
+                                            <div className="mt-2 w-full bg-slate-100 h-2 rounded overflow-hidden">
+                                                <div className={`${o.status === 'ARCHIVADO' ? 'bg-slate-500' : 'bg-green-500'} h-full`} style={{width:`${pct}%`}}></div>
+                                            </div>
+                                            {o.status === 'ARCHIVADO' && <div className="text-center text-[10px] font-bold text-slate-500 mt-1">ARCHIVADO</div>}
+                                        </div>
+                                    );
+                                })}
+                                {displayedOrders.length === 0 && <div className="col-span-4 text-center text-slate-400 py-10 font-bold">No hay órdenes en esta vista.</div>}
+                            </div>
+                        </div>
+                        
+                        {viewMode === 'active' && <DashboardBottom activeOrders={displayedOrders} />}
+                        {viewMode === 'history' && <div className="bg-slate-800 text-white flex items-center justify-center p-10 font-bold text-xl opacity-50">MODO HISTORIAL - SOLO LECTURA</div>}
+                        
+                    </div>
                 </div>
             );
         };
