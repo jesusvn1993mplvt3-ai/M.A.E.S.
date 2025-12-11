@@ -3,563 +3,329 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sweaters Liliana Base de datos 2026 v01</title>
-    
-    <link id="appIcon" rel="icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
-    <link id="appAppleIcon" rel="apple-touch-icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
-    <meta name="theme-color" content="#1e293b">
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <title>Dashboard Industrial (Neumorphism)</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     
     <style>
-        /* Tipografía: Usaremos una pila de fuentes sans-serif moderna */
+        /* CSS Consolidado */
+        
+        /* Uso de Mixins para Neumorphism */
+        /* Nota: Esto simula un mixin CSS, en CSS puro se repiten las propiedades */
+        .neumorphic-style {
+            border-radius: 20px;
+            background: var(--bg-color);
+            box-shadow: 8px 8px 15px var(--shadow-dark),
+                        -8px -8px 15px var(--shadow-light);
+            transition: all 0.2s ease;
+        }
+
+        :root {
+            /* --- VARIABLES BASE (TEMA NEUMORPHISM) --- */
+            --bg-color: #e0e0e0;
+            --main-color: #6d6d6d;
+            --shadow-light: #ffffff;
+            --shadow-dark: #a3a3a3;
+            --btn-bg: #e0e0e0;
+            --btn-text: #6d6d6d;
+            --title-color: #4a4a4a;
+        }
+
+        /* --- TEMA HACKER (Modificador) --- */
+        .hacker-theme {
+            --bg-color: #101010;
+            --main-color: #00ff41; /* Verde neón */
+            --shadow-light: #202020;
+            --shadow-dark: #000000;
+            --btn-bg: #1a1a1a;
+            --btn-text: #00ff41;
+            --title-color: #00cc33;
+        }
+
+        /* --- TEMA COLORFUL (Modificador) --- */
+        .colorful-theme {
+            --bg-color: #f7f7f7;
+            --main-color: #333333;
+            --shadow-light: #ffffff;
+            --shadow-dark: #cccccc;
+            --btn-bg: linear-gradient(135deg, #42a5f5, #26a69a);
+            --btn-text: #ffffff;
+            --title-color: #42a5f5;
+        }
+
+
+        /* === ESTILOS BASE === */
         body {
-            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-        }
-
-        /* Estilos base para la tipografía y el fondo (Responsive) */
-        .dashboard-grid {
+            font-family: Arial, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
             display: flex;
-            flex-direction: column; /* Móvil: Apilado Verticalmente */
+            justify-content: center;
+            align-items: flex-start;
             min-height: 100vh;
+            transition: background-color 0.4s ease;
         }
-        
-        /* Layout para Escritorio (lg: 1024px o más) */
-        @media (min-width: 1024px) {
-            .dashboard-grid {
-                display: grid;
-                grid-template-columns: 1fr 320px; /* Contenido principal y barra lateral de 320px */
-                height: 100vh;
-                overflow: hidden; /* Evita scroll en el layout principal de escritorio */
-            }
-            .main-content, .sidebar {
-                height: 100vh;
-                overflow-y: auto; /* Permite scroll en cada sección si el contenido es largo */
-            }
-        }
-        
-        /* Animación de Parpadeo (Flicker) para la cuadrícula de estado */
-        @keyframes flicker {
-            0%, 100% { opacity: 0.95; }
-            50% { opacity: 0.3; }
-            52% { opacity: 0.6; }
-            54% { opacity: 0.3; }
-            56% { opacity: 0.95; }
-        }
-        
-        /* Estilos del Radio y Scrollbars */
-        .radio-list { max-height: 180px; overflow-y: auto; }
-        .radio-list::-webkit-scrollbar { width: 6px; background-color: transparent; }
-        .radio-list::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 3px; }
 
+        .container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        /* === ENCABEZADOS Y ALINEACIÓN === */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 30px;
+            color: var(--title-color);
+        }
+
+        .left-align, .right-align {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .left-align {
+            align-items: flex-start; /* Inventario y Calcetín a la izquierda */
+        }
+
+        .right-align {
+            align-items: flex-end; /* Santoni a la derecha */
+        }
+
+        .main-title {
+            /* Fuente grande y responsive, ajustada 'al ras' */
+            font-size: 10vw; 
+            line-height: 0.8; 
+            margin: 0;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .sub-title {
+            font-size: 6vw;
+            line-height: 0.8;
+            margin-top: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        /* === TARJETA Y BOTONES DE ACCESO === */
+        .access-card {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            padding: 30px;
+            border-radius: 30px;
+            /* Aplicación de Neumorphism */
+            background: var(--bg-color);
+            box-shadow: 8px 8px 15px var(--shadow-dark),
+                        -8px -8px 15px var(--shadow-light);
+        }
+
+        .icon-button {
+            height: 120px; 
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--btn-text);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            
+            /* Neumorphism para el botón */
+            background: var(--btn-bg);
+            border-radius: 20px;
+            box-shadow: 5px 5px 10px var(--shadow-dark),
+                        -5px -5px 10px var(--shadow-light);
+            transition: all 0.2s ease;
+        }
+
+        .icon-button i {
+            font-size: 36px;
+            margin-bottom: 5px;
+        }
+
+        .icon-button:active {
+            /* Efecto 'presionado' de Neumorphism */
+            box-shadow: inset 4px 4px 8px var(--shadow-dark),
+                        inset -4px -4px 8px var(--shadow-light);
+        }
+
+        /* === CONTROLES DE RADIO (Sin Volumen) === */
+        .media-controls {
+            display: flex;
+            gap: 15px;
+            padding: 15px;
+            margin-top: 30px;
+            width: fit-content;
+            border-radius: 40px;
+            /* Aplicación de Neumorphism */
+            background: var(--bg-color);
+            box-shadow: 8px 8px 15px var(--shadow-dark),
+                        -8px -8px 15px var(--shadow-light);
+        }
+
+        .media-button {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            color: var(--btn-text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            /* Neumorphism para el botón circular */
+            background: var(--btn-bg);
+            box-shadow: 4px 4px 8px var(--shadow-dark),
+                        -4px -4px 8px var(--shadow-light);
+            transition: all 0.2s ease;
+        }
+
+        .media-button.large {
+            width: 70px;
+            height: 70px;
+            font-size: 24px;
+        }
+
+        .media-button:active {
+            box-shadow: inset 3px 3px 6px var(--shadow-dark),
+                        inset -3px -3px 6px var(--shadow-light);
+        }
+
+        .ia-button {
+            opacity: 0.5; 
+            cursor: not-allowed;
+            font-size: 16px;
+        }
+
+        /* === CONTROL DE TEMAS === */
+        .theme-switcher {
+            margin-bottom: 20px;
+            text-align: right;
+        }
+        .theme-switcher button {
+            padding: 8px 15px;
+            margin: 5px;
+            border: 1px solid var(--main-color);
+            background: transparent;
+            color: var(--main-color);
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .theme-switcher button:hover {
+            background: var(--main-color);
+            color: var(--bg-color);
+        }
+
+
+        /* === ESTILOS ESPECÍFICOS PARA TEMA HACKER === */
+        .hacker-theme .main-title,
+        .hacker-theme .sub-title {
+            /* Efecto 'glow' */
+            text-shadow: 0 0 5px var(--main-color), 0 0 10px var(--main-color);
+        }
+
+        .hacker-theme .access-card,
+        .hacker-theme .media-controls {
+            border: 1px solid var(--main-color);
+        }
+        
+        .hacker-theme .icon-button {
+            border-radius: 5px;
+        }
+
+        /* === ESTILOS ESPECÍFICOS PARA TEMA COLORFUL === */
+        .colorful-theme .icon-button {
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        .colorful-theme .icon-button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
     </style>
 </head>
-<body class="font-sans">
-    <div id="root"></div>
+<body>
 
-    <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef } = React;
-        const Icon = ({ name, size = 20, className }) => {
-            useEffect(() => { lucide.createIcons(); }, [name]);
-            return <i data-lucide={name} width={size} height={size} className={className}></i>;
-        };
+    <div class="container" id="app-container">
 
-        // --- Configuración de Firebase (Se mantiene) ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyBqHgV4vDat1-VmZfKbiPg7nuiX-ROcexw",
-            authDomain: "cirineo-cec21.firebaseapp.com",
-            projectId: "cirineo-cec21",
-            storageBucket: "cirineo-cec21.firebasestorage.app",
-            messagingSenderId: "620210618284",
-            appId: "1:620210618284:web:482bab9bf74650fff18409",
-            measurementId: "G-B7YLM78RVW"
-        };
+        <div class="theme-switcher">
+            <button onclick="setTheme('neumorphism')">Neumorphism</button>
+            <button onclick="setTheme('hacker')">Hacker</button>
+            <button onclick="setTheme('colorful')">Colorido</button>
+        </div>
 
-        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        <header class="header">
+            <div class="left-align">
+                <h1 class="main-title">INVENTARIO</h1>
+                <h2 class="sub-title">CALCETÍN</h2>
+            </div>
+            <div class="right-align">
+                <h1 class="main-title">SANTONI</h1>
+            </div>
+        </header>
 
-        // --- DEFINICIÓN DE TEMAS ---
-        const themeConfig = {
-            darkIndustrial: {
-                id: 'darkIndustrial',
-                name: "Industrial Oscuro",
-                primaryBg: "bg-slate-900",
-                secondaryBg: "bg-slate-800",
-                accentColor: "text-sky-400",
-                warningColor: "text-red-400",
-                textColor: "text-white",
-                navBtnColor: "bg-indigo-600 hover:bg-indigo-700",
-                widgetBg: "bg-slate-700/50 backdrop-blur-sm",
-                clockBg: "bg-slate-700"
-            },
-            cleanLight: {
-                id: 'cleanLight',
-                name: "Claro Limpio",
-                primaryBg: "bg-gray-100",
-                secondaryBg: "bg-white",
-                accentColor: "text-teal-600",
-                warningColor: "text-red-600",
-                textColor: "text-gray-800",
-                navBtnColor: "bg-teal-600 hover:bg-teal-700",
-                widgetBg: "bg-white border border-gray-200",
-                clockBg: "bg-teal-100 text-teal-800"
-            }
-        };
+        <div class="access-card">
+            
+            <button class="icon-button"><i class="fas fa-warehouse"></i> Stock</button>
+            <button class="icon-button"><i class="fas fa-shopping-cart"></i> Pedidos</button>
+            <button class="icon-button"><i class="fas fa-tools"></i> Mantenimiento</button>
+            <button class="icon-button"><i class="fas fa-industry"></i> Producción</button>
 
-        // --- UTILS (Funciones de negocio robustecidas contra datos nulos/incompletos) ---
+            <button class="icon-button"><i class="fas fa-search-location"></i> Rastreo</button>
+            <button class="icon-button"><i class="fas fa-file-invoice"></i> Facturas</button>
+            <button class="icon-button"><i class="fas fa-tshirt"></i> Diseños</button>
+            <button class="icon-button"><i class="fas fa-chart-line"></i> Reportes</button>
+        </div>
         
-        const calculateTimeDiff = (timestamp) => {
-            if (!timestamp) return { days: 0, hours: 0 };
-            const now = Date.now();
-            let date;
+        <div class="media-controls">
+            <button class="media-button large"><i class="fas fa-play"></i></button>
             
-            try {
-                if (timestamp.toDate) { 
-                    date = timestamp.toDate();
-                } 
-                else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
-                    date = new Date(timestamp);
-                } 
-                else if (timestamp instanceof Date) {
-                    date = timestamp;
-                } else {
-                    return { days: 0, hours: 0 }; 
-                }
-                
-                if (isNaN(date.getTime())) return { days: 0, hours: 0 };
-            } catch (e) {
-                return { days: 0, hours: 0 };
+            <button class="media-button"><i class="fas fa-stop"></i></button>
+
+            <button class="media-button ia-button" disabled><i class="fas fa-robot"></i> IA</button>
+        </div>
+
+    </div>
+
+    <script>
+        // JavaScript Consolidado
+        document.addEventListener('DOMContentLoaded', () => {
+            // Establece el tema Neumorphism por defecto al cargar, o carga el guardado
+            const savedTheme = localStorage.getItem('appTheme');
+            setTheme(savedTheme || 'neumorphism');
+        });
+
+        function setTheme(themeName) {
+            const container = document.getElementById('app-container');
+            
+            // Elimina las clases de tema existentes
+            container.classList.remove('neumorphism-theme', 'hacker-theme', 'colorful-theme');
+            
+            // Añade la clase del nuevo tema
+            if (themeName === 'neumorphism') {
+                 // No hace falta añadir una clase especial para el tema base, 
+                 // pero lo hacemos por si hay estilos que dependen explícitamente de ella
+                container.classList.add('neumorphism-theme');
+            } else if (themeName === 'hacker') {
+                container.classList.add('hacker-theme');
+            } else if (themeName === 'colorful') {
+                container.classList.add('colorful-theme');
             }
-
-            const diffMs = now - date.getTime();
-            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-            const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            return { days: diffDays, hours: diffHours };
-        };
-
-        const calculateOrderStatus = (order) => {
-            // Safety check: returns NULL if essential data is missing (NEW: Filters out incomplete data)
-            if (!order || !order.progreso || !order.createdAt || !order.maquina || !order.codigo) {
-                return null;
-            }
-
-            try {
-                const finishedPackages = order.progreso.filter(p => p.finished).length;
-                const totalPackages = order.progreso.length;
-                
-                const piecesFinished = order.progreso.filter(p => p.finished).reduce((sum, p) => sum + (Number(p.cantidad) || 0), 0);
-                const piecesLeft = (Number(order.totalPedido) || 0) - piecesFinished;
-                
-                const efficiency = totalPackages > 0 ? (finishedPackages / totalPackages) * 100 : 0;
-                
-                let lastUpdateTime = order.createdAt; 
-                order.progreso.forEach(p => {
-                    if (p.fecha) {
-                        const pDate = p.fecha.toDate ? p.fecha.toDate() : new Date(p.fecha);
-                        const lastDate = lastUpdateTime.toDate ? lastUpdateTime.toDate() : new Date(lastUpdateTime);
-                        if (pDate.getTime() > lastDate.getTime()) {
-                            lastUpdateTime = p.fecha;
-                        }
-                    }
-                });
-
-                const timeSinceCreation = calculateTimeDiff(order.createdAt);
-                const timeSinceLastUpdate = calculateTimeDiff(lastUpdateTime);
-                
-                let totalMinutesLeft = 0;
-                if (order.subPiecesData && Array.isArray(order.subPiecesData)) {
-                    order.subPiecesData.forEach(p => {
-                        const packagesToFinish = order.progreso.filter(pkg => pkg.piezaNombre === p.pieza && !pkg.finished);
-                        const totalPiecesInRemainingPackages = packagesToFinish.reduce((sum, pkg) => sum + (Number(pkg.cantidad) || 0), 0);
-                        const pieceTime = Number(p.tiempo) || 0;
-                        totalMinutesLeft += (totalPiecesInRemainingPackages * pieceTime);
-                    });
-                }
-
-                const totalHoursLeft = totalMinutesLeft / 60;
-                const daysLeft = Math.floor(totalHoursLeft / 24);
-                const hoursLeft = Math.round(totalHoursLeft % 24);
-                
-                let statusMessage = '';
-                let isWarning = false;
-
-                if (piecesLeft <= 0) {
-                    statusMessage = `✅ ORDEN ${order.codigo} (MAQ #${order.maquina}) TERMINADA`;
-                } else if (timeSinceLastUpdate.days >= 3) {
-                    statusMessage = `🔴 MAQ #${order.maquina}: Modelo ${order.codigo}. Sin actualización en ${timeSinceLastUpdate.days} días.`;
-                    isWarning = true;
-                } else if (totalHoursLeft > 0) {
-                     statusMessage = `⏱️ MAQ #${order.maquina}: Falta ${daysLeft}D ${hoursLeft}H. Efic: ${efficiency.toFixed(0)}%.`;
-                     if (efficiency < 50) isWarning = true;
-                } else {
-                     statusMessage = `MAQ #${order.maquina}: Modelo ${order.codigo}. EN PROCESO.`;
-                }
-
-                return { statusMessage, isWarning, maquina: order.maquina, codigo: order.codigo };
-            } catch (e) {
-                // If a critical error occurs during complex calculation, filter it out.
-                 console.error(`❌ Error Crítico al procesar orden ${order.codigo || 'N/A'}:`, e);
-                 return null; 
-            }
-        };
-
-        // --- NUEVO COMPONENTE: Cuadrícula de Estado Parpadeante ---
-
-        const StatusTile = ({ text, isWarning, theme }) => {
-            // Randomize visual properties for the techno-effect
-            const randomOpacity = useMemo(() => Math.random() * (0.95 - 0.4) + 0.4, []); 
-            const randomDuration = useMemo(() => Math.random() * (4 - 1.5) + 1.5, []);
-
-            const tileBg = isWarning ? 'bg-red-800/80' : 'bg-sky-800/80';
-            const textColor = isWarning ? theme.warningColor : theme.accentColor;
-
-            return (
-                <div 
-                    className={`p-3 rounded-lg shadow-xl transition-all border border-current/20 font-mono overflow-hidden`}
-                    style={{ 
-                        opacity: randomOpacity,
-                        animation: `flicker ${randomDuration}s infinite alternate` 
-                    }}
-                >
-                    <p className={`text-xs lg:text-sm font-bold truncate ${textColor}`}>
-                        {text}
-                    </p>
-                </div>
-            );
-        };
-
-        const FlickeringStatusGrid = ({ allStatuses, theme }) => {
-            const TILE_COUNT = 30; // Un poco más grande para llenar bien el espacio
             
-            // Generate and randomize data points
-            const dataPoints = useMemo(() => {
-                if (allStatuses.length === 0) return Array(TILE_COUNT).fill({ text: "Conectando con la Matriz de Datos...", isWarning: false });
-                
-                const points = [];
-                for (let i = 0; i < TILE_COUNT; i++) {
-                    // Cycle through the statuses array
-                    points.push(allStatuses[i % allStatuses.length]);
-                }
-                
-                // Shuffle the array to make the display random
-                for (let i = points.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [points[i], points[j]] = [points[j], points[i]];
-                }
-                
-                return points;
-            }, [allStatuses]);
-            
-
-            return (
-                <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2 lg:gap-3 mt-10 w-full">
-                    {dataPoints.map((data, index) => (
-                        <StatusTile key={index} text={data.text} isWarning={data.isWarning} theme={theme} />
-                    ))}
-                </div>
-            );
-        };
-
-
-        // --- COMPONENTES EXISTENTES (Actualizados con la lógica de tema) ---
-
-        const Clock = ({ theme }) => {
-            const [time, setTime] = useState(new Date());
-            useEffect(() => {
-                const timer = setInterval(() => setTime(new Date()), 1000);
-                return () => clearInterval(timer);
-            }, []);
-            
-            const accentColor = theme.accentColor.replace('text-', 'text-');
-            
-            return (
-                <div className={`text-center font-mono p-4 rounded-lg shadow-2xl transition-colors ${theme.clockBg} ${theme.textColor === 'text-white' ? 'text-white' : 'text-gray-800'}`}>
-                    <div className="text-6xl lg:text-7xl font-black">{time.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
-                    <div className={`text-sm font-semibold mt-1 ${accentColor}`}>{time.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                </div>
-            );
-        };
-        
-        const NavButtons = ({ theme }) => {
-            const buttons = [
-                // URLs ajustadas para que parezcan módulos internos sin el nombre del repositorio
-                { name: "Inventario", url: "https://jesusvn1993mplvt3-ai.github.io/Doc/", icon: "warehouse", color: theme.navBtnColor.replace('indigo', 'orange') },
-                { name: "Santoni", url: "https://jesusvn1993mplvt3-ai.github.io/CIRINEO/", icon: "socks", color: theme.navBtnColor.replace('indigo', 'sky') },
-                { name: "Calcetín", url: "https://sweaters-liliana.github.io/MAES26/", icon: "shoe", color: theme.navBtnColor.replace('indigo', 'green') },
-            ];
-            const headerColor = theme.textColor.replace('text-', 'text-');
-            const dividerColor = theme.textColor === 'text-white' ? 'border-slate-700' : 'border-slate-300';
-            
-            // Estilos mucho más llamativos: Shadow 2xl, Scale más agresivo y ring en hover.
-            return (
-                <div className={`mt-8 pt-4 border-t ${dividerColor}`}>
-                    <h3 className={`font-extrabold text-xl mb-4 flex items-center gap-2 ${headerColor}`}><Icon name="link" size={20} className={theme.accentColor.replace('text-', '')}/> Accesos Rápidos</h3>
-                    <div className="space-y-4">
-                        {buttons.map((btn) => (
-                            <a 
-                                key={btn.name} 
-                                href={btn.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className={`w-full flex items-center justify-between p-5 rounded-2xl font-black text-white shadow-2xl transition-all transform hover:scale-[1.05] ring-2 ring-offset-2 ring-transparent hover:ring-white/50 ${btn.color}`}
-                                style={{ textShadow: '0 0 5px rgba(0,0,0,0.5)' }}
-                            >
-                                <span className="text-lg">{btn.name}</span>
-                                <Icon name={btn.icon} size={28}/>
-                            </a>
-                        ))}
-                    </div>
-                </div>
-            );
-        };
-
-        const RadioPlayer = ({ theme }) => {
-            const [stations, setStations] = useState([]);
-            const [searchUrl, setSearchUrl] = useState('');
-            const [name, setName] = useState('');
-            const [currentStation, setCurrentStation] = useState(null);
-            const audioRef = useRef(new Audio());
-            
-            useEffect(() => {
-                const unsubscribe = db.collection('radioStations').onSnapshot(s => {
-                    setStations(s.docs.map(d => ({ id: d.id, ...d.data() })));
-                });
-                audioRef.current.volume = 0.5;
-                return () => { unsubscribe(); audioRef.current.pause(); };
-            }, []);
-
-            const playStation = (station) => {
-                if (currentStation && currentStation.id === station.id) {
-                    audioRef.current.pause();
-                    setCurrentStation(null);
-                } else {
-                    audioRef.current.src = station.url;
-                    audioRef.current.play().catch(e => console.error("Error al reproducir:", e));
-                    setCurrentStation(station);
-                }
-            };
-
-            const addStation = async () => {
-                if (name && searchUrl) {
-                    await db.collection('radioStations').add({ name, url: searchUrl, addedAt: firebase.firestore.FieldValue.serverTimestamp() });
-                    setName('');
-                    setSearchUrl('');
-                }
-            };
-            
-            const deleteStation = async (id) => {
-                if (window.confirm("¿Seguro que quieres eliminar esta estación?")) {
-                    await db.collection('radioStations').doc(id).delete();
-                    if (currentStation && currentStation.id === id) {
-                         audioRef.current.pause();
-                         setCurrentStation(null);
-                    }
-                }
-            };
-            
-            const accentTextClass = theme.accentColor;
-            const stationBg = theme.textColor === 'text-white' ? 'bg-slate-700 hover:bg-slate-600' : 'bg-gray-200 hover:bg-gray-300';
-            const playingBg = theme.accentColor.replace('text-', 'bg-').replace('-400', '-200');
-            const playingText = theme.accentColor.replace('text-', 'text-');
-            const inputBg = theme.textColor === 'text-white' ? 'bg-slate-900 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-800';
-            const saveBtnColor = theme.navBtnColor;
-
-            return (
-                <div className={`mt-6 p-4 rounded-xl shadow-lg transition-colors ${theme.widgetBg} ${theme.textColor}`} style={{ '--accent-color': theme.accentColor.replace('text-', '#') }}>
-                    <h3 className={`font-bold text-xl mb-3 flex items-center gap-2 ${accentTextClass}`}><Icon name="radio" size={20}/> Radio FM/Internet</h3>
-                    
-                    <div className="flex items-center gap-2 mb-3">
-                        <input type="range" min="0" max="1" step="0.01" defaultValue="0.5" onChange={(e) => audioRef.current.volume = e.target.value} className={`flex-1 accent-current ${theme.accentColor.replace('text-', '')}`} />
-                        <Icon name="volume-2" size={18} className="text-current"/>
-                    </div>
-
-                    <div className="radio-list space-y-2 mb-3 border-b border-current/30 pb-3">
-                        {stations.map(s => (
-                            <div key={s.id} className={`flex items-center justify-between text-sm p-2 rounded transition-colors ${stationBg} ${currentStation?.id === s.id ? `${playingBg} ${playingText} font-bold` : ''}`}>
-                                <div className="truncate">{s.name}</div>
-                                <div className="flex gap-1 shrink-0">
-                                    <button onClick={() => playStation(s)} className={`p-1 rounded transition-colors text-white ${currentStation?.id === s.id ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}>
-                                        <Icon name={currentStation?.id === s.id ? "pause" : "play"} size={16}/>
-                                    </button>
-                                    <button onClick={() => deleteStation(s.id)} className="p-1 bg-red-500/10 text-red-400 rounded hover:bg-red-500/20">
-                                         <Icon name="trash-2" size={16}/>
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                        {stations.length === 0 && <p className="text-sm text-current/70 text-center">No hay estaciones guardadas.</p>}
-                    </div>
-                    
-                    <p className="text-sm font-bold text-current/80 mb-1">AGREGAR ESTACIÓN:</p>
-                    <input type="text" placeholder="Nombre (Ej: La Zeta)" value={name} onChange={(e) => setName(e.target.value)} className={`w-full p-2 mb-1 text-sm border rounded ${inputBg}`} />
-                    <input type="url" placeholder="URL de Stream (.mp3, .m3u, .m3u8)" value={searchUrl} onChange={(e) => setSearchUrl(e.target.value)} className={`w-full p-2 mb-2 text-sm border rounded ${inputBg}`} />
-                    <button onClick={addStation} disabled={!name || !searchUrl} className={`w-full text-white font-bold p-3 rounded-lg text-sm transition-all shadow-md ${saveBtnColor} disabled:opacity-50 disabled:cursor-not-allowed`}>
-                        <Icon name="save" size={18} className="inline mr-1"/> Guardar Estación
-                    </button>
-                </div>
-            );
-        };
-
-        const WeatherWidget = ({ theme }) => {
-            const city = "LEÓN, GTO.";
-            const temp = "25°C";
-            const icon = "sun";
-            const desc = "Soleado";
-
-            const accentTextClass = theme.accentColor;
-
-            return (
-                <div className={`p-4 rounded-xl shadow-lg transition-colors ${theme.widgetBg} ${theme.textColor}`}>
-                    <h3 className={`font-bold text-xl mb-3 flex items-center gap-2 ${accentTextClass}`}><Icon name="cloud-lightning" size={20}/> Clima de la Zona</h3>
-                    <div className="flex justify-between items-center p-2">
-                        <div>
-                            <div className={`text-5xl font-black ${accentTextClass}`}>{temp}</div>
-                            <div className="text-base font-semibold text-current/80">{desc}</div>
-                        </div>
-                        <Icon name={icon} size={64} className="text-yellow-400 drop-shadow-lg"/>
-                    </div>
-                    <div className="text-xs mt-3 text-current/60 font-bold border-t border-current/30 pt-2">Ubicación: {city} (Simulado)</div>
-                </div>
-            );
-        };
-        
-        const ThemeSwitcher = ({ theme, setTheme }) => {
-            const themesArray = Object.values(themeConfig);
-            
-            return (
-                <div className="p-4 rounded-xl shadow-lg bg-slate-700/50 backdrop-blur-sm text-white mt-6">
-                    <h3 className="font-bold text-xl mb-3 flex items-center gap-2 text-white"><Icon name="palette" size={20}/> Temas</h3>
-                    <div className="flex space-x-3">
-                        {themesArray.map((t) => (
-                            <button 
-                                key={t.id} 
-                                onClick={() => setTheme(t.id)} 
-                                className={`flex-1 p-2 rounded-lg text-sm font-semibold transition-all shadow-md ${t.id === theme.id ? 'ring-4 ring-offset-2 ring-sky-500' : 'hover:opacity-80'}`}
-                                style={{backgroundColor: t.secondaryBg.replace('bg-', ''), color: t.textColor.includes('white') ? 'white' : 'black'}}
-                            >
-                                {t.name}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )
+            // Almacena la preferencia del usuario
+            localStorage.setItem('appTheme', themeName);
         }
-
-        // --- COMPONENTE PRINCIPAL DE LA PÁGINA ---
-
-        const App = () => {
-            const [orders, setOrders] = useState([]);
-            const [inventory, setInventory] = useState([]);
-            // Ya no se usa dynamicText ni isWarning para el display principal, pero se mantienen los datos de origen
-            const [currentThemeId, setCurrentThemeId] = useState(localStorage.getItem('dashboardTheme') || 'darkIndustrial');
-            
-            const theme = themeConfig[currentThemeId];
-
-            // Guarda el tema en localStorage
-            useEffect(() => {
-                localStorage.setItem('dashboardTheme', currentThemeId);
-            }, [currentThemeId]);
-            
-            // Carga inicial de datos
-            useEffect(() => {
-                const u1 = db.collection('orders').where('status', '!=', 'ARCHIVADO').onSnapshot(s => setOrders(s.docs.map(d=>d.data()).filter(d=>d.progreso && d.progreso.length > 0)));
-                const u2 = db.collection('inventory').doc('main').onSnapshot(d => setInventory(d.data()?.items || []));
-                return () => { u1(); u2(); };
-            }, []);
-
-            const allStatuses = useMemo(() => {
-                const statuses = [];
-                const inventoryCopy = [...inventory];
-                
-                // 1. Agregar estados de Inventario (Solo los que están bajos o al azar)
-                const lowStockItems = inventoryCopy.filter(item => Number(item.stock) < Number(item.minStock));
-                
-                // Mezcla ítems bajos y ítems normales para tener variedad
-                const mixedItems = [...lowStockItems];
-                inventoryCopy.forEach(item => {
-                    if (!mixedItems.includes(item)) mixedItems.push(item);
-                });
-                
-                for (let i = 0; i < Math.min(6, mixedItems.length); i++) {
-                    const item = mixedItems[i];
-                    const text = `📊 INV: ${item.material} ${item.calibre || ''} Stock ${Number(item.stock).toFixed(1)} kg.`;
-                    const isWarn = Number(item.stock) < Number(item.minStock);
-                    
-                    statuses.push({ text: isWarn ? `⚠️ ${text}` : text, isWarning: isWarn, type: 'inventory' });
-                }
-
-                // 2. Agregar estados de Órdenes (Solo órdenes activas con tiempo restante o advertencia)
-                const relevantOrders = orders
-                    .map(calculateOrderStatus)
-                    .filter(s => s); // FILTRADO CLAVE: Solo se incluyen los resultados que NO son nulos (sin errores/datos incompletos)
-                    
-                relevantOrders.forEach(status => {
-                    statuses.push({
-                        text: status.statusMessage,
-                        isWarning: status.isWarning,
-                        type: 'order',
-                    });
-                });
-                
-                // 3. Mensajes de estado general/bienvenida
-                if (statuses.length < 5) { // Garantizamos que haya algunos mensajes de relleno si la BD está vacía/pequeña
-                     statuses.push({ text: "OPERACIÓN EN LÍNEA. FLUJO DE DATOS ESTABLE.", isWarning: false, type: 'idle' });
-                     statuses.push({ text: "BIENVENIDO. SISTEMA DE PRODUCCIÓN V01.", isWarning: false, type: 'welcome' });
-                }
-
-                return statuses;
-            }, [orders, inventory]);
-            
-            // Aplicar el tema al <body>
-            useEffect(() => {
-                document.body.className = theme.primaryBg;
-                // Ajuste para el color de la barra de desplazamiento
-                document.documentElement.style.setProperty('--accent-color', theme.accentColor.replace('text-', '#'));
-            }, [theme]);
-            
-
-            return (
-                <div className="dashboard-grid">
-                    {/* --- Contenido Principal (Visualización de Datos) --- */}
-                    <div className={`main-content p-4 lg:p-12 flex flex-col items-center justify-center transition-colors ${theme.primaryBg}`}>
-                        <div className="text-center w-full max-w-6xl mx-auto">
-                            <h1 className={`text-5xl lg:text-7xl font-extrabold ${theme.accentColor} mb-2 tracking-tighter`}>
-                                SWEATERS LILIANA
-                            </h1>
-                            <h2 className={`text-lg lg:text-xl font-bold ${theme.textColor} opacity-70 mb-8`}>
-                                DASHBOARD PRINCIPAL <span className="text-yellow-500">2026 v01</span>
-                            </h2>
-                            
-                            {/* NUEVA CUADRÍCULA DE ESTADO */}
-                            <FlickeringStatusGrid allStatuses={allStatuses} theme={theme} />
-                            
-                            <div className="mt-12 w-full max-w-lg mx-auto">
-                                <Clock theme={theme} />
-                            </div>
-                            
-                        </div>
-                    </div>
-                    
-                    {/* --- Barra Lateral (Widgets y Navegación) --- */}
-                    <div className={`sidebar p-6 lg:p-8 transition-colors ${theme.secondaryBg} ${theme.textColor}`}>
-                        <WeatherWidget theme={theme} />
-                        <RadioPlayer theme={theme} />
-                        <ThemeSwitcher theme={theme} setTheme={setCurrentThemeId} />
-                        <NavButtons theme={theme} />
-                    </div>
-                </div>
-            );
-        };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
     </script>
 </body>
 </html>
