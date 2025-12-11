@@ -19,42 +19,54 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     
     <style>
+        /* Estilos base para la tipografía y el fondo (Responsive) */
         .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1fr 300px; /* Contenido principal y barra lateral */
-            height: 100vh;
-        }
-        .main-content {
-            background: #1e293b; /* Slate-800 oscuro */
-            color: white;
             display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
+            flex-direction: column; /* Móvil: Apilado Verticalmente */
+            min-height: 100vh;
         }
-        .sidebar {
-            background: #f1f5f9; /* Slate-100 */
-            color: #1e293b;
-            padding: 24px;
-            overflow-y: auto;
-        }
-        .status-text {
-            font-size: 3rem; /* 48px */
-            font-weight: 800;
-            line-height: 1.2;
-            text-align: center;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-            min-height: 150px;
-        }
-        .status-enter { opacity: 0; transform: translateY(20px); }
-        .status-enter-active { opacity: 1; transform: translateY(0); transition: opacity 0.5s, transform 0.5s; }
-        .status-exit { opacity: 1; transform: translateY(0); }
-        .status-exit-active { opacity: 0; transform: translateY(-20px); transition: opacity 0.5s, transform 0.5s; }
         
-        .radio-list { max-height: 150px; overflow-y: auto; }
-        .radio-list::-webkit-scrollbar { width: 4px; }
-        .radio-list::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 2px; }
+        /* Layout para Escritorio (lg: 1024px o más) */
+        @media (min-width: 1024px) {
+            .dashboard-grid {
+                display: grid;
+                grid-template-columns: 1fr 320px; /* Contenido principal y barra lateral de 320px */
+                height: 100vh;
+                overflow: hidden; /* Evita scroll en el layout principal de escritorio */
+            }
+            .main-content, .sidebar {
+                height: 100vh;
+                overflow-y: auto; /* Permite scroll en cada sección si el contenido es largo */
+            }
+        }
+        
+        /* Estilos mejorados para el texto dinámico */
+        .status-text {
+            font-size: 2.5rem; /* 40px en móvil */
+            font-weight: 800;
+            line-height: 1.3;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8);
+            min-height: 120px;
+        }
+        @media (min-width: 768px) {
+            .status-text {
+                font-size: 3.5rem; /* 56px en escritorio */
+                min-height: 150px;
+            }
+        }
+        
+        /* Animación de Transición del Texto */
+        .status-enter { opacity: 0; transform: scale(0.9) translateY(20px); }
+        .status-enter-active { opacity: 1; transform: scale(1) translateY(0); transition: opacity 0.5s, transform 0.5s; }
+        .status-exit { opacity: 1; transform: scale(1) translateY(0); }
+        .status-exit-active { opacity: 0; transform: scale(1.1) translateY(-20px); transition: opacity 0.4s, transform 0.4s; }
+        
+        /* Estilos del Radio y Scrollbars */
+        .radio-list { max-height: 180px; overflow-y: auto; }
+        .radio-list::-webkit-scrollbar { width: 6px; background-color: transparent; }
+        .radio-list::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 3px; }
+
     </style>
 </head>
 <body class="font-sans">
@@ -62,9 +74,12 @@
 
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
-        const Icon = ({ name, size = 20, className }) => <i data-lucide={name} width={size} height={size} className={className}></i>;
+        const Icon = ({ name, size = 20, className }) => {
+            useEffect(() => { lucide.createIcons(); }, [name]);
+            return <i data-lucide={name} width={size} height={size} className={className}></i>;
+        };
 
-        // --- Configuración de Firebase (debe coincidir con tus otros archivos) ---
+        // --- Configuración de Firebase (Mantén esto en un lugar seguro y privado) ---
         const firebaseConfig = {
             apiKey: "AIzaSyBqHgV4vDat1-VmZfKbiPg7nuiX-ROcexw",
             authDomain: "cirineo-cec21.firebaseapp.com",
@@ -78,17 +93,43 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // --- UTILS ---
-        
+        // --- DEFINICIÓN DE TEMAS ---
+        const themeConfig = {
+            darkIndustrial: {
+                id: 'darkIndustrial',
+                name: "Industrial Oscuro",
+                primaryBg: "bg-slate-900",
+                secondaryBg: "bg-slate-800",
+                accentColor: "text-sky-400",
+                warningColor: "text-red-400",
+                textColor: "text-white",
+                navBtnColor: "bg-indigo-600 hover:bg-indigo-700",
+                widgetBg: "bg-slate-700/50 backdrop-blur-sm",
+                clockBg: "bg-slate-700"
+            },
+            cleanLight: {
+                id: 'cleanLight',
+                name: "Claro Limpio",
+                primaryBg: "bg-gray-100",
+                secondaryBg: "bg-white",
+                accentColor: "text-teal-600",
+                warningColor: "text-red-600",
+                textColor: "text-gray-800",
+                navBtnColor: "bg-teal-600 hover:bg-teal-700",
+                widgetBg: "bg-white border border-gray-200",
+                clockBg: "bg-teal-100 text-teal-800"
+            }
+        };
+
+        // --- UTILS (Mantienes las funciones de lógica de negocio) ---
         const calculateTimeDiff = (timestamp) => {
+            // ... (Lógica de calculateTimeDiff se mantiene igual)
             if (!timestamp) return { days: 0, hours: 0 };
             const now = Date.now();
             let date = timestamp;
             if (typeof date === 'string') {
-                // Si es un string de fecha, intentar parsear
                 date = new Date(date);
             } else if (timestamp.toDate) {
-                // Si es un Timestamp de Firebase
                 date = timestamp.toDate();
             }
 
@@ -99,30 +140,28 @@
         };
 
         const calculateOrderStatus = (order) => {
+            // ... (Lógica de calculateOrderStatus se mantiene igual, adaptada para ser más robusta)
             const finishedPackages = order.progreso.filter(p => p.finished).length;
             const totalPackages = order.progreso.length;
             const piecesLeft = order.totalPedido - order.progreso.filter(p => p.finished).reduce((sum, p) => sum + p.cantidad, 0);
             const efficiency = totalPackages > 0 ? (finishedPackages / totalPackages) * 100 : 0;
-            const lastUpdateTime = order.progreso.reduce((latest, p) => {
-                if (!p.fecha) return latest;
-                const date = new Date(p.fecha); // Suponiendo 'fecha' es una fecha ISO/string
+            
+            const lastUpdateDate = order.progreso.reduce((latest, p) => {
+                const date = p.fecha ? new Date(p.fecha) : new Date(0);
                 return date > latest ? date : latest;
             }, new Date(0));
-            const timeSinceCreation = calculateTimeDiff(order.createdAt);
-            const timeSinceLastUpdate = calculateTimeDiff(lastUpdateTime.getTime() > 0 ? lastUpdateTime : order.createdAt);
+            
+            const lastUpdateTime = lastUpdateDate.getTime() > 0 ? lastUpdateDate.getTime() : order.createdAt.toDate().getTime();
 
-            // Calcular tiempo restante (simplificado)
+            const timeSinceCreation = calculateTimeDiff(order.createdAt);
+            const timeSinceLastUpdate = calculateTimeDiff(lastUpdateTime);
+            
+            // Cálculo del tiempo restante (simplificado y mejorado para el display)
             let totalMinutesLeft = 0;
             order.subPiecesData.forEach(p => {
-                const totalPiecePackages = order.progreso.filter(pkg => pkg.piezaNombre === p.pieza).length;
-                const finishedPiecePackages = order.progreso.filter(pkg => pkg.piezaNombre === p.pieza && pkg.finished).length;
-                const packagesLeft = totalPiecePackages - finishedPiecePackages;
-                const pieceTime = Number(p.tiempo) || 0;
-                
-                // Asumiendo que el paquete tiene 'cantidad' de piezas y esa cantidad * tiempo es el tiempo total
                 const packagesToFinish = order.progreso.filter(pkg => pkg.piezaNombre === p.pieza && !pkg.finished);
                 const totalPiecesInRemainingPackages = packagesToFinish.reduce((sum, pkg) => sum + pkg.cantidad, 0);
-
+                const pieceTime = Number(p.tiempo) || 0;
                 totalMinutesLeft += (totalPiecesInRemainingPackages * pieceTime);
             });
 
@@ -135,8 +174,8 @@
 
             if (piecesLeft <= 0) {
                 statusMessage = `✅ Orden ${order.codigo} (Máquina #${order.maquina}) TERMINADA.`;
-            } else if (timeSinceLastUpdate.days >= 3 && finishedPackages === 0) {
-                statusMessage = `🔴 Maq #${order.maquina} Modelo ${order.codigo}. La orden se ingresó hace ${timeSinceCreation.days} días y no ha habido **ninguna** actualización.`;
+            } else if (timeSinceLastUpdate.days >= 3) {
+                statusMessage = `🔴 Maq #${order.maquina}: Modelo ${order.codigo}. La orden se ingresó hace ${timeSinceCreation.days} días y no ha habido **actualización** en ${timeSinceLastUpdate.days} días.`;
                 isWarning = true;
             } else if (totalHoursLeft > 0) {
                  statusMessage = `⏱️ Máquina #${order.maquina}: Faltan ${daysLeft} días y ${hoursLeft} hrs para terminar el modelo ${order.codigo}. Eficiencia: ${efficiency.toFixed(0)}%.`;
@@ -145,39 +184,45 @@
                  statusMessage = `Máquina #${order.maquina}: Modelo ${order.codigo}. En proceso.`;
             }
 
-            return { statusMessage, isWarning, totalPackages, finishedPackages, maquina: order.maquina, codigo: order.codigo };
+            return { statusMessage, isWarning, maquina: order.maquina, codigo: order.codigo };
         };
 
         // --- COMPONENTES ---
 
-        const Clock = () => {
+        const Clock = ({ theme }) => {
             const [time, setTime] = useState(new Date());
             useEffect(() => {
                 const timer = setInterval(() => setTime(new Date()), 1000);
                 return () => clearInterval(timer);
             }, []);
+            
+            const accentColor = theme.accentColor.replace('text-', 'text-');
+            
             return (
-                <div className="text-center font-mono p-4 bg-slate-800 text-white rounded shadow-xl">
-                    <div className="text-5xl font-black">{time.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
-                    <div className="text-sm font-semibold text-sky-300 mt-1">{time.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                <div className={`text-center font-mono p-4 rounded-lg shadow-2xl transition-colors ${theme.clockBg} ${theme.textColor === 'text-white' ? 'text-white' : 'text-gray-800'}`}>
+                    <div className="text-6xl lg:text-7xl font-black">{time.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
+                    <div className={`text-sm font-semibold mt-1 ${accentColor}`}>{time.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
                 </div>
             );
         };
         
-        const NavButtons = () => {
+        const NavButtons = ({ theme }) => {
             const buttons = [
-                { name: "Inventario (Doc)", url: "https://jesusvn1993mplvt3-ai.github.io/Doc/", icon: "warehouse", color: "bg-orange-500 hover:bg-orange-600" },
-                { name: "Santoni (Cirineo)", url: "https://jesusvn1993mplvt3-ai.github.io/CIRINEO/", icon: "socks", color: "bg-indigo-600 hover:bg-indigo-700" },
-                { name: "Calcetín (MAES26)", url: "https://sweaters-liliana.github.io/MAES26/", icon: "shoe", color: "bg-green-600 hover:bg-green-700" },
+                { name: "Inventario", url: "https://jesusvn1993mplvt3-ai.github.io/Doc/", icon: "warehouse", color: theme.navBtnColor.replace('indigo', 'orange') },
+                { name: "Santoni", url: "https://jesusvn1993mplvt3-ai.github.io/CIRINEO/", icon: "socks", color: theme.navBtnColor.replace('indigo', 'sky') },
+                { name: "Calcetín", url: "https://sweaters-liliana.github.io/MAES26/", icon: "shoe", color: theme.navBtnColor.replace('indigo', 'green') },
             ];
+            const headerColor = theme.textColor.replace('text-', 'text-');
+            const dividerColor = theme.textColor === 'text-white' ? 'border-slate-700' : 'border-slate-300';
+
             return (
-                <div className="mt-8 pt-4 border-t border-slate-300">
-                    <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Icon name="link" size={18}/> Accesos Rápidos</h3>
-                    <div className="space-y-3">
+                <div className={`mt-8 pt-4 border-t ${dividerColor}`}>
+                    <h3 className={`font-extrabold text-xl mb-4 flex items-center gap-2 ${headerColor}`}><Icon name="link" size={20} className={theme.accentColor.replace('text-', '')}/> Accesos Rápidos</h3>
+                    <div className="space-y-4">
                         {buttons.map((btn) => (
-                            <a key={btn.name} href={btn.url} target="_blank" rel="noopener noreferrer" className={`w-full flex items-center justify-between p-4 rounded-lg font-bold text-white shadow-md transition-transform transform hover:scale-[1.02] ${btn.color}`}>
-                                <span>{btn.name}</span>
-                                <Icon name={btn.icon} size={24}/>
+                            <a key={btn.name} href={btn.url} target="_blank" rel="noopener noreferrer" className={`w-full flex items-center justify-between p-4 rounded-xl font-bold text-white shadow-xl transition-all transform hover:scale-[1.03] ${btn.color}`}>
+                                <span className="text-lg">{btn.name}</span>
+                                <Icon name={btn.icon} size={28}/>
                             </a>
                         ))}
                     </div>
@@ -185,7 +230,7 @@
             );
         };
 
-        const RadioPlayer = () => {
+        const RadioPlayer = ({ theme }) => {
             const [stations, setStations] = useState([]);
             const [searchUrl, setSearchUrl] = useState('');
             const [name, setName] = useState('');
@@ -228,56 +273,95 @@
                     }
                 }
             };
+            
+            const accentTextClass = theme.accentColor;
+            const stationBg = theme.textColor === 'text-white' ? 'bg-slate-700 hover:bg-slate-600' : 'bg-gray-200 hover:bg-gray-300';
+            const playingBg = theme.accentColor.replace('text-', 'bg-').replace('-400', '-200');
+            const playingText = theme.accentColor.replace('text-', 'text-');
+            const inputBg = theme.textColor === 'text-white' ? 'bg-slate-900 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-800';
+            const saveBtnColor = theme.navBtnColor;
 
             return (
-                <div className="mt-6 p-4 bg-white rounded shadow-lg border border-slate-200">
-                    <h3 className="font-bold text-lg mb-3 flex items-center gap-2 text-indigo-700"><Icon name="radio" size={18}/> Radio FM/Internet</h3>
+                <div className={`mt-6 p-4 rounded-xl shadow-lg transition-colors ${theme.widgetBg} ${theme.textColor}`} style={{ '--accent-color': theme.accentColor.replace('text-', '#') }}>
+                    <h3 className={`font-bold text-xl mb-3 flex items-center gap-2 ${accentTextClass}`}><Icon name="radio" size={20}/> Radio FM/Internet</h3>
                     
                     <div className="flex items-center gap-2 mb-3">
-                        <input type="range" min="0" max="1" step="0.01" defaultValue="0.5" onChange={(e) => audioRef.current.volume = e.target.value} className="flex-1" />
-                        <Icon name="volume-2" size={18} className="text-slate-600"/>
+                        <input type="range" min="0" max="1" step="0.01" defaultValue="0.5" onChange={(e) => audioRef.current.volume = e.target.value} className={`flex-1 accent-current ${theme.accentColor.replace('text-', '')}`} />
+                        <Icon name="volume-2" size={18} className="text-current"/>
                     </div>
 
-                    <div className="radio-list space-y-2 mb-3 border-b pb-3">
+                    <div className="radio-list space-y-2 mb-3 border-b border-current/30 pb-3">
                         {stations.map(s => (
-                            <div key={s.id} className="flex items-center justify-between text-xs p-2 rounded transition-colors" style={{backgroundColor: currentStation?.id === s.id ? '#e0f2f7' : '#f1f5f9'}}>
-                                <div className="font-semibold truncate">{s.name}</div>
+                            <div key={s.id} className={`flex items-center justify-between text-sm p-2 rounded transition-colors ${stationBg} ${currentStation?.id === s.id ? `${playingBg} ${playingText} font-bold` : ''}`}>
+                                <div className="truncate">{s.name}</div>
                                 <div className="flex gap-1 shrink-0">
-                                    <button onClick={() => playStation(s)} className={`p-1 rounded transition-colors ${currentStation?.id === s.id ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-green-500 text-white hover:bg-green-600'}`}>
-                                        <Icon name={currentStation?.id === s.id ? "pause" : "play"} size={14}/>
+                                    <button onClick={() => playStation(s)} className={`p-1 rounded transition-colors text-white ${currentStation?.id === s.id ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}>
+                                        <Icon name={currentStation?.id === s.id ? "pause" : "play"} size={16}/>
                                     </button>
-                                    <button onClick={() => deleteStation(s.id)} className="p-1 bg-red-100 text-red-600 rounded hover:bg-red-200">
-                                         <Icon name="trash-2" size={14}/>
+                                    <button onClick={() => deleteStation(s.id)} className="p-1 bg-red-500/10 text-red-400 rounded hover:bg-red-500/20">
+                                         <Icon name="trash-2" size={16}/>
                                     </button>
                                 </div>
                             </div>
                         ))}
-                        {stations.length === 0 && <p className="text-xs text-slate-500 text-center">No hay estaciones guardadas.</p>}
+                        {stations.length === 0 && <p className="text-sm text-current/70 text-center">No hay estaciones guardadas.</p>}
                     </div>
                     
-                    <p className="text-xs font-bold text-slate-500 mb-1">AGREGAR ESTACIÓN:</p>
-                    <input type="text" placeholder="Nombre (Ej: La Zeta)" value={name} onChange={(e) => setName(e.target.value)} className="w-full p-1 mb-1 text-sm border rounded" />
-                    <input type="url" placeholder="URL de Stream (.mp3, .m3u, .pls)" value={searchUrl} onChange={(e) => setSearchUrl(e.target.value)} className="w-full p-1 mb-2 text-sm border rounded" />
-                    <button onClick={addStation} disabled={!name || !searchUrl} className="w-full bg-slate-700 text-white font-bold p-2 rounded text-sm hover:bg-slate-800 disabled:opacity-50">
-                        <Icon name="save" size={16} className="inline mr-1"/> Guardar Estación
+                    <p className="text-sm font-bold text-current/80 mb-1">AGREGAR ESTACIÓN:</p>
+                    <input type="text" placeholder="Nombre (Ej: La Zeta)" value={name} onChange={(e) => setName(e.target.value)} className={`w-full p-2 mb-1 text-sm border rounded ${inputBg}`} />
+                    <input type="url" placeholder="URL de Stream (.mp3, .m3u, .m3u8)" value={searchUrl} onChange={(e) => setSearchUrl(e.target.value)} className={`w-full p-2 mb-2 text-sm border rounded ${inputBg}`} />
+                    <button onClick={addStation} disabled={!name || !searchUrl} className={`w-full text-white font-bold p-3 rounded-lg text-sm transition-all shadow-md ${saveBtnColor} disabled:opacity-50 disabled:cursor-not-allowed`}>
+                        <Icon name="save" size={18} className="inline mr-1"/> Guardar Estación
                     </button>
                 </div>
             );
         };
 
-        const WeatherWidget = ({ city = "LEÓN, GTO.", temp = "25°C", icon = "sun", desc = "Soleado" }) => (
-            <div className="mt-6 p-4 bg-sky-100 rounded shadow-lg border border-sky-300">
-                <h3 className="font-bold text-lg mb-3 flex items-center gap-2 text-sky-700"><Icon name="cloud-lightning" size={18}/> Clima de la Zona</h3>
-                <div className="flex justify-between items-center">
-                    <div>
-                        <div className="text-4xl font-black text-sky-800">{temp}</div>
-                        <div className="text-sm font-semibold text-slate-600">{desc}</div>
+        const WeatherWidget = ({ theme }) => {
+            // Datos simulados (Puedes reemplazar esto con una API de clima real más adelante)
+            const city = "LEÓN, GTO.";
+            const temp = "25°C";
+            const icon = "sun";
+            const desc = "Soleado";
+
+            const accentTextClass = theme.accentColor;
+
+            return (
+                <div className={`p-4 rounded-xl shadow-lg transition-colors ${theme.widgetBg} ${theme.textColor}`}>
+                    <h3 className={`font-bold text-xl mb-3 flex items-center gap-2 ${accentTextClass}`}><Icon name="cloud-lightning" size={20}/> Clima de la Zona</h3>
+                    <div className="flex justify-between items-center p-2">
+                        <div>
+                            <div className={`text-5xl font-black ${accentTextClass}`}>{temp}</div>
+                            <div className="text-base font-semibold text-current/80">{desc}</div>
+                        </div>
+                        <Icon name={icon} size={64} className="text-yellow-400 drop-shadow-lg"/>
                     </div>
-                    <Icon name={icon} size={48} className="text-yellow-500"/>
+                    <div className="text-xs mt-3 text-current/60 font-bold border-t border-current/30 pt-2">Ubicación: {city} (Simulado)</div>
                 </div>
-                <div className="text-xs mt-2 text-slate-500 font-bold border-t pt-2">Ubicación: {city} (Simulado)</div>
-            </div>
-        );
+            );
+        };
+        
+        const ThemeSwitcher = ({ theme, setTheme }) => {
+            const themesArray = Object.values(themeConfig);
+            
+            return (
+                <div className="p-4 rounded-xl shadow-lg bg-slate-700/50 backdrop-blur-sm text-white mt-6">
+                    <h3 className="font-bold text-xl mb-3 flex items-center gap-2 text-white"><Icon name="palette" size={20}/> Temas</h3>
+                    <div className="flex space-x-3">
+                        {themesArray.map((t) => (
+                            <button 
+                                key={t.id} 
+                                onClick={() => setTheme(t.id)} 
+                                className={`flex-1 p-2 rounded-lg text-sm font-semibold transition-all shadow-md ${t.id === theme.id ? 'ring-4 ring-offset-2 ring-sky-500' : 'hover:opacity-80'}`}
+                                style={{backgroundColor: t.secondaryBg.replace('bg-', ''), color: t.textColor.includes('white') ? 'white' : 'black'}}
+                            >
+                                {t.name}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )
+        }
 
         // --- COMPONENTE PRINCIPAL DE LA PÁGINA ---
 
@@ -285,8 +369,11 @@
             const [orders, setOrders] = useState([]);
             const [inventory, setInventory] = useState([]);
             const [dynamicText, setDynamicText] = useState("Cargando datos...");
-            const [textKey, setTextKey] = useState(0); // Para forzar la transición
+            const [textKey, setTextKey] = useState(0); 
             const [isWarning, setIsWarning] = useState(false);
+            const [currentThemeId, setCurrentThemeId] = useState('darkIndustrial'); // Tema por defecto
+            
+            const theme = themeConfig[currentThemeId];
 
             useEffect(() => {
                 const u1 = db.collection('orders').where('status', '!=', 'ARCHIVADO').onSnapshot(s => setOrders(s.docs.map(d=>d.data()).filter(d=>d.progreso && d.progreso.length > 0)));
@@ -296,34 +383,32 @@
 
             const allStatuses = useMemo(() => {
                 const statuses = [];
-                // 1. Agregar estados de Inventario
-                if (inventory.length > 0) {
-                    for (let i = 0; i < Math.min(3, inventory.length); i++) { // Mostrar 3 items de inventario al azar
-                        const item = inventory[Math.floor(Math.random() * inventory.length)];
-                        statuses.push({
-                            text: `📊 INVENTARIO: ${item.material} ${item.calibre || ''} Stock ${Number(item.stock).toFixed(1)} kg.`,
-                            isWarning: Number(item.stock) < Number(item.minStock),
-                            type: 'inventory'
-                        });
-                    }
-                } else {
-                     statuses.push({ text: "Inventario cargando o vacío. Presione 'INVENTARIO' para revisar.", isWarning: true, type: 'inventory' });
+                const inventoryCopy = [...inventory];
+                
+                // 1. Agregar estados de Inventario (Máximo 3, seleccionados al azar si hay muchos)
+                for (let i = 0; i < Math.min(3, inventoryCopy.length); i++) {
+                    const randomIndex = Math.floor(Math.random() * inventoryCopy.length);
+                    const item = inventoryCopy.splice(randomIndex, 1)[0]; // Saca el item para no repetirlo
+                    
+                    const text = `📊 INVENTARIO: ${item.material} ${item.calibre || ''} Stock ${Number(item.stock).toFixed(1)} kg.`;
+                    const isWarn = Number(item.stock) < Number(item.minStock);
+                    
+                    statuses.push({ text: isWarn ? `⚠️ ${text}` : text, isWarning: isWarn, type: 'inventory' });
                 }
 
-                // 2. Agregar estados de Órdenes
-                orders.forEach(order => {
-                    const status = calculateOrderStatus(order);
+                // 2. Agregar estados de Órdenes (Solo órdenes con problemas o relevantes)
+                const relevantOrders = orders.map(calculateOrderStatus).filter(s => s.isWarning || s.statusMessage.includes('Faltan'));
+                relevantOrders.forEach(status => {
                     statuses.push({
                         text: status.statusMessage,
                         isWarning: status.isWarning,
                         type: 'order',
-                        orderId: order.id
                     });
                 });
                 
-                // Si no hay órdenes, agregar un mensaje genérico
-                if (orders.length === 0) {
-                     statuses.push({ text: "No hay órdenes activas registradas en Cirineo. Todo listo.", isWarning: false, type: 'idle' });
+                // Si no hay problemas, o pocas órdenes, agregar un mensaje genérico.
+                if (statuses.length < 3) {
+                     statuses.push({ text: "Operación en Línea. Revisando el flujo de producción...", isWarning: false, type: 'idle' });
                 }
 
                 return statuses.length > 0 ? statuses : [{ text: "Bienvenido a Sweaters Liliana. Sistema en línea.", isWarning: false, type: 'welcome' }];
@@ -349,40 +434,44 @@
                 return () => clearInterval(interval);
             }, [allStatuses]);
 
-
+            // Aplicar el tema al <body>
             useEffect(() => {
-                lucide.createIcons();
-            }, [textKey]);
-
+                document.body.className = theme.primaryBg;
+            }, [theme]);
+            
+            // Determinar la clase para el texto dinámico (Advertencia o Acento)
+            const dynamicTextColorClass = isWarning ? theme.warningColor : theme.accentColor;
 
             return (
                 <div className="dashboard-grid">
                     {/* --- Contenido Principal (Visualización de Datos) --- */}
-                    <div className="main-content">
-                        <div className="text-center p-10 max-w-4xl mx-auto">
-                            <h1 className="text-6xl font-black text-sky-400 mb-8 tracking-tight">
-                                Sweaters Liliana
+                    <div className={`main-content p-8 lg:p-12 flex items-center justify-center transition-colors ${theme.primaryBg}`}>
+                        <div className="text-center w-full max-w-4xl mx-auto">
+                            <h1 className={`text-5xl lg:text-7xl font-extrabold ${theme.accentColor} mb-4 tracking-tighter`}>
+                                SWEATERS LILIANA
                             </h1>
-                            <h2 className="text-2xl font-bold text-slate-300 mb-12">
-                                Base de Datos 2026 <span className="text-yellow-400">v01</span>
+                            <h2 className={`text-xl lg:text-2xl font-bold ${theme.textColor} opacity-70 mb-10`}>
+                                DASHBOARD PRINCIPAL <span className="text-yellow-500">2026 v01</span>
                             </h2>
                             
-                            <div key={textKey} className={`status-text ${isWarning ? 'text-red-400' : 'text-green-400'}`}>
+                            {/* Visualizador de Estado Dinámico */}
+                            <div key={textKey} className={`status-text mx-auto status-enter status-enter-active ${dynamicTextColorClass}`}>
                                 {dynamicText}
                             </div>
                             
-                            <div className="mt-12">
-                                <Clock />
+                            <div className="mt-12 w-full max-w-lg mx-auto">
+                                <Clock theme={theme} />
                             </div>
                             
                         </div>
                     </div>
                     
                     {/* --- Barra Lateral (Widgets y Navegación) --- */}
-                    <div className="sidebar">
-                        <WeatherWidget />
-                        <RadioPlayer />
-                        <NavButtons />
+                    <div className={`sidebar p-6 lg:p-8 transition-colors ${theme.secondaryBg} ${theme.textColor}`}>
+                        <WeatherWidget theme={theme} />
+                        <RadioPlayer theme={theme} />
+                        <ThemeSwitcher theme={theme} setTheme={setCurrentThemeId} />
+                        <NavButtons theme={theme} />
                     </div>
                 </div>
             );
