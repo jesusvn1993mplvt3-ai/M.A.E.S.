@@ -3,69 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Impresión de Papeletas Horizontal - Cirineo</title>
-
+    <title>Sistema Textil Cloud - CALCETÍN</title>
+    
     <link id="appIcon" rel="icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
-    <meta name="theme-color" content="#334155">
-
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link id="appAppleIcon" rel="apple-touch-icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
+    <meta name="theme-color" content="#0e7490"> <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
+    <script src="https://unpkg.com/lucide@latest"></script>
+
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
+    <script>
+        const manifest = {
+            "name": "Cirineo Calcetín",
+            "short_name": "Calcetín",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#ecfeff",
+            "theme_color": "#0e7490",
+            "icons": [{
+                "src": "https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico",
+                "sizes": "192x192",
+                "type": "image/ico"
+            }]
+        };
+        const stringManifest = JSON.stringify(manifest);
+        const blob = new Blob([stringManifest], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(blob);
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = manifestURL;
+        document.head.appendChild(link);
+    </script>
+
     <style>
-        /* ESTILOS DE IMPRESIÓN (6x4 pulgadas - HORIZONTAL) */
+        /* ESTILOS DE IMPRESIÓN */
         @media print {
-            @page {
-                size: 6in 4in; /* HORIZONTAL: 6in de ancho x 4in de alto */
+            @page { 
+                size: letter portrait; 
+                margin: 1cm; 
+            }
+            body, html, #root { 
+                background: white;
+                -webkit-print-color-adjust: exact; 
+                width: 100%;
+                height: 100%;
                 margin: 0;
-            }
-            body { margin: 0; padding: 0; background-color: white; }
-            body * { visibility: hidden; }
-            .print-area, .print-area * { visibility: visible; }
-            .print-area { position: absolute; left: 0; top: 0; width: 100%; }
-            .ticket {
-                width: 6in;
-                height: 4in; /* Dimensiones del papel */
-                page-break-after: always;
-                break-after: page;
-                display: flex;
-                border: none;
-                padding: 0.15in;
-                box-sizing: border-box;
+                padding: 0;
                 font-family: sans-serif;
-                position: relative;
             }
-            .ticket:last-child { page-break-after: auto; }
-            .no-print { display: none !important; }
-            /* Asegura que la imagen tenga un tamaño razonable en la impresión */
-            .ticket-image-box { max-width: 2.2in; max-height: 2.2in; }
+            .no-print, .dashboard-grid { display: none !important; }
+            
+            .print-visible-wrapper {
+                display: block !important;
+                width: 100% !important;
+                height: auto !important;
+                background: white !important;
+                overflow: visible !important;
+            }
+
+            h1 { font-size: 36pt !important; line-height: 0.9 !important; margin-bottom: 5px; }
+            
+            table { 
+                border-collapse: collapse; 
+                width: 100%; 
+                border: 3px solid black; 
+                table-layout: fixed; 
+                margin-bottom: 8px;
+            }
+            
+            th { 
+                background-color: #d1d5db !important; 
+                color: black !important;
+                font-weight: 900 !important;
+                text-transform: uppercase;
+                font-size: 11pt !important; 
+                padding: 4px !important;
+                border: 2px solid black !important;
+                text-align: center;
+            }
+            
+            td { 
+                border: 2px solid black !important;
+                padding: 4px !important;
+                font-size: 12pt !important; 
+                font-weight: 700 !important;
+                color: black !important;
+                vertical-align: middle;
+            }
+
+            .header-info { font-size: 14pt !important; font-weight: 800; }
+            
+            .machine-number-box { 
+                background: black; 
+                color: white; 
+                font-size: 14pt; 
+                font-weight: bold; 
+                text-align: center; 
+                padding: 4px;
+            }
+            .machine-number-val { 
+                font-size: 60pt !important; 
+                font-weight: 900; 
+                line-height: 0.8; 
+                text-align: center; 
+            }
+
+            .package-table-print th { font-size: 10pt !important; }
+            .package-table-print td { font-size: 11pt !important; height: 24px; } 
+
+            .manual-input { color: transparent !important; }
+            .print-only { display: block !important; }
+            
+            ::-webkit-scrollbar { display: none; }
         }
 
-        /* Estilos de Previsualización en pantalla (Proporción 6:4) */
-        .preview-card {
-            width: 450px;
-            height: 300px; /* Proporción similar a 6x4 */
-            overflow: hidden;
-            border: 1px dashed #ccc;
-            transform: scale(0.9);
-            transform-origin: top center;
-            background: white;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
+        .print-only { display: none; }
+        .dashboard-grid { display: grid; grid-template-rows: 60vh 1fr; height: 100vh; overflow: hidden; }
+        /* CAMBIO DE COLOR DE FONDO PARA DIFERENCIAR */
+        .top-pane { overflow-y: auto; border-bottom: 4px solid #0e7490; background-color: #f0f9ff; }
+        .bottom-pane { overflow-x: auto; background: #164e63; color: white; display: flex; padding: 10px; gap: 10px; }
+        .machine-card { min-width: 320px; background: #155e75; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; height: 100%; }
+        .pkg-list { overflow-y: auto; flex-grow: 1; margin-top: 10px; padding-right: 4px; }
+        .pkg-list::-webkit-scrollbar { width: 6px; }
+        .pkg-list::-webkit-scrollbar-thumb { background: #67e8f9; border-radius: 4px; }
+        .obs-input { background: transparent; border: none; color: #bae6fd; width: 100%; font-size: 10px; border-bottom: 1px solid #0891b2; }
+        .obs-input:focus { outline: none; border-bottom: 1px solid #22d3ee; color: white; }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800">
+<body class="bg-cyan-50 text-slate-800 font-sans">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useCallback } = React;
-
-        // --- Configuración Global ---
-        const FIREBASE_CONFIG = {
+        const { useState, useEffect, useMemo } = React;
+        
+        // --- CONFIGURACIÓN FIREBASE ---
+        const firebaseConfig = {
             apiKey: "AIzaSyBqHgV4vDat1-VmZfKbiPg7nuiX-ROcexw",
             authDomain: "cirineo-cec21.firebaseapp.com",
             projectId: "cirineo-cec21",
@@ -74,190 +150,634 @@
             appId: "1:620210618284:web:482bab9bf74650fff18409",
             measurementId: "G-B7YLM78RVW"
         };
-        
-        if (!firebase.apps.length) {
-            firebase.initializeApp(FIREBASE_CONFIG);
-        }
+
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        // Documento único para la configuración
-        const CONFIG_DOC_REF = db.collection('config').doc('general'); 
 
-        // Iconos SVG simples
-        const IconPrinter = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>);
-        const IconRefresh = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M3 21v-5h5"></path></svg>);
-        const IconArchive = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"></rect><path d="M21 8v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"></path><path d="M10 12h4"></path></svg>);
-        const IconSettings = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.44a2 2 0 0 1-1.55 1.93l-.44.1a2 2 0 0 0-1.2 1.37l-.24.5a2 2 0 0 1-1.7 1.15l-.5.06a2 2 0 0 0-1.7 1.4L4 12c.03.22.03.44 0 .66l.24.5a2 2 0 0 0 1.7 1.4l.5.06a2 2 0 0 1 1.7 1.15l.24.5a2 2 0 0 0 1.2 1.37l.44.1a2 2 0 0 1 1.55 1.93V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.44a2 2 0 0 1 1.55-1.93l.44-.1a2 2 0 0 0 1.2-1.37l.24-.5a2 2 0 0 1 1.7-1.15l.5-.06a2 2 0 0 0 1.7-1.4L20 12c-.03-.22-.03-.44 0-.66l-.24-.5a2 2 0 0 0-1.7-1.4l-.5-.06a2 2 0 0 1-1.7-1.15l-.24-.5a2 2 0 0 0-1.2-1.37l-.44-.1a2 2 0 0 1-1.55-1.93V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>);
-        const IconPrintIndividual = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect><path d="M12 21v-3"></path></svg>);
-        const IconPlus = () => (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>);
-        const IconTrash = () => (<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>);
+        // *** IMPORTANTE: COLECCIÓN SEPARADA PARA CALCETÍN ***
+        const ORDERS_COLLECTION = 'orders_calcetin'; 
+        // El inventario sigue siendo compartido
+        const INVENTORY_COLLECTION = 'inventory'; 
 
-        // Componente para cargar la imagen con fallback
-        const ImageLoader = ({ codigo, repoUrls }) => {
-            const [imageUrl, setImageUrl] = useState('');
-            const extensions = ['.jpg', '.png', '.jpeg'];
+        const Icon = ({ name, size = 18, className }) => <i data-lucide={name} width={size} height={size} className={className}></i>;
+        const toUppercase = (handler) => (e) => { e.target.value = e.target.value.toUpperCase(); handler(e); };
+        
+        const generateSmartID = (partida, pieces, maquina) => {
+            const piecePrefixes = pieces.map(p => p.pieza.substring(0, 2).toUpperCase()).join('/');
+            return `${partida}-${piecePrefixes}-M${maquina}`;
+        };
 
-            useEffect(() => {
-                setImageUrl(''); // Reset state on prop change
+        const generatePackages = (pieces, packageSize, partida) => {
+            let packages = [];
+            let pkgCounter = 1;
+            pieces.forEach(p => {
+                const total = Number(p.totalPedido) || 0;
+                const size = Number(packageSize) || total;
+                const n = Math.ceil(total / size);
+                const piecePrefix = p.pieza.substring(0, 3).toUpperCase();
 
-                if (repoUrls.length === 0) {
-                    setImageUrl('unconfigured');
-                    return;
+                for (let i = 1; i <= n; i++) {
+                    const cantidad = (i === n) ? (total % size || size) : size;
+                    const codigoUnico = `${piecePrefix}_${i}_DE_${n}`; 
+                    packages.push({ 
+                        id: Date.now() + Math.random() + pkgCounter, 
+                        piezaNombre: p.pieza, 
+                        cantidad: cantidad, 
+                        paqueteNum: i, 
+                        paquetesDePieza: n, 
+                        codigoUnico: codigoUnico, 
+                        finished: false 
+                    });
+                    pkgCounter++;
                 }
-                
-                const tryLoadImage = (urlIndex, extIndex) => {
-                    // 1. Check if all URLs have been tried
-                    if (urlIndex >= repoUrls.length) {
-                        setImageUrl('error'); // All repos failed
-                        return;
-                    }
-                    
-                    const baseUrl = repoUrls[urlIndex].replace(/\/+$/, '');
-                    
-                    // 2. Check if all extensions for current URL have been tried
-                    if (extIndex >= extensions.length) {
-                        tryLoadImage(urlIndex + 1, 0); // Try next repo from the first extension
-                        return;
-                    }
-                    
-                    // 3. Construct URL and attempt load
-                    const url = `${baseUrl}/raw/main/images/${codigo}${extensions[extIndex]}`;
-                    const img = new Image();
-                    img.onload = () => {
-                        setImageUrl(url); // Éxito: Detener la búsqueda
-                    };
-                    img.onerror = () => {
-                        tryLoadImage(urlIndex, extIndex + 1); // Intentar la siguiente extensión en el mismo repo
-                    };
-                    img.src = url;
-                };
+            });
+            return packages;
+        };
 
-                tryLoadImage(0, 0);
-            }, [codigo, repoUrls]);
+        // --- DASHBOARD COMPONENTS ---
+        const MachineCard = ({ maquina, orders }) => {
+            const [is24Hours, setIs24Hours] = useState(true);
+            const pendingPackages = useMemo(() => {
+                let pkgs = [];
+                orders.forEach(o => {
+                    const incomplete = o.progreso?.filter(p => !p.finished) || [];
+                    incomplete.forEach(p => {
+                        const pieceData = o.subPiecesData?.find(sp => sp.pieza === p.piezaNombre) || o;
+                        const timePerPiece = Number(pieceData.tiempo) || 0;
+                        pkgs.push({ ...p, parentOrderId: o.id, orderCode: o.codigo, partida: o.partida, timeTotal: (p.cantidad * timePerPiece) });
+                    });
+                });
+                return pkgs; 
+            }, [orders]);
 
-            if (imageUrl === 'unconfigured' || repoUrls.length === 0) {
-                return (
-                     <div className="ticket-image-box w-full h-full flex items-center justify-center text-center bg-yellow-100 text-yellow-700 text-xs font-semibold p-2">
-                        Configure la(s) URL(s) del Repositorio.
-                    </div>
-                );
-            }
+            const updateObs = async (pkgId, parentOrderId, newVal) => {
+                const order = orders.find(o => o.id === parentOrderId);
+                if(!order) return;
+                const newProgreso = order.progreso.map(p => p.id === pkgId ? {...p, observaciones: newVal} : p);
+                // Usamos la colección de calcetín
+                await db.collection(ORDERS_COLLECTION).doc(String(parentOrderId)).update({progreso: newProgreso});
+            };
 
-            if (imageUrl === '') {
-                return (
-                    <div className="ticket-image-box w-full h-full flex items-center justify-center bg-slate-100 text-slate-400 text-xs p-2">
-                        Buscando Imagen...
-                    </div>
-                );
-            }
-
-            if (imageUrl === 'error') {
-                return (
-                    <div className="ticket-image-box w-full h-full flex items-center justify-center bg-red-100 text-red-700 text-xs font-semibold p-2">
-                        IMAGEN NO DISPONIBLE
-                    </div>
-                );
-            }
+            const totalMinutesLeft = pendingPackages.reduce((sum, p) => sum + p.timeTotal, 0);
+            const hoursPerDay = is24Hours ? 24 : 12;
+            const daysLeft = totalMinutesLeft > 0 ? (totalMinutesLeft / 60 / hoursPerDay).toFixed(1) : 0;
+            const hoursLeft = (totalMinutesLeft / 60).toFixed(1);
 
             return (
-                <img 
-                    src={imageUrl} 
-                    alt={codigo} 
-                    className="w-full h-full object-contain"
-                />
+                <div className="machine-card shadow-lg border border-cyan-800">
+                    <div className="flex justify-between items-center border-b border-cyan-700 pb-2 mb-2">
+                        <div>
+                            <div className="text-xs text-cyan-200 font-bold uppercase">Máquina</div>
+                            <div className="text-3xl font-black text-cyan-300">#{maquina}</div>
+                        </div>
+                        <div className="text-right">
+                            <button onClick={()=>setIs24Hours(!is24Hours)} className="bg-cyan-800 hover:bg-cyan-700 px-2 py-1 rounded text-[10px] font-bold mb-1 border border-cyan-600 block w-full">
+                                {is24Hours ? '24 HORAS' : '12 HORAS'}
+                            </button>
+                            <div className="text-xs font-bold text-green-300">{daysLeft} días ({hoursLeft}h)</div>
+                        </div>
+                    </div>
+                    <div className="pkg-list space-y-1">
+                        {pendingPackages.length === 0 && <div className="text-center text-cyan-300/50 text-xs py-4">Máquina Libre</div>}
+                        {pendingPackages.map((p, i) => (
+                            <div key={i} className="bg-cyan-900/50 p-2 rounded flex gap-2 items-center text-xs border border-cyan-700">
+                                <div className="font-black text-white text-lg w-10 text-right shrink-0">{p.cantidad}</div>
+                                <div className="w-24 shrink-0 overflow-hidden">
+                                    <div className="font-bold text-cyan-100 truncate text-[10px]" title={p.piezaNombre}>{p.piezaNombre}</div>
+                                    <div className="text-[9px] text-yellow-400 font-black truncate">{p.partida}</div>
+                                </div>
+                                <div className="flex-grow pl-2 border-l border-cyan-700">
+                                    <input className="obs-input placeholder-cyan-700" placeholder="Observaciones..." defaultValue={p.observaciones || ''} onBlur={(e) => updateObs(p.id, p.parentOrderId, e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') e.target.blur(); }}/>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             );
         };
 
-        // Componente de la Papeleta
-        const Ticket = ({ order, currentPack, totalPacks, origin, repoUrls }) => {
-            let dateStr = "---";
-            try {
-                if (order.createdAt) {
-                    const d = new Date(order.createdAt);
-                    if (!isNaN(d.getTime())) {
-                        dateStr = d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: '2-digit' });
-                    }
-                }
-            } catch (e) { /* silent */ }
-
-            const originColor = origin === 'SANTONI' ? 'text-indigo-800 border-indigo-800' : 'text-teal-800 border-teal-800';
-            const originBg = origin === 'SANTONI' ? 'bg-indigo-100' : 'bg-teal-100';
-
-            let displayColor = order.color || "---";
-            if (displayColor === "---" && order.threading && order.threading.length > 0) {
-                 displayColor = order.threading[0].material || "Varios";
-            }
+        const DashboardBottom = ({ activeOrders }) => {
+            const machineGroups = useMemo(() => {
+                const groups = {};
+                activeOrders.forEach(o => { if(!groups[o.maquina]) groups[o.maquina] = []; groups[o.maquina].push(o); });
+                return Object.keys(groups).sort((a,b) => parseInt(a)-parseInt(b)).map(k => ({ id: k, orders: groups[k] }));
+            }, [activeOrders]);
 
             return (
-                <div className="ticket bg-white gap-3">
-                    {/* Columna Izquierda: Imagen, Paquete */}
-                    <div className="w-[40%] flex flex-col justify-between items-center pr-2 border-r border-gray-200">
-                         {/* Imagen */}
-                        <div className="ticket-image-box w-full flex-shrink-0 flex items-center justify-center border border-gray-300 rounded overflow-hidden p-1 bg-white">
-                            <ImageLoader codigo={order.codigo} repoUrls={repoUrls} />
-                        </div>
+                <div className="bottom-pane shadow-inner">
+                    {machineGroups.map(g => <MachineCard key={g.id} maquina={g.id} orders={g.orders} />)}
+                    {machineGroups.length === 0 && <div className="text-cyan-200/50 w-full flex items-center justify-center font-bold">No hay producción activa en Calcetines</div>}
+                </div>
+            );
+        };
 
-                        {/* Paquete Grande */}
-                        <div className="mt-2 py-1 text-center w-full">
-                            <div className="text-sm font-bold text-gray-600 mb-1 uppercase tracking-widest border-t border-black pt-1">PAQUETE</div>
-                            <div className="flex items-baseline justify-center space-x-2 leading-none">
-                                <span className="text-5xl font-black text-black">{currentPack}</span>
-                                <span className="text-xl font-bold text-gray-400">/ {totalPacks}</span>
-                            </div>
+        // --- COMPONENTE DE IMPORTACIÓN ---
+        const ImportModal = ({ onClose, onImport }) => {
+            const [text, setText] = useState('');
+            const [error, setError] = useState(null);
+
+            const handleProcess = () => {
+                if (!text.trim()) return;
+                try {
+                    const delimiter = text.includes('\t') ? '\t' : ',';
+                    const rows = text.trim().split('\n').map(r => r.split(delimiter));
+                    if (rows.length < 2) throw new Error("Datos insuficientes.");
+                    const headers = rows[0].map(h => h.trim().toUpperCase().replace(/"/g, ''));
+                    const getVal = (row, colName) => { const idx = headers.indexOf(colName); return idx !== -1 && row[idx] ? row[idx].trim().replace(/"/g, '') : ''; };
+
+                    if (headers.indexOf('PARTIDA') === -1) throw new Error("Falta columna 'PARTIDA'");
+                    if (headers.indexOf('CODIGO') === -1) throw new Error("Falta columna 'CODIGO'");
+                    if (headers.indexOf('PIEZAS') === -1) throw new Error("Falta columna 'PIEZAS'");
+
+                    const predefinedPackages = [];
+                    let totalPiezas = 0;
+                    const firstRow = rows[1]; 
+                    
+                    rows.slice(1).forEach((r, i) => {
+                        const piezas = parseFloat(getVal(r, 'PIEZAS'));
+                        const codigoUnico = getVal(r, 'CODIGO'); 
+                        let pkgNum = i + 1;
+                        if (!isNaN(piezas)) {
+                            totalPiezas += piezas;
+                            predefinedPackages.push({ 
+                                id: Date.now() + i, 
+                                piezaNombre: getVal(r, 'DESCRIPCION') || 'ESTANDAR', 
+                                cantidad: piezas, 
+                                paqueteNum: pkgNum, 
+                                paquetesDePieza: rows.length - 1, 
+                                codigoUnico: codigoUnico, 
+                                finished: false 
+                            });
+                        }
+                    });
+
+                    const threading = [];
+                    // Adaptado para nombres comunes en calcetín si fuera necesario, pero mantenemos compatibilidad
+                    const nylon = getVal(firstRow, 'NYLON');
+                    const lycra = getVal(firstRow, 'LYCRA');
+                    if (nylon) threading.push({ id: 1, guia: '1', material: `NYLON ${nylon}`, sis: '', porcentaje: '' });
+                    if (lycra) threading.push({ id: 2, guia: '2', material: `LYCRA ${lycra}`, sis: '', porcentaje: '' });
+                    
+                    onImport({ 
+                        codigo: getVal(firstRow, 'MODELO'), 
+                        cliente: getVal(firstRow, 'CLIENTE'), 
+                        maquina: getVal(firstRow, 'MAQUINA'), 
+                        partida: getVal(firstRow, 'PARTIDA'), 
+                        subPiecesData: [{ 
+                            id: Date.now(), 
+                            pieza: getVal(firstRow, 'DESCRIPCION') || 'CALCETIN', 
+                            programa: '', 
+                            talla: getVal(firstRow, 'TALLA') || 'UNITALLA', 
+                            totalPedido: totalPiezas, 
+                            peso: '', 
+                            tiempo: '' 
+                        }], 
+                        threading: threading, 
+                        predefinedPackages: predefinedPackages,
+                        createdAt: new Date().toLocaleString('es-MX')
+                    });
+                } catch (e) { setError(e.message); }
+            };
+            return (
+                <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
+                    <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-2xl relative">
+                        <div className="flex justify-between items-center mb-4 border-b pb-2">
+                            <h3 className="font-bold text-xl text-cyan-700 flex items-center gap-2"><Icon name="file-spreadsheet"/> Importar Excel (Calcetín)</h3>
+                            <button onClick={onClose} className="bg-red-500 hover:bg-red-600 text-white rounded-md p-2 shadow-lg flex items-center gap-1 font-bold text-xs transition-transform hover:scale-105">
+                                <Icon name="x" size={18}/> CERRAR
+                            </button>
+                        </div>
+                        <p className="text-xs text-slate-500 mb-2">Copia y pega las celdas desde Excel.</p>
+                        <textarea value={text} onChange={(e) => { setText(e.target.value); setError(null); }} className="w-full h-64 p-3 border-2 border-slate-300 rounded font-mono text-xs focus:border-cyan-500 focus:outline-none" placeholder="Pegar datos..."></textarea>
+                        {error && <div className="mt-2 text-red-600 text-xs font-bold bg-red-50 p-2 rounded border border-red-200">Error: {error}</div>}
+                        <div className="flex justify-end gap-2 mt-4">
+                            <button onClick={handleProcess} className="px-6 py-2 bg-cyan-600 text-white font-bold rounded shadow hover:bg-cyan-700 flex items-center gap-2"><Icon name="check-circle" size={18}/> Procesar</button>
                         </div>
                     </div>
+                </div>
+            );
+        };
 
-                    {/* Columna Derecha: Datos */}
-                    <div className="w-[60%] flex flex-col justify-between pl-2">
-                        
-                        {/* Header y Cliente */}
-                        <div className="flex flex-col border-b-2 border-black pb-2 mb-2">
-                            <div className="flex justify-between items-center mb-1">
-                                <h2 className="text-xl font-black tracking-tighter">CIRINEO</h2>
-                                <span className={`text-xs font-bold px-2 py-1 rounded border ${originBg} ${originColor}`}>
-                                    {origin}
-                                </span>
-                            </div>
-                            <div>
-                                <div className="text-sm text-gray-500 uppercase font-bold">Cliente</div>
-                                <div className="text-xl font-extrabold leading-tight truncate">{order.cliente || '---'}</div>
-                            </div>
-                        </div>
-                        
-                        {/* Datos de Producción */}
-                        <div className="flex-grow space-y-2">
-                            <div>
-                                <div className="text-xs text-gray-500 uppercase font-bold">Modelo / Partida</div>
-                                <div className="text-2xl font-black leading-none truncate">{order.codigo}</div>
-                                <div className="text-base font-bold text-gray-700">{order.partida}</div>
-                            </div>
+        // --- COMPONENTE IMAGEN ---
+        const SmartImage = ({ repoUrls, codigo, className }) => {
+            const [imgSrc, setImgSrc] = useState(null);
+            const [attempt, setAttempt] = useState({ urlIndex: 0, extension: 'jpg' });
+            useEffect(() => {
+                if (!repoUrls || !repoUrls.length || !codigo) { setImgSrc(null); return; }
+                setAttempt({ urlIndex: 0, extension: 'jpg' });
+                const base = repoUrls[0].endsWith('/') ? repoUrls[0] : repoUrls[0] + '/';
+                setImgSrc(`${base}${codigo}.jpg`);
+            }, [repoUrls, codigo]);
 
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                                 <div>
-                                    <div className="text-xs text-gray-500 uppercase font-bold">Color</div>
-                                    <div className="font-mono font-bold truncate">{displayColor}</div>
+            const handleError = () => {
+                const { urlIndex, extension } = attempt;
+                if (extension === 'jpg') {
+                    const base = repoUrls[urlIndex].endsWith('/') ? repoUrls[urlIndex] : repoUrls[urlIndex] + '/';
+                    setImgSrc(`${base}${codigo}.png`);
+                    setAttempt({ ...attempt, extension: 'png' });
+                } else if (urlIndex < repoUrls.length - 1) {
+                    const nextIdx = urlIndex + 1;
+                    const base = repoUrls[nextIdx].endsWith('/') ? repoUrls[nextIdx] : repoUrls[nextIdx] + '/';
+                    setImgSrc(`${base}${codigo}.jpg`);
+                    setAttempt({ urlIndex: nextIdx, extension: 'jpg' });
+                } else {
+                    setAttempt({ ...attempt, extension: 'fail' });
+                }
+            };
+            if (attempt.extension === 'fail' || !imgSrc) return <div className={`bg-slate-100 flex flex-col items-center justify-center text-slate-300 ${className}`}><Icon name="image-off" size={32} className="mb-2"/><span className="text-[10px] text-center px-2">Sin img</span></div>;
+            return <img src={imgSrc} onError={handleError} className={className} />;
+        };
+
+        // --- FORMULARIO DE ORDEN (CREAR Y EDITAR) ---
+        const MultiOrderForm = ({ config, onCancel, initialOrder, clientHistory, inventory, isEditing }) => {
+            const [header, setHeader] = useState(initialOrder ? { codigo: initialOrder.codigo, cliente: initialOrder.cliente, maquina: initialOrder.maquina, partida: initialOrder.partida || '', fechaInicio: initialOrder.fechaInicio || new Date().toISOString().split('T')[0] } : { codigo: '', cliente: '', maquina: '', partida: '', fechaInicio: new Date().toISOString().split('T')[0] });
+            const [pieces, setPieces] = useState(initialOrder?.subPiecesData || [{ id: 1, pieza: 'CALCETIN', programa: '', talla: 'UNITALLA', totalPedido: 100, peso: '30', tiempo: '' }]);
+            const [threadingData, setThreadingData] = useState(initialOrder?.threading || []);
+            const predefinedPackages = initialOrder?.predefinedPackages || (initialOrder && initialOrder.packageSize === 'VARIO' ? initialOrder.progreso : null);
+            const [packageSize, setPackageSize] = useState(initialOrder?.packageSize && initialOrder.packageSize !== 'VARIO' ? initialOrder.packageSize : 50);
+            
+            const addPiece = () => setPieces([...pieces, { id: Date.now(), pieza: '', talla: 'UNITALLA', totalPedido: '', peso: '', tiempo: '' }]);
+            const updatePiece = (id, f, v) => setPieces(pieces.map(p => p.id === id ? { ...p, [f]: v } : p));
+            const removePiece = (id) => pieces.length > 1 && setPieces(pieces.filter(p => p.id !== id));
+            
+            const totalOrderWeight = pieces.reduce((sum, p) => sum + ((Number(p.totalPedido) || 0) * (Number(p.peso) || 0)), 0);
+
+            const handleSubmit = async () => {
+                if(!header.codigo || !header.cliente || !header.maquina || !header.partida) return alert("Faltan datos.");
+                let finalPackages = initialOrder?.progreso?.filter(p => p.finished) || []; 
+                if (predefinedPackages) {
+                    if (isEditing) {
+                        const newPredefined = initialOrder.progreso.map(p => {
+                            const original = initialOrder.progreso.find(op => op.id === p.id);
+                            return {...p, finished: original?.finished || false, tejedor: original?.tejedor || '', fecha: original?.fecha || '', defectos: original?.defectos || '', agujas: original?.agujas || ''};
+                        });
+                        finalPackages = newPredefined;
+                    } else {
+                        finalPackages = predefinedPackages;
+                    }
+                } else {
+                    const newPackages = generatePackages(pieces, packageSize, header.partida);
+                    if(isEditing) {
+                         const finishedIds = new Set(finalPackages.map(p=>p.id));
+                         finalPackages = [...finalPackages, ...newPackages.filter(p=>!finishedIds.has(p.id))];
+                    } else {
+                         finalPackages = newPackages;
+                    }
+                }
+
+                // =======================================================
+                // LÓGICA DE INVENTARIO CORREGIDA - CALCETÍN
+                // =======================================================
+                if (inventory && Array.isArray(inventory)) {
+                    let updatedInventoryItems = [...inventory]; 
+                    let inventoryChanged = false;
+
+                    // 1. SI EDITAMOS: REEMBOLSAR EL CONSUMO ANTERIOR AL STOCK
+                    if (isEditing && initialOrder) {
+                        const oldTotalWeight = initialOrder.subPiecesData.reduce((sum, p) => sum + ((Number(p.totalPedido)||0) * (Number(p.peso)||0)), 0);
+                        const oldTotalKg = oldTotalWeight / 1000;
+
+                        initialOrder.threading.forEach(row => {
+                            const pct = parseFloat(row.porcentaje) || 0;
+                            if (pct > 0 && row.material) {
+                                const consumedKg = oldTotalKg * (pct / 100);
+                                const itemIndex = updatedInventoryItems.findIndex(i => i.material === row.material);
+                                if (itemIndex > -1) {
+                                    const currentStock = parseFloat(updatedInventoryItems[itemIndex].stock) || 0;
+                                    // Devolución (+)
+                                    updatedInventoryItems[itemIndex] = {
+                                        ...updatedInventoryItems[itemIndex],
+                                        stock: (currentStock + consumedKg).toFixed(2)
+                                    };
+                                    inventoryChanged = true;
+                                }
+                            }
+                        });
+                    }
+
+                    // 2. APLICAR EL NUEVO CONSUMO AL STOCK
+                    const newTotalKg = totalOrderWeight / 1000;
+
+                    threadingData.forEach(row => {
+                        const pct = parseFloat(row.porcentaje) || 0;
+                        if (pct > 0 && row.material) {
+                            const consumedKg = newTotalKg * (pct / 100);
+                            const itemIndex = updatedInventoryItems.findIndex(i => i.material === row.material);
+                            if (itemIndex > -1) {
+                                const currentStock = parseFloat(updatedInventoryItems[itemIndex].stock) || 0;
+                                // Descuento (-)
+                                const newStock = Math.max(0, currentStock - consumedKg);
+                                updatedInventoryItems[itemIndex] = {
+                                    ...updatedInventoryItems[itemIndex],
+                                    stock: newStock.toFixed(2)
+                                };
+                                inventoryChanged = true;
+                            }
+                        }
+                    });
+
+                    // 3. GUARDAR
+                    if (inventoryChanged) {
+                        try {
+                            // AQUÍ SE USA LA COLECCIÓN DE INVENTARIO COMPARTIDA 'inventory'
+                            await db.collection(INVENTORY_COLLECTION).doc('main').update({ items: updatedInventoryItems });
+                            console.log("Inventario actualizado con éxito.");
+                        } catch (err) {
+                            console.error("Error actualizando inventario:", err);
+                            alert("Advertencia: La orden se guardará, pero hubo un error descontando el inventario.");
+                        }
+                    }
+                }
+                // =======================================================
+
+                const displayId = generateSmartID(header.partida, pieces, header.maquina);
+                const creationDate = isEditing 
+                    ? (initialOrder.createdAt || new Date().toLocaleString('es-MX')) 
+                    : (initialOrder?.createdAt || new Date().toLocaleString('es-MX'));
+
+                const orderPayload = { 
+                    ...header, 
+                    id: isEditing ? initialOrder.id : Date.now(), 
+                    displayId, 
+                    subPiecesData: pieces.map(p => ({...p, totalPedido: Number(p.totalPedido), peso: Number(p.peso)})), 
+                    progreso: finalPackages, 
+                    threading: threadingData, 
+                    packageSize: predefinedPackages ? 'VARIO' : Number(packageSize), 
+                    status: initialOrder?.status || 'EN PROCESO', 
+                    totalPedido: pieces.reduce((a,b)=>a+Number(b.totalPedido),0),
+                    createdAt: creationDate
+                };
+                try { 
+                    // AQUÍ SE USA LA COLECCIÓN DE CALCETIN 'orders_calcetin'
+                    await db.collection(ORDERS_COLLECTION).doc(String(orderPayload.id)).set(orderPayload);
+                    alert(`Orden Calcetín ${isEditing ? 'Actualizada' : 'Guardada y Material Descontado'}`);
+                    onCancel(); 
+                } catch(e) { 
+                    console.error(e);
+                    alert("Error al guardar"); 
+                }
+            };
+            return (
+                <div className="bg-white p-6 rounded shadow-xl max-w-4xl mx-auto my-4 overflow-y-auto h-[90vh]">
+                    <div className="flex justify-between items-center mb-4 border-b pb-2">
+                        <h2 className="font-bold text-xl flex items-center gap-2 text-cyan-800">
+                             <Icon name={isEditing ? "file-edit" : "file-plus"}/> {isEditing ? 'Editar Orden' : 'Nueva Orden Calcetín'}
+                        </h2>
+                        <button onClick={onCancel} className="text-red-500 font-bold">Cancelar</button>
+                    </div>
+                    <div className="grid grid-cols-12 gap-4 mb-4">
+                        <div className="col-span-3 bg-yellow-50 p-2 rounded border border-yellow-200"><label className="text-xs font-bold text-yellow-900">PARTIDA</label><input value={header.partida} onChange={toUppercase(e=>setHeader({...header, partida:e.target.value}))} className="w-full text-lg font-black p-1 bg-white border rounded uppercase" placeholder="Ej: 24NOV-C01" disabled={isEditing}/></div>
+                        <div className="col-span-3"><label className="text-xs font-bold">MODELO (FOTO)</label><input value={header.codigo} onChange={toUppercase(e=>setHeader({...header, codigo:e.target.value}))} className="w-full border p-2 rounded font-bold uppercase"/></div>
+                        <div className="col-span-4"><label className="text-xs font-bold">CLIENTE</label><input list="clients" value={header.cliente} onChange={toUppercase(e=>setHeader({...header, cliente:e.target.value}))} className="w-full border p-2 rounded font-bold"/><datalist id="clients">{clientHistory.map(c=><option key={c} value={c}/>)}</datalist></div>
+                        <div className="col-span-2"><label className="text-xs font-bold bg-cyan-100 px-1">MÁQUINA</label><input value={header.maquina} onChange={toUppercase(e=>setHeader({...header, maquina:e.target.value}))} className="w-full border-2 border-cyan-400 p-2 rounded font-black text-center"/></div>
+                    </div>
+                    <div className="mb-4 bg-slate-50 p-3 rounded">
+                        <h3 className="font-bold text-sm mb-2 flex items-center gap-2"><Icon name="layers"/> Piezas / Detalles</h3>
+                        {pieces.map((p, i) => (
+                            <div key={p.id} className="grid grid-cols-12 gap-2 mb-2 items-end border-b pb-2">
+                                <div className="col-span-3"><label className="text-[10px] font-bold">Tipo/Desc</label><input value={p.pieza} onChange={toUppercase(e=>updatePiece(p.id,'pieza',e.target.value))} className="w-full border p-1 rounded font-bold text-sm"/></div>
+                                <div className="col-span-2"><label className="text-[10px] font-bold">Talla</label><input value={p.talla} onChange={toUppercase(e=>updatePiece(p.id,'talla',e.target.value))} className="w-full border p-1 rounded text-xs"/></div>
+                                <div className="col-span-2"><label className="text-[10px] font-bold">Cant. Total</label><input type="number" value={p.totalPedido} onChange={e=>updatePiece(p.id,'totalPedido',e.target.value)} className="w-full border p-1 font-bold text-cyan-700" disabled={!!predefinedPackages}/></div>
+                                <div className="col-span-2 bg-cyan-50 px-1 rounded"><label className="text-[10px] font-bold text-cyan-800">Peso (g)</label><input type="number" value={p.peso} onChange={e=>updatePiece(p.id,'peso',e.target.value)} className="w-full border p-1 text-center font-bold" placeholder="Gramos"/></div>
+                                <div className="col-span-2"><label className="text-[10px] font-bold">Minutos/Pza</label><input type="number" value={p.tiempo} onChange={e=>updatePiece(p.id,'tiempo',e.target.value)} className="w-full border p-1 bg-yellow-50" placeholder="Calc. Tiempo"/></div>
+                                <div className="col-span-1 text-center"><button onClick={()=>removePiece(p.id)} className="text-red-500" disabled={!!predefinedPackages}><Icon name="x"/></button></div>
+                            </div>
+                        ))}
+                        {!predefinedPackages && <button onClick={addPiece} className="text-xs font-bold text-cyan-600">+ Agregar Variante</button>}
+                        {predefinedPackages && <div className="text-xs text-green-600 font-bold mt-2"><Icon name="check"/> Paquetes cargados desde Excel ({predefinedPackages.length} filas)</div>}
+                    </div>
+
+                    <ThreadingEditor 
+                        data={threadingData} 
+                        onChange={setThreadingData} 
+                        inventoryItems={inventory} 
+                        totalWeight={totalOrderWeight} 
+                    />
+
+                    <div className="flex gap-4 mt-4">
+                        {!predefinedPackages && <div className="w-32"><label className="text-xs font-bold">Pzs/Paquete</label><input type="number" value={packageSize} onChange={e=>setPackageSize(e.target.value)} className="border p-2 rounded w-full"/></div>}
+                        <button onClick={handleSubmit} className="flex-1 bg-cyan-900 text-white font-bold rounded shadow hover:bg-cyan-800 py-3">{isEditing ? 'GUARDAR CAMBIOS' : 'CREAR ORDEN Y DESCONTAR INVENTARIO'}</button>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- VISUALIZACIÓN E IMPRESIÓN ---
+        const OrderView = ({ order, config, onBack, onEdit }) => { 
+            const [entry, setEntry] = useState({ tejedor: '', fecha: new Date().toISOString().split('T')[0], defectos: '', agujas: '' });
+            
+            const markPackage = async (pkgId) => {
+                if(!entry.tejedor) return alert("Por favor selecciona un TEJEDOR");
+                const newProgreso = order.progreso.map(p => p.id === pkgId ? {...p, finished: true, tejedor: entry.tejedor, fecha: entry.fecha, defectos: entry.defectos, agujas: entry.agujas} : p);
+                // Usamos la colección de calcetín
+                await db.collection(ORDERS_COLLECTION).doc(String(order.id)).update({progreso: newProgreso});
+            };
+
+            const unmarkPackage = async (pkgId) => {
+                const newProgreso = order.progreso.map(p => p.id === pkgId ? {...p, finished: false, tejedor: '', fecha: '', defectos: '', agujas: ''} : p);
+                await db.collection(ORDERS_COLLECTION).doc(String(order.id)).update({progreso: newProgreso});
+            };
+
+            const toggleArchive = async () => {
+                const isArchived = order.status === 'ARCHIVADO';
+                const msg = isArchived ? "¿Desarchivar esta orden?" : "¿Marcar orden como TERMINADA y archivarla?";
+                if(window.confirm(msg)){
+                    await db.collection(ORDERS_COLLECTION).doc(String(order.id)).update({
+                        status: isArchived ? 'EN PROCESO' : 'ARCHIVADO'
+                    });
+                    onBack();
+                }
+            };
+            
+            const minutosPorPrenda = order.subPiecesData.reduce((acc, curr) => acc + (Number(curr.tiempo) || 0), 0);
+            const piezasPorHora = minutosPorPrenda > 0 ? (60 / minutosPorPrenda).toFixed(0) : 0;
+            const piezasPorTurno = minutosPorPrenda > 0 ? ((60 / minutosPorPrenda) * 12).toFixed(0) : 0;
+
+            return (
+                <div className="bg-white min-h-screen relative">
+                    <div className="no-print p-4 border-b flex justify-between bg-cyan-50 sticky top-0 z-10 shadow-sm">
+                        <button onClick={onBack} className="flex items-center gap-2 text-cyan-800 font-bold"><Icon name="arrow-left"/> Volver</button>
+                        <div className="flex gap-2">
+                             <button onClick={toggleArchive} className={`px-3 py-1 rounded font-bold text-xs flex items-center gap-1 text-white ${order.status === 'ARCHIVADO' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-600 hover:bg-green-700'}`}>
+                                 <Icon name={order.status === 'ARCHIVADO' ? "refresh-ccw" : "archive"}/> 
+                                 {order.status === 'ARCHIVADO' ? 'DESARCHIVAR' : 'ARCHIVAR'}
+                             </button>
+
+                             <button onClick={() => onEdit(order)} className="bg-cyan-600 text-white px-3 py-1 rounded font-bold text-xs flex items-center gap-1 hover:bg-cyan-700">
+                                 <Icon name="file-edit"/> EDITAR
+                             </button>
+                             <button onClick={() => window.print()} className="bg-slate-900 text-white px-3 py-1 rounded font-bold text-xs flex items-center gap-1 hover:bg-slate-700">
+                                 <Icon name="printer"/> IMPRIMIR
+                             </button>
+                        </div>
+                    </div>
+                    
+                    <div className="p-8 print:p-0">
+                        {order.status === 'ARCHIVADO' && <div className="bg-orange-100 border-l-4 border-orange-500 text-orange-700 p-4 mb-4 font-bold text-center no-print">ORDEN ARCHIVADA</div>}
+
+                        <div className="print-visible-wrapper">
+                             <div className="flex justify-between items-start mb-4 border-b-4 border-black pb-2">
+                                <div className="w-8/12">
+                                    <h1 className="font-black uppercase tracking-tighter">{order.cliente}</h1>
+                                    <div className="flex gap-6 items-baseline header-info">
+                                        <div className="uppercase">PARTIDA: {order.partida}</div>
+                                        <div className="text-slate-700 uppercase">MOD: {order.codigo}</div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <div className="text-xs text-gray-500 uppercase font-bold">Pedido Total</div>
-                                    <div className="font-mono font-bold">{order.totalPedido} pzs</div>
+                                <div className="w-3/12 text-right">
+                                    <div className="machine-number-box">MÁQUINA</div>
+                                    <div className="machine-number-val">{order.maquina}</div>
                                 </div>
-                                 <div>
-                                    <div className="text-xs text-gray-500 uppercase font-bold">Fecha</div>
-                                    <div className="font-mono">{dateStr}</div>
+                             </div>
+                            
+                             <div className="flex gap-4">
+                                <div className="w-7/12 flex flex-col gap-2">
+                                    <table className="mb-0">
+                                        <thead>
+                                            <tr><th className="text-left">DETALLE</th><th className="w-20">TALLA</th><th className="w-20">TOTAL</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            {order.subPiecesData.map((p,i)=>(
+                                                <tr key={i}>
+                                                    <td className="truncate">{p.pieza}</td>
+                                                    <td className="text-center">{p.talla}</td>
+                                                    <td className="text-center font-black">{p.totalPedido}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    
+                                    <table className="mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th colSpan="3" className="bg-black text-white py-1 text-sm">ENHEBRADO</th>
+                                            </tr>
+                                            <tr><th className="w-12">#</th><th className="text-left">Material</th><th className="w-16">%</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            {order.threading && order.threading.map((row, i) => (
+                                                <tr key={i}>
+                                                    <td className="text-center font-bold">{row.guia}</td>
+                                                    <td className="truncate">{row.material}</td>
+                                                    <td className="text-center font-bold">{row.porcentaje}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+
+                                    <div className="flex gap-2 mt-1">
+                                        <div className="w-1/2 border-2 border-black flex flex-col justify-center items-center p-2">
+                                            <span className="text-sm font-bold uppercase w-full text-center border-b-2 border-black mb-1">PZS/HR</span>
+                                            <span className="text-3xl font-black">{piezasPorHora}</span>
+                                        </div>
+                                        <div className="w-1/2 border-2 border-black flex flex-col justify-center items-center p-2">
+                                            <span className="text-sm font-bold uppercase w-full text-center border-b-2 border-black mb-1">PZS/12H</span>
+                                            <span className="text-3xl font-black">{piezasPorTurno}</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <div className="text-xs text-gray-500 uppercase font-bold">Máquina</div>
-                                    <div className="font-mono font-bold">#{order.maquina}</div>
+
+                                <div className="w-5/12 border-2 border-black flex items-center justify-center relative bg-white overflow-hidden p-2 h-auto">
+                                     <SmartImage repoUrls={config.repoUrls} codigo={order.codigo} className="max-h-64 w-full object-contain"/>
                                 </div>
                             </div>
-                        </div>
                         
-                        {/* Pie de página: Tejedor y ID */}
-                        <div className="mt-4 pt-2 border-t border-gray-300">
-                             <div className="text-sm font-bold text-gray-600 mb-1 uppercase">Tejedor(a)</div>
-                             <div className="w-full h-6 border-b-2 border-black font-mono text-sm"></div>
-                             
-                             <div className="text-center text-[8px] font-mono mt-1 text-gray-500">
-                                ID Orden: {order.id}
+                            <div className="print-section-bottom print-only mt-4">
+                                <div className="border-b-4 border-black font-bold mb-1 text-sm flex justify-between items-end">
+                                    <span>CONTROL DE CALCETÍN</span>
+                                    <span>{new Date().toLocaleDateString('es-MX')}</span>
+                                </div>
+                                <table className="package-table-print">
+                                    <colgroup>
+                                        <col style={{width: '6%'}} />
+                                        <col style={{width: '24%'}} /> 
+                                        <col style={{width: '10%'}} />
+                                        <col style={{width: '12%'}} />
+                                        <col style={{width: '12%'}} />
+                                        <col style={{width: '8%'}} />
+                                        <col style={{width: '8%'}} />
+                                        <col style={{width: '20%'}} /> 
+                                    </colgroup>
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>CÓDIGO</th> 
+                                            <th>Cant</th>
+                                            <th>Tej</th>
+                                            <th>Fec</th>
+                                            <th>Def</th>
+                                            <th>Agj</th>
+                                            <th>OBS</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {order.progreso?.map((p, idx) => (
+                                            <tr key={p.id}>
+                                                <td className="text-center font-bold">{idx+1}</td>
+                                                <td className="pl-1 font-mono truncate" title={p.codigoUnico || p.piezaNombre}>{p.codigoUnico || p.piezaNombre}</td>
+                                                <td className="text-center font-bold">{p.cantidad}</td>
+                                                <td className="manual-input">{p.finished ? p.tejedor : '_'}</td>
+                                                <td className="manual-input">{p.finished ? p.fecha : '_'}</td>
+                                                <td className="manual-input">{p.finished ? p.defectos : '_'}</td>
+                                                <td className="manual-input">{p.finished ? p.agujas : '_'}</td>
+                                                <td className="manual-input">{p.observaciones || '_'}</td> </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                             </div>
+                        </div>
+
+                        <div className="no-print mt-4">
+                            <div className="bg-slate-100 p-4 rounded border mb-6">
+                                <h3 className="font-bold text-lg mb-2 text-slate-700">Registro Digital - Calcetín</h3>
+                                <div className="flex gap-4 items-end mb-4 bg-white p-3 rounded shadow-sm border">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">TEJEDOR</label>
+                                        <select 
+                                            value={entry.tejedor} 
+                                            onChange={e=>setEntry({...entry, tejedor: e.target.value})} 
+                                            className="border-2 border-slate-300 p-2 rounded w-40 font-bold text-cyan-700 focus:border-cyan-500 outline-none"
+                                        >
+                                            <option value="">Seleccionar...</option>
+                                            <option value="OPERADOR 1">OPERADOR 1</option>
+                                            <option value="OPERADOR 2">OPERADOR 2</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 mb-1">FECHA</label>
+                                        <input 
+                                            type="date" 
+                                            value={entry.fecha} 
+                                            onChange={e=>setEntry({...entry, fecha: e.target.value})} 
+                                            className="border-2 border-slate-300 p-2 rounded font-mono cursor-pointer hover:bg-slate-50"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="max-h-80 overflow-y-auto bg-white border rounded shadow-inner">
+                                    <table className="w-full text-xs text-left">
+                                        <thead className="bg-slate-200 sticky top-0 shadow-sm z-0">
+                                            <tr>
+                                                <th className="p-3">CÓDIGO/PIEZA</th>
+                                                <th className="p-3">Pzs</th>
+                                                <th className="p-3">Estado</th>
+                                                <th className="p-3">Acción</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {order.progreso.map(p=>(
+                                                <tr key={p.id} className="border-b hover:bg-slate-50 transition-colors">
+                                                    <td className="p-3 font-mono" title={p.codigoUnico || p.piezaNombre}>{p.codigoUnico || p.piezaNombre}</td>
+                                                    <td className="p-3 font-bold">{p.cantidad}</td>
+                                                    <td className="p-3">{p.finished ? <span className="text-green-600 font-bold bg-green-100 px-2 py-1 rounded-full text-[10px]">LISTO ({p.tejedor})</span> : <span className="text-slate-400 font-medium">PENDIENTE</span>}</td>
+                                                    <td className="p-3">{!p.finished 
+                                                        ? <button onClick={()=>markPackage(p.id)} disabled={!entry.tejedor} className="bg-cyan-100 text-cyan-700 px-3 py-1 rounded font-bold hover:bg-cyan-200 disabled:opacity-50 disabled:cursor-not-allowed transition">Registrar</button>
+                                                        : <button onClick={()=>unmarkPackage(p.id)} className="bg-red-100 text-red-700 px-3 py-1 rounded font-bold hover:bg-red-200 transition">Deshacer</button>}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -265,136 +785,119 @@
             );
         };
 
-        // Componente Modal para configurar el Repositorio (Múltiples URLs)
-        const RepoConfigModal = ({ show, onClose, currentUrls, onSave }) => {
-            const [inputUrl, setInputUrl] = useState('');
-            const [tempUrls, setTempUrls] = useState(currentUrls);
-            const [isSaving, setIsSaving] = useState(false);
-            const [saveError, setSaveError] = useState(null);
+        const ThreadingEditor = ({ data, onChange, inventoryItems, totalWeight }) => {
+            const addRow = () => onChange([...data, { id: Date.now(), guia: '', material: '', sis: '', porcentaje: '0' }]);
+            const updateRow = (id, field, val) => onChange(data.map(r => r.id === id ? { ...r, [field]: val } : r));
+            const removeRow = (id) => onChange(data.filter(r => r.id !== id));
             
-            useEffect(() => {
-                setTempUrls(currentUrls);
-            }, [currentUrls]);
-
-            const handleAddUrl = () => {
-                let sanitizedUrl = inputUrl.trim();
-                
-                if (!sanitizedUrl) return;
-
-                if (!sanitizedUrl.startsWith('http')) {
-                    sanitizedUrl = 'https://' + sanitizedUrl;
-                }
-
-                if (!tempUrls.includes(sanitizedUrl)) {
-                    setTempUrls([...tempUrls, sanitizedUrl]);
-                    setInputUrl('');
-                } else {
-                    alert('Esta URL ya ha sido añadida.');
-                }
-            };
-            
-            const handleRemoveUrl = (urlToRemove) => {
-                if (confirm('¿Estás seguro de eliminar este repositorio?')) {
-                    setTempUrls(tempUrls.filter(url => url !== urlToRemove));
-                }
-            };
-
-            const handleSave = async () => {
-                setSaveError(null);
-                setIsSaving(true);
-                
-                if (tempUrls.length === 0) {
-                    if (!confirm("No hay repositorios configurados. ¿Deseas guardar sin enlaces de imágenes?")) {
-                         setIsSaving(false);
-                         return;
-                    }
-                }
-
-                try {
-                    // Guardar el array de URLs en Firebase
-                    await CONFIG_DOC_REF.set({ repoUrls: tempUrls }, { merge: true });
-                    onSave(tempUrls); 
-                    alert("Repositorios guardados en Firebase exitosamente.");
-                } catch (error) {
-                    console.error("Error al guardar URLs en Firebase:", error);
-                    setSaveError("Error al guardar las URLs en Firebase. Verifica tu conexión/permisos.");
-                } finally {
-                    setIsSaving(false);
-                }
-            };
-
-            if (!show) return null;
+            const invList = Array.isArray(inventoryItems) ? inventoryItems : [];
 
             return (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-                    <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
-                        <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-slate-800">
-                            <IconSettings /> Configurar Múltiples Repositorios
-                        </h3>
-                        <p className="text-sm text-slate-600 mb-4">
-                            Añade la URL base de cada repositorio de imágenes (ej. `https://github.com/usuario/repo-a`). La aplicación buscará en todos ellos.
-                        </p>
-                        
-                        {/* Entrada para añadir nueva URL */}
-                        <div className="flex gap-2 mb-4">
-                            <input
-                                type="text"
-                                value={inputUrl}
-                                onChange={(e) => setInputUrl(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === 'Enter') handleAddUrl(); }}
-                                placeholder="Añadir nueva URL del Repositorio..."
-                                className="w-full p-3 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                                disabled={isSaving}
-                            />
-                            <button 
-                                onClick={handleAddUrl} 
-                                disabled={isSaving || !inputUrl.trim()}
-                                className="flex items-center gap-1 px-4 py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition disabled:opacity-50"
-                            >
-                                <IconPlus />
-                                Añadir
+                <div className="border rounded bg-white overflow-hidden my-4 shadow-sm">
+                    <div className="bg-slate-200 p-2 text-xs font-bold flex justify-between items-center">
+                        <span>TABLA DE ENHEBRADO Y CONSUMO</span>
+                        <div className="text-[10px] text-slate-500 font-normal">Peso Total Orden: <b>{(totalWeight/1000).toFixed(2)} Kg</b></div>
+                        <button onClick={addRow} className="text-cyan-600 font-bold bg-white px-2 py-1 rounded border shadow-sm">+ Hilo</button>
+                    </div>
+                    <table className="w-full text-xs text-left">
+                        <thead className="bg-slate-50 border-b">
+                            <tr>
+                                <th className="p-2 w-16">GUÍA</th>
+                                <th className="p-2">MATERIAL (INVENTARIO)</th>
+                                <th className="p-2 w-16 text-center">%</th>
+                                <th className="p-2 w-24 text-center">Requerido</th>
+                                <th className="p-2 w-24 text-center">Stock</th>
+                                <th className="w-8"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.map((row) => {
+                                const pct = parseFloat(row.porcentaje) || 0;
+                                const requiredKg = (totalWeight * (pct / 100)) / 1000; 
+                                const stockItem = invList.find(i => i.material === row.material);
+                                const stockAvailable = stockItem ? parseFloat(stockItem.stock) : 0;
+                                const isInsufficient = row.material && (requiredKg > stockAvailable);
+
+                                return (
+                                    <tr key={row.id} className={`border-b ${isInsufficient ? 'bg-red-50' : ''}`}>
+                                        <td className="p-1">
+                                            <input className="w-full border rounded p-1 text-center" placeholder="#" value={row.guia} onChange={toUppercase(e=>updateRow(row.id,'guia',e.target.value))} />
+                                        </td>
+                                        <td className="p-1 relative">
+                                            <input list="inv" className={`w-full border rounded p-1 font-bold ${isInsufficient ? 'text-red-600 border-red-300' : 'text-slate-700'}`} value={row.material} onChange={toUppercase(e=>updateRow(row.id,'material',e.target.value))} placeholder="Buscar hilo..."/>
+                                            {isInsufficient && <div className="text-[9px] text-red-600 font-black absolute right-2 top-2">⚠ FALTAN {(requiredKg - stockAvailable).toFixed(2)} Kg</div>}
+                                        </td>
+                                        <td className="p-1">
+                                            <input type="number" className="w-full border rounded p-1 text-center" value={row.porcentaje} onChange={e=>updateRow(row.id,'porcentaje',e.target.value)} />
+                                        </td>
+                                        <td className="p-1 text-center text-slate-500">
+                                            {requiredKg > 0 ? requiredKg.toFixed(2) + ' Kg' : '-'}
+                                        </td>
+                                        <td className="p-1 text-center font-bold">
+                                            {stockItem ? (
+                                                <span className={stockAvailable < requiredKg ? "text-red-600" : "text-green-600"}>
+                                                    {stockAvailable.toFixed(2)} Kg
+                                                </span>
+                                            ) : <span className="text-slate-300">-</span>}
+                                        </td>
+                                        <td className="p-1 text-center">
+                                            <button onClick={()=>removeRow(row.id)} className="text-red-400 hover:text-red-600"><Icon name="x" size={14}/></button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                    <datalist id="inv">
+                        {invList.map((item, idx) => (
+                            <option key={idx} value={item.material}>Stock: {item.stock}Kg | {item.color}</option>
+                        ))}
+                    </datalist>
+                </div>
+            );
+        };
+
+        const SettingsModal = ({ config, onClose }) => {
+            const [localUrls, setLocalUrls] = useState(config.repoUrls || []);
+            const [newUrl, setNewUrl] = useState('');
+            const save = async () => { await db.collection('settings').doc('config').set({ ...config, repoUrls: localUrls }); onClose(); };
+            return (<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"><div className="bg-white p-6 rounded w-96"><h3 className="font-bold mb-4">Configuración Imágenes</h3><div className="mb-2 max-h-40 overflow-y-auto">{localUrls.map((u,i)=><div key={i} className="text-xs truncate mb-1 border p-1 flex justify-between"><span>{u}</span><button onClick={()=>setLocalUrls(localUrls.filter((_,x)=>x!==i))} className="text-red-500 font-bold">X</button></div>)}</div><div className="flex gap-2 mb-4"><input value={newUrl} onChange={e=>setNewUrl(e.target.value)} className="border p-1 flex-1 text-xs" placeholder="URL GitHub Raw"/><button onClick={()=>{if(newUrl)setLocalUrls([...localUrls,newUrl]);setNewUrl('')}} className="bg-blue-100 text-blue-700 px-2 font-bold">+</button></div><button onClick={save} className="bg-slate-900 text-white w-full py-2 rounded font-bold">Guardar</button></div></div>);
+        };
+
+        const ImageGallery = ({ config, onClose, orders }) => {
+            const [filter, setFilter] = useState('');
+            const allCodes = useMemo(() => {
+                const uniqueCodes = new Set(orders.map(o => o.codigo).filter(c => c));
+                return Array.from(uniqueCodes).sort();
+            }, [orders]);
+            const filteredCodes = useMemo(() => {
+                if (!filter) return allCodes;
+                return allCodes.filter(c => c.toUpperCase().includes(filter.toUpperCase()));
+            }, [allCodes, filter]);
+            return (
+                <div className="fixed inset-0 bg-black/80 z-[60] flex flex-col items-center justify-center p-4">
+                    <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-4xl h-full flex flex-col">
+                        <div className="flex justify-between items-center mb-4 border-b pb-2 shrink-0">
+                            <h3 className="font-bold text-xl text-cyan-700 flex items-center gap-2"><Icon name="images"/> Galería de Modelos</h3>
+                            <button onClick={onClose} className="bg-red-500 hover:bg-red-600 text-white rounded-md p-2 shadow-lg flex items-center gap-1 font-bold text-xs transition-transform hover:scale-105">
+                                <Icon name="x" size={18}/> CERRAR
                             </button>
                         </div>
-
-                        {/* Lista de Repositorios Activos */}
-                        <div className="mb-4 max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-3 bg-slate-50">
-                            <h4 className="text-sm font-bold text-slate-700 mb-2">Repositorios Activos ({tempUrls.length})</h4>
-                            {tempUrls.length === 0 ? (
-                                <p className="text-sm text-slate-400 italic">No hay repositorios configurados.</p>
-                            ) : (
-                                <ul className="space-y-1">
-                                    {tempUrls.map((url, index) => (
-                                        <li key={index} className="flex justify-between items-center text-xs p-2 bg-white border border-slate-100 rounded">
-                                            <span className="truncate pr-4" title={url}>{url}</span>
-                                            <button 
-                                                onClick={() => handleRemoveUrl(url)}
-                                                disabled={isSaving}
-                                                className="text-red-500 hover:text-red-700 p-1 rounded transition disabled:opacity-50"
-                                            >
-                                                <IconTrash />
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
-
-                        {saveError && (
-                            <p className="text-red-600 text-sm mt-2">{saveError}</p>
-                        )}
-                        <div className="flex justify-end gap-3 mt-4">
-                            <button onClick={onClose} disabled={isSaving} className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition disabled:opacity-50">
-                                Cancelar
-                            </button>
-                            <button onClick={handleSave} disabled={isSaving} className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 flex items-center gap-2">
-                                {isSaving && (
-                                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                )}
-                                <span>{isSaving ? 'Guardando...' : 'Guardar Repositorios'}</span>
-                            </button>
+                        <input type="text" placeholder="Filtrar por código de modelo..." value={filter} onChange={(e) => setFilter(e.target.value)} className="w-full p-2 mb-4 border rounded shadow-sm" />
+                        <div className="flex-grow overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 p-2">
+                            {config.repoUrls && config.repoUrls.map((repo, idx) => (
+                                <div key={idx} className="col-span-full border-b pb-2 mb-2">
+                                    <h4 className="font-bold text-sm text-slate-600 mb-2">Carpeta: <span className="font-mono text-xs">{repo}</span></h4>
+                                    <div className="grid grid-cols-subgrid gap-4">
+                                        {filteredCodes.map(codigo => (
+                                            <div key={`${repo}-${codigo}`} className="aspect-square border rounded shadow overflow-hidden flex flex-col">
+                                                <SmartImage repoUrls={[repo]} codigo={codigo} className="w-full h-2/3 object-contain bg-slate-100 p-1" />
+                                                <div className="text-center text-xs font-bold p-1 bg-gray-100 h-1/3 flex items-center justify-center">{codigo}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -402,291 +905,117 @@
         };
 
         const App = () => {
+            const [view, setView] = useState('dashboard');
             const [orders, setOrders] = useState([]);
-            const [loading, setLoading] = useState(true);
-            const [groupedTickets, setGroupedTickets] = useState({});
-            const [statusMessage, setStatusMessage] = useState("");
-            const [generatedTickets, setGeneratedTickets] = useState(0);
-            
-            // Estado para Múltiples Repositorios (Cargado desde Firebase)
-            const [repoUrls, setRepoUrls] = useState([]);
-            const [showRepoModal, setShowRepoModal] = useState(false);
-            const [configLoaded, setConfigLoaded] = useState(false);
+            const [config, setConfig] = useState({});
+            const [inventory, setInventory] = useState([]); 
+            const [selectedOrder, setSelectedOrder] = useState(null);
+            const [formProps, setFormProps] = useState({ initialOrder: null, isEditing: false }); 
+            const [showSettings, setShowSettings] = useState(false);
+            const [showImport, setShowImport] = useState(false);
+            const [showGallery, setShowGallery] = useState(false);
+            const [viewMode, setViewMode] = useState('active'); 
 
-            // Cargar la configuración del Repositorio desde Firebase
-            const loadConfig = useCallback(async () => {
-                try {
-                    const doc = await CONFIG_DOC_REF.get();
-                    if (doc.exists) {
-                        const data = doc.data();
-                        
-                        // Nuevo formato: array de URLs
-                        if (Array.isArray(data.repoUrls)) {
-                            setRepoUrls(data.repoUrls);
-                        } 
-                        // Compatibilidad con el formato anterior (single URL)
-                        else if (data.repoUrl) {
-                            setRepoUrls([data.repoUrl]);
-                        } else {
-                            setRepoUrls([]);
-                        }
-                    }
-                } catch (error) {
-                    console.error("Error loading config from Firebase:", error);
-                } finally {
-                    setConfigLoaded(true);
-                }
+            useEffect(() => {
+                // *** ESCUCHA LA COLECCIÓN DE CALCETIN ***
+                const u1 = db.collection(ORDERS_COLLECTION).onSnapshot(s => setOrders(s.docs.map(d=>d.data())));
+                const u2 = db.collection('settings').doc('config').onSnapshot(d => setConfig(d.data() || {}));
+                // *** ESCUCHA EL INVENTARIO COMPARTIDO ***
+                const u3 = db.collection(INVENTORY_COLLECTION).doc('main').onSnapshot(d => {
+                     const data = d.data();
+                     setInventory(data && data.items ? data.items : []);
+                });
+
+                setTimeout(()=>lucide.createIcons(), 500);
+                return () => { u1(); u2(); u3(); };
             }, []);
+            useEffect(()=>lucide.createIcons(), [view, orders, viewMode]);
+
+            const displayedOrders = useMemo(() => {
+                if(viewMode === 'active') {
+                    return orders.filter(o => o.status !== 'ARCHIVADO');
+                } else {
+                    return orders.filter(o => o.status === 'ARCHIVADO');
+                }
+            }, [orders, viewMode]);
+
+            const allClients = [...new Set(orders.map(o => o.cliente))].sort();
             
-            const handleSaveRepoUrls = (urls) => {
-                setRepoUrls(urls);
-                setShowRepoModal(false);
-                setStatusMessage(`URL(s) de repositorio actualizadas (${urls.length}). Recargando órdenes...`);
-                fetchAllOrders();
+            const handleImportData = (data) => {
+                setFormProps({ initialOrder: data, isEditing: false });
+                setShowImport(false);
+                setView('create');
             };
 
-            const fetchAllOrders = useCallback(async () => {
-                setLoading(true);
-                setStatusMessage("Conectando a Firebase y buscando órdenes 'EN PROCESO'...");
-                
-                if (!configLoaded) {
-                    setStatusMessage("Esperando configuración del repositorio...");
-                    return;
-                }
-
-                try {
-                    // 1. Obtener Santoni (Colección: 'orders')
-                    const santoniSnap = await db.collection('orders')
-                        .where('status', '==', 'EN PROCESO')
-                        .get();
-                    const santoniData = santoniSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), origen: 'SANTONI', collectionName: 'orders' }));
-
-                    // 2. Obtener Calcetín (Colección: 'orders_calcetin')
-                    const calcetinSnap = await db.collection('orders_calcetin')
-                        .where('status', '==', 'EN PROCESO')
-                        .get();
-                    const calcetinData = calcetinSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), origen: 'CALCETÍN', collectionName: 'orders_calcetin' }));
-
-                    const allOrders = [...santoniData, ...calcetinData];
-                    setOrders(allOrders);
-                    generateTickets(allOrders, repoUrls); 
-                    setStatusMessage(`Cargado: ${allOrders.length} órdenes en proceso.`);
-
-                } catch (error) {
-                    console.error("Error fetching data:", error);
-                    setStatusMessage("Error al cargar datos: " + error.message);
-                } finally {
-                    setLoading(false);
-                }
-            }, [repoUrls, configLoaded]); // Dependencia de repoUrls y configLoaded
-
-            const generateTickets = (ordersData, currentRepoUrls) => {
-                let ticketsBuffer = {};
-                let totalTicketCount = 0;
-
-                ordersData.forEach(order => {
-                    let totalPacks = 1;
-                    if (order.progreso && order.progreso.length > 0) {
-                         totalPacks = order.progreso.length;
-                    } else if (order.predefinedPackages && order.predefinedPackages.length > 0) {
-                        totalPacks = order.predefinedPackages.length;
-                    } else {
-                         totalPacks = parseInt(order.paquetesTotal) || 1; 
-                    }
-
-                    ticketsBuffer[order.id] = { 
-                        orderData: order, 
-                        tickets: [], 
-                        totalTickets: totalPacks 
-                    };
-
-                    for (let i = 1; i <= totalPacks; i++) {
-                        ticketsBuffer[order.id].tickets.push(
-                            <Ticket 
-                                key={`${order.id}_${i}`}
-                                order={order} 
-                                currentPack={i} 
-                                totalPacks={totalPacks} 
-                                origin={order.origen}
-                                repoUrls={currentRepoUrls} // Usar el array de URLs
-                            />
-                        );
-                        totalTicketCount++;
-                    }
-                });
-
-                setGroupedTickets(ticketsBuffer);
-                setGeneratedTickets(totalTicketCount); 
-            };
-
-            // Hook para cargar la configuración al montar
-            useEffect(() => {
-                loadConfig();
-            }, [loadConfig]);
-
-            // Hook para cargar órdenes una vez que la configuración está lista o ha cambiado
-            useEffect(() => {
-                if (configLoaded) {
-                    fetchAllOrders();
-                }
-            }, [configLoaded, fetchAllOrders]);
-
-            // FUNCIÓN DE IMPRESIÓN INDIVIDUAL
-            const handlePrintIndividual = (orderId) => {
-                const groupContainer = document.getElementById(`print-group-${orderId}`);
-                if (!groupContainer) {
-                    alert('No se encontraron papeletas para esta orden.');
-                    return;
-                }
-
-                const tempContainer = groupContainer.cloneNode(true);
-                tempContainer.id = "temp-print-container"; 
-                tempContainer.classList.add("temp-print-container");
-                
-                const originalDisplay = document.body.style.display;
-                document.body.style.display = 'none';
-
-                document.body.appendChild(tempContainer);
-                
-                window.print();
-
-                setTimeout(() => {
-                    document.body.removeChild(tempContainer);
-                    document.body.style.display = originalDisplay;
-                }, 100); 
-            };
-
-            const handlePrintAll = () => {
-                window.print();
-            };
-
-            const handleArchiveAll = async () => {
-                if (!orders.length) return;
-
-                if (!confirm(`¿Estás seguro de archivar las ${orders.length} órdenes (generando ${generatedTickets} papeletas) que se están mostrando? Esta acción es irreversible y cambiará su estado a 'ARCHIVADO'.`)) return;
-                
-                setStatusMessage("Archivando órdenes...");
-                
-                const archivePromises = orders.map(order => {
-                    return db.collection(order.collectionName).doc(order.id).update({ status: 'ARCHIVADO' });
-                });
-
-                try {
-                    await Promise.all(archivePromises);
-                    alert(`Se archivaron ${orders.length} órdenes correctamente.`);
-                    fetchAllOrders(); 
-                } catch (error) {
-                    console.error("Error al archivar lotes:", error);
-                    setStatusMessage("Error al archivar las órdenes: " + error.message);
-                }
+            const handleEditOrder = (order) => {
+                setFormProps({ initialOrder: order, isEditing: true });
+                setView('create');
+                setSelectedOrder(null);
             };
 
             return (
-                <div className="min-h-screen">
-                    <RepoConfigModal
-                        show={showRepoModal}
-                        onClose={() => setShowRepoModal(false)}
-                        currentUrls={repoUrls}
-                        onSave={handleSaveRepoUrls}
-                    />
+                <div className="h-screen bg-cyan-50 overflow-hidden">
+                    {view === 'create' && <div className="absolute inset-0 z-50 bg-black/50 flex items-center justify-center"><MultiOrderForm config={config} onCancel={()=>setView('dashboard')} initialOrder={formProps.initialOrder} clientHistory={allClients} inventory={inventory} isEditing={formProps.isEditing}/></div>}
+                    
+                    {view === 'detail' && selectedOrder && <div className="absolute inset-0 z-40 bg-white overflow-y-auto print-visible-wrapper"><OrderView order={orders.find(o=>o.id===selectedOrder.id) || selectedOrder} config={config} onBack={()=>setView('dashboard')} onEdit={handleEditOrder}/></div>}
+                    
+                    {showSettings && <SettingsModal config={config} onClose={()=>setShowSettings(false)} />}
+                    {showImport && <ImportModal onClose={()=>setShowImport(false)} onImport={handleImportData} />}
+                    {showGallery && <ImageGallery config={config} onClose={()=>setShowGallery(false)} orders={orders} />}
 
-                    <div className="no-print container mx-auto p-4 max-w-5xl">
-                        
-                        {/* Header Panel */}
-                        <div className="bg-white rounded-xl shadow-lg p-4 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                            <div>
-                                <h1 className="text-2xl font-bold text-slate-800">Impresión de Papeletas (6" x 4")</h1>
-                                <p className="text-sm text-slate-500">{statusMessage}</p>
+                    <div className="dashboard-grid">
+                        <div className="top-pane p-4">
+                            <div className="flex justify-between items-center mb-4">
+                                <h1 className="text-2xl font-black text-cyan-900 flex gap-2 items-center">
+                                    <Icon name="layout-dashboard"/> 
+                                    <span>{viewMode === 'active' ? 'ÁREA CALCETÍN' : 'HISTORIAL CALCETÍN'}</span>
+                                    <span className="text-xs bg-cyan-200 text-cyan-800 px-2 py-1 rounded ml-2">v2.6 SEPARADO</span>
+                                </h1>
+                                <div className="flex gap-2 items-center">
+                                    {/* Botón de instalación omitido en variante o puedes mantenerlo si lo deseas */}
+                                    
+                                    <button onClick={()=>setViewMode(viewMode === 'active' ? 'history' : 'active')} className={`px-4 py-2 rounded font-bold shadow flex items-center gap-2 text-xs transition ${viewMode === 'active' ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-slate-700 text-white'}`}>
+                                        <Icon name={viewMode === 'active' ? 'history' : 'activity'}/> 
+                                        {viewMode === 'active' ? 'HISTORIAL' : 'VER PLANTA'}
+                                    </button>
+
+                                    <button onClick={()=>setShowGallery(true)} className="bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2 text-xs"><Icon name="image-search"/> GALERÍA</button>
+                                    <button onClick={()=>setShowSettings(true)} className="bg-slate-300 hover:bg-slate-400 text-slate-800 p-2 rounded shadow"><Icon name="settings"/></button>
+                                    
+                                    {viewMode === 'active' && (
+                                        <>
+                                            <button onClick={()=>{setFormProps({initialOrder:null, isEditing: false}); setView('create')}} className="bg-cyan-700 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2 hover:bg-cyan-800"><Icon name="plus"/> MANUAL</button>
+                                            <button onClick={()=>setShowImport(true)} className="bg-green-600 text-white px-4 py-2 rounded font-bold shadow flex items-center gap-2"><Icon name="file-spreadsheet"/> IMPORTAR</button>
+                                        </>
+                                    )}
+                                </div>
                             </div>
-                            <div className="flex gap-3 flex-wrap justify-end">
-                                {/* Botón de configuración */}
-                                <button 
-                                    onClick={() => setShowRepoModal(true)} 
-                                    className="flex items-center gap-2 px-3 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition"
-                                >
-                                    <IconSettings />
-                                    <span>Asignar Repositorios</span>
-                                </button>
-                                <button onClick={fetchAllOrders} className="p-3 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition" title="Recargar">
-                                    <IconRefresh />
-                                </button>
-                                <button 
-                                    onClick={handleArchiveAll}
-                                    disabled={orders.length === 0}
-                                    className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <IconArchive />
-                                    <span>ARCHIVAR ÓRDENES</span>
-                                </button>
-                                <button 
-                                    onClick={handlePrintAll}
-                                    disabled={generatedTickets === 0}
-                                    className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-md transition disabled:opacity-50"
-                                >
-                                    <IconPrinter />
-                                    <span>IMPRIMIR TODO ({generatedTickets})</span>
-                                </button>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {displayedOrders.sort((a,b)=>b.id-a.id).map(o => {
+                                    const pct = Math.round((o.progreso.filter(p=>p.finished).length / o.progreso.length)*100);
+                                    return (
+                                        <div key={o.id} onClick={()=>{setSelectedOrder(o); setView('detail')}} className={`p-3 rounded shadow border-l-4 cursor-pointer hover:shadow-lg transition ${o.status === 'ARCHIVADO' ? 'bg-slate-200 border-slate-500 opacity-75' : 'bg-white border-cyan-500'}`}>
+                                            <div className="flex justify-between items-start">
+                                                <div className="font-bold text-lg">{o.codigo}</div>
+                                                <div className="bg-cyan-100 text-cyan-800 text-xs px-2 py-1 rounded font-bold">MQ-{o.maquina}</div>
+                                            </div>
+                                            <div className="text-xs font-bold text-cyan-800 mt-1">PARTIDA: {o.partida}</div>
+                                            <div className="text-[10px] text-slate-400">Total: {o.totalPedido} pzs</div>
+                                            <div className="mt-2 w-full bg-slate-100 h-2 rounded overflow-hidden">
+                                                <div className={`${o.status === 'ARCHIVADO' ? 'bg-slate-500' : 'bg-green-500'} h-full`} style={{width:`${pct}%`}}></div>
+                                            </div>
+                                            {o.status === 'ARCHIVADO' && <div className="text-center text-[10px] font-bold text-slate-500 mt-1">ARCHIVADO</div>}
+                                        </div>
+                                    );
+                                })}
+                                {displayedOrders.length === 0 && <div className="col-span-4 text-center text-slate-400 py-10 font-bold">No hay órdenes de Calcetín activas.</div>}
                             </div>
                         </div>
-
-                        {loading && (
-                            <div className="text-center py-12">
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-                                <p className="text-slate-400">Cargando datos...</p>
-                            </div>
-                        )}
-
-                        {!loading && generatedTickets === 0 && (
-                            <div className="text-center py-12 bg-white rounded-xl shadow border border-slate-200">
-                                <h3 className="text-xl font-bold text-slate-500">No hay paquetes pendientes</h3>
-                                <p className="text-slate-400 mt-2">Asegúrate de que las órdenes estén en estado "EN PROCESO".</p>
-                            </div>
-                        )}
-
-                        {/* Grupos de Órdenes */}
-                        {!loading && generatedTickets > 0 && (
-                            <div className="space-y-6">
-                                <h3 className="text-lg font-bold text-slate-700 pl-2 border-l-4 border-indigo-500">Órdenes Activas ({orders.length})</h3>
-                                {Object.values(groupedTickets).map((group) => (
-                                    <div key={group.orderData.id} className="bg-white rounded-xl shadow-lg p-4">
-                                        <div className={`flex flex-col sm:flex-row items-start sm:items-center gap-4 p-2 mb-4 rounded-lg ${group.orderData.origen === 'SANTONI' ? 'bg-indigo-50 border-indigo-200' : 'bg-teal-50 border-teal-200'} border`}>
-                                            <div className="text-xl font-black flex-shrink-0">{group.orderData.codigo}</div>
-                                            <div className="text-sm font-semibold text-gray-700 flex-grow truncate">Cliente: {group.orderData.cliente} | Máquina: {group.orderData.maquina}</div>
-                                            <div className="font-bold text-lg flex-shrink-0">{group.totalTickets} Papeletas</div>
-                                            
-                                            {/* BOTÓN DE IMPRESIÓN INDIVIDUAL */}
-                                            <button 
-                                                onClick={() => handlePrintIndividual(group.orderData.id)}
-                                                className="flex items-center gap-1 px-3 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition text-sm flex-shrink-0"
-                                            >
-                                                <IconPrintIndividual />
-                                                Imprimir Orden
-                                            </button>
-                                        </div>
-                                        
-                                        <div className="flex flex-wrap justify-start gap-6">
-                                            {/* Vista Previa */}
-                                            <div className="preview-card shadow-lg">
-                                                {/* Renderizar el primer ticket para la vista previa */}
-                                                {group.tickets[0]}
-                                            </div>
-                                            <div className="text-slate-500 flex items-center">
-                                                ... y **{group.totalTickets - 1}** más no mostradas en la vista previa.
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Área oculta real de impresión (Contiene todos los tickets) */}
-                    <div className="print-area hidden">
-                        {Object.values(groupedTickets).map(group => (
-                            <div key={group.orderData.id} id={`print-group-${group.orderData.id}`} className="ticket-group-container">
-                                {group.tickets}
-                            </div>
-                        ))}
+                        
+                        {viewMode === 'active' && <DashboardBottom activeOrders={displayedOrders} />}
+                        {viewMode === 'history' && <div className="bg-slate-800 text-white flex items-center justify-center p-10 font-bold text-xl opacity-50">MODO HISTORIAL - SOLO LECTURA</div>}
+                        
                     </div>
                 </div>
             );
