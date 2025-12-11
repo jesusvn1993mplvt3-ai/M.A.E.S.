@@ -287,39 +287,8 @@
             );
         };
         
-        const NavButtons = ({ theme }) => {
-            const buttons = [
-                // URLs ajustadas para que parezcan módulos internos sin el nombre del repositorio
-                { name: "Inventario", url: "https://jesusvn1993mplvt3-ai.github.io/Doc/", icon: "warehouse", color: theme.navBtnColor.replace('indigo', 'orange') },
-                { name: "Santoni", url: "https://jesusvn1993mplvt3-ai.github.io/CIRINEO/", icon: "socks", color: theme.navBtnColor.replace('indigo', 'sky') },
-                { name: "Calcetín", url: "https://sweaters-liliana.github.io/MAES26/", icon: "shoe", color: theme.navBtnColor.replace('indigo', 'green') },
-            ];
-            const headerColor = theme.textColor.replace('text-', 'text-');
-            const dividerColor = theme.textColor === 'text-white' ? 'border-slate-700' : 'border-slate-300';
-            
-            // Estilos mucho más llamativos: Shadow 2xl, Scale más agresivo y ring en hover.
-            return (
-                <div className={`mt-8 pt-4 border-t ${dividerColor}`}>
-                    <h3 className={`font-extrabold text-xl mb-4 flex items-center gap-2 ${headerColor}`}><Icon name="link" size={20} className={theme.accentColor.replace('text-', '')}/> Accesos Rápidos</h3>
-                    <div className="space-y-4">
-                        {buttons.map((btn) => (
-                            <a 
-                                key={btn.name} 
-                                href={btn.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className={`w-full flex items-center justify-between p-5 rounded-2xl font-black text-white shadow-2xl transition-all transform hover:scale-[1.05] ring-2 ring-offset-2 ring-transparent hover:ring-white/50 ${btn.color}`}
-                                style={{ textShadow: '0 0 5px rgba(0,0,0,0.5)' }}
-                            >
-                                <span className="text-lg">{btn.name}</span>
-                                <Icon name={btn.icon} size={28}/>
-                            </a>
-                        ))}
-                    </div>
-                </div>
-            );
-        };
-
+        // ELIMINACIÓN: NavButtons fue removido y su contenido movido al MainContent.
+        
         const RadioPlayer = ({ theme }) => {
             const [stations, setStations] = useState([]);
             const [searchUrl, setSearchUrl] = useState('');
@@ -457,7 +426,6 @@
         const App = () => {
             const [orders, setOrders] = useState([]);
             const [inventory, setInventory] = useState([]);
-            // Ya no se usa dynamicText ni isWarning para el display principal, pero se mantienen los datos de origen
             const [currentThemeId, setCurrentThemeId] = useState(localStorage.getItem('dashboardTheme') || 'darkIndustrial');
             
             const theme = themeConfig[currentThemeId];
@@ -528,7 +496,7 @@
             return (
                 <div className="dashboard-grid">
                     {/* --- Contenido Principal (Visualización de Datos) --- */}
-                    <div className={`main-content p-4 lg:p-12 flex flex-col items-center justify-center transition-colors ${theme.primaryBg}`}>
+                    <div className={`main-content p-4 lg:p-12 flex flex-col items-center justify-start transition-colors ${theme.primaryBg}`}>
                         <div className="text-center w-full max-w-6xl mx-auto">
                             <h1 className={`text-5xl lg:text-7xl font-extrabold ${theme.accentColor} mb-2 tracking-tighter`}>
                                 SWEATERS LILIANA
@@ -544,6 +512,44 @@
                                 <Clock theme={theme} />
                             </div>
                             
+                            {/* NUEVOS ENLACES PRINCIPALES IMPONENTES */}
+                            <div className="mt-8 w-full max-w-6xl mx-auto px-4 lg:px-0">
+                                {/* Fila 1: INVENTARIO (Izquierda) y SANTONI (Derecha - Resaltado como activo) */}
+                                <div className="flex justify-between items-end">
+                                    <a 
+                                        href="https://jesusvn1993mplvt3-ai.github.io/Doc/" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className={`font-black text-5xl md:text-6xl lg:text-7xl transition-colors hover:opacity-80 ${theme.accentColor.replace('text-sky-400', 'text-indigo-400').replace('text-teal-600', 'text-indigo-600')}`}
+                                        style={{textShadow: '0 0 5px rgba(0,0,0,0.4)'}}
+                                    >
+                                        INVENTARIO
+                                    </a>
+                                    {/* SANTONI - Página actual, estilizado para verse como un botón activo/pegado a la derecha */}
+                                    <div 
+                                        className={`text-4xl md:text-5xl lg:text-6xl font-black p-1 md:p-2 rounded-lg transition-all ${theme.accentColor.replace('text-sky-400', 'text-red-400').replace('text-teal-600', 'text-red-600')}`} 
+                                        style={{textShadow: '0 0 5px rgba(0,0,0,0.4)'}}
+                                    >
+                                        SANTONI
+                                    </div>
+                                </div>
+                                
+                                {/* Fila 2: CALCETÍN (Izquierda) */}
+                                <div className="flex justify-start items-end mt-4">
+                                    <a 
+                                        href="https://sweaters-liliana.github.io/MAES26/" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className={`font-black text-5xl md:text-6xl lg:text-7xl transition-colors hover:opacity-80 ${theme.accentColor.replace('text-sky-400', 'text-cyan-400').replace('text-teal-600', 'text-cyan-600')}`}
+                                        style={{textShadow: '0 0 5px rgba(0,0,0,0.4)'}}
+                                    >
+                                        CALCETÍN
+                                    </a>
+                                </div>
+                                
+                                <hr className={`mt-8 border-t-4 ${theme.textColor === 'text-white' ? 'border-slate-700' : 'border-gray-300'}`}/>
+                            </div>
+                            
                         </div>
                     </div>
                     
@@ -552,7 +558,7 @@
                         <WeatherWidget theme={theme} />
                         <RadioPlayer theme={theme} />
                         <ThemeSwitcher theme={theme} setTheme={setCurrentThemeId} />
-                        <NavButtons theme={theme} />
+                        {/* NavButtons ha sido movido a la sección principal */}
                     </div>
                 </div>
             );
