@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Textil Cloud - Cirineo v3.0</title>
+    <title>Sistema Textil Cloud - Cirineo v3.1</title>
     
     <link id="appIcon" rel="icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
     <link id="appAppleIcon" rel="apple-touch-icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
@@ -80,7 +80,7 @@
             body:not(.print-mode-ticket) .print-only { display: block !important; }
         }
 
-        /* ESTILO: PAPELETA 4x6 (ETIQUETAS) */
+        /* ESTILO: PAPELETA 4x6 (ETIQUETAS) - REDISEÑADO */
         @media print {
             body.print-mode-ticket @page {
                 size: 6in 4in landscape;
@@ -94,27 +94,34 @@
             
             body.print-mode-ticket .ticket-container {
                 display: flex !important;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
                 width: 6in;
                 height: 4in;
                 page-break-after: always;
                 overflow: hidden;
-                padding: 10px;
-                border: 1px dashed #ccc; /* Guía de corte visual si imprime en papel continuo */
+                padding: 5px; /* Menor padding para aprovechar espacio */
                 box-sizing: border-box;
+                font-family: sans-serif;
+                color: black;
             }
             body.print-mode-ticket .ticket-content {
                 width: 100%;
                 height: 100%;
-                border: 4px solid black;
-                border-radius: 10px;
-                padding: 10px;
+                border: 3px solid black;
+                border-radius: 8px;
                 display: flex;
                 flex-direction: column;
-                justify-content: space-between;
             }
+            /* Clases utilitarias para la papeleta */
+            .ticket-row { display: flex; border-bottom: 2px solid black; }
+            .ticket-col { flex: 1; padding: 2px 4px; border-right: 2px solid black; display: flex; flex-direction: column; justify-content: center; }
+            .ticket-col:last-child { border-right: none; }
+            .ticket-label { font-size: 8pt; font-weight: bold; text-transform: uppercase; color: #333; line-height: 1; mb-0.5; }
+            .ticket-value { font-size: 12pt; font-weight: 900; text-transform: uppercase; line-height: 1.1; word-break: break-word; }
+            .ticket-value.large { font-size: 16pt; }
+            .ticket-value.huge { font-size: 32pt; }
+            .ticket-value.enormous { font-size: 48pt; color: #dc2626; } /* Rojo para máquina */
+            
+            .no-border-bottom { border-bottom: none !important; }
         }
 
         .print-only { display: none; }
@@ -194,20 +201,18 @@
 
                 const handleKeyDown = (e) => {
                     const target = e.target;
-                    // Ignorar si el usuario está escribiendo en un input
                     if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
 
                     const char = e.key;
                     const currentTime = Date.now();
 
-                    // Si pasa mucho tiempo entre teclas, reiniciar buffer (diferencia escritura manual vs escáner)
                     if (currentTime - lastKeyTime > 100) {
                         buffer = '';
                     }
                     lastKeyTime = currentTime;
 
                     if (char === 'Enter') {
-                        if (buffer.length > 5) { // Longitud mínima para considerar código válido
+                        if (buffer.length > 5) {
                             onScan(buffer);
                         }
                         buffer = '';
@@ -221,22 +226,23 @@
             }, [onScan]);
         };
 
-        // --- COMPONENTE PAPELETA INDIVIDUAL (4x6) ---
+        // --- COMPONENTE PAPELETA INDIVIDUAL (4x6) - REDISEÑADO ---
         const PackageTicket = ({ order, pkg }) => {
             const canvasRef = useRef(null);
+            // Buscar la información de la pieza correspondiente para obtener Talla, etc.
+            const pieceInfo = order.subPiecesData?.find(p => p.pieza === pkg.piezaNombre) || {};
             
             useEffect(() => {
                 if (canvasRef.current) {
-                    // Generamos código: ID_ORDEN + "-" + ID_PAQUETE
-                    // Esto asegura unicidad para el escáner
                     const barcodeValue = `${order.id}-${pkg.id}`;
                     try {
                         JsBarcode(canvasRef.current, barcodeValue, {
                             format: "CODE128",
-                            displayValue: false, // No mostrar el texto largo abajo, pondremos uno custom
-                            height: 60,
+                            displayValue: false,
+                            height: 50,
                             width: 2,
-                            margin: 0
+                            margin: 0,
+                            background: "transparent"
                         });
                     } catch (e) {
                         console.error("Error barcode", e);
@@ -247,40 +253,85 @@
             return (
                 <div className="ticket-container">
                     <div className="ticket-content">
-                        {/* Header Papeleta */}
-                        <div className="flex justify-between items-start border-b-2 border-black pb-1">
-                            <div className="w-2/3">
-                                <h2 className="font-black text-2xl uppercase truncate">{order.cliente}</h2>
-                                <div className="text-sm font-bold">PARTIDA: {order.partida}</div>
-                                <div className="text-xs font-mono">MOD: {order.codigo}</div>
+                        {/* FILA 1: Encabezados Principales */}
+                        <div className="ticket-row" style={{flex: '0 0 auto'}}>
+                            <div className="ticket-col" style={{flex: 2}}>
+                                <span className="ticket-label">MODELO</span>
+                                <span className="ticket-value large">{order.codigo}</span>
                             </div>
-                            <div className="w-1/3 text-right">
-                                <div className="bg-black text-white text-xs font-bold text-center">MAQ</div>
-                                <div className="text-4xl font-black text-center leading-none">{order.maquina}</div>
+                            <div className="ticket-col" style={{flex: 1}}>
+                                <span className="ticket-label">PIEZAS</span>
+                                <span className="ticket-value large text-center">{pkg.cantidad}</span>
+                            </div>
+                            <div className="ticket-col" style={{flex: 2}}>
+                                <span className="ticket-label">PARTIDA</span>
+                                <span className="ticket-value large">{order.partida}</span>
+                            </div>
+                            <div className="ticket-col" style={{flex: 3}}>
+                                <span className="ticket-label">CLIENTE</span>
+                                <span className="ticket-value large truncate">{order.cliente}</span>
                             </div>
                         </div>
 
-                        {/* Cuerpo Principal */}
-                        <div className="flex-grow flex items-center justify-between py-2">
-                            <div className="flex flex-col justify-center w-1/2">
-                                <div className="text-xs font-bold text-slate-500 uppercase">CONTENIDO</div>
-                                <div className="text-lg font-black leading-tight uppercase mb-1">{pkg.piezaNombre}</div>
-                                <div className="text-xs font-bold border border-black inline-block px-1 rounded">
-                                    PAQ {pkg.paqueteNum} / {pkg.paquetesDePieza}
+                        {/* FILA 2: Descripción */}
+                        <div className="ticket-row" style={{flex: '0 0 auto', padding: '4px'}}>
+                            <div className="ticket-col border-r-0">
+                                <span className="ticket-label">DESCRIPCION</span>
+                                <span className="ticket-value text-lg leading-tight">{pkg.piezaNombre}</span>
+                            </div>
+                        </div>
+
+                        {/* FILA 3: Números Grandes (Costura, Piezas, Máquina) */}
+                        <div className="ticket-row" style={{flex: '1 1 auto'}}>
+                            <div className="ticket-col text-center" style={{flex: 1}}>
+                                <span className="ticket-label">NUMERO DE COSTURA</span>
+                                <span className="ticket-value huge">{pkg.paqueteNum}</span>
+                                <span className="text-xs font-bold">DE {pkg.paquetesDePieza}</span>
+                            </div>
+                            <div className="ticket-col text-center" style={{flex: 1.5}}>
+                                <span className="ticket-label">PIEZAS X COSTURA</span>
+                                <span className="ticket-value huge">{pkg.cantidad}</span>
+                            </div>
+                            <div className="ticket-col text-center bg-slate-100" style={{flex: 1}}>
+                                <span className="ticket-label">MAQUINA</span>
+                                <span className="ticket-value enormous">{order.maquina}</span>
+                            </div>
+                        </div>
+
+                        {/* FILA 4: Detalles Inferiores (Talla, Materiales, Fechas) */}
+                        <div className="ticket-row" style={{flex: '0 0 auto', fontSize: '9pt'}}>
+                             <div className="ticket-col" style={{flex: 1}}>
+                                <span className="ticket-label">TALLA</span>
+                                <span className="ticket-value">{pieceInfo.talla || '-'}</span>
+                            </div>
+                            <div className="ticket-col" style={{flex: 2}}>
+                                <span className="ticket-label">MATERIALES</span>
+                                <div className="flex flex-col">
+                                    {order.threading?.map((h, i) => (
+                                        h.material && <span key={i} className="font-bold text-xs truncate">{h.material}</span>
+                                    ))}
                                 </div>
                             </div>
-                            <div className="w-1/2 flex flex-col items-end justify-center">
-                                <div className="text-xs font-bold text-slate-500 uppercase text-right w-full">CANTIDAD</div>
-                                <div className="text-7xl font-black text-right">{pkg.cantidad}</div>
-                                <div className="text-xs font-bold text-center w-full mt-1">PIEZAS</div>
+                             <div className="ticket-col" style={{flex: 1.5}}>
+                                <div className="border-b-2 border-black mb-1 pb-1">
+                                     <span className="ticket-label">FECHA ENTREGA</span>
+                                     <span className="ticket-value text-sm block">{new Date().toLocaleDateString('es-MX')}</span>
+                                </div>
+                                <div>
+                                     <span className="ticket-label">TEJIDO POR:</span>
+                                     <span className="block border-b border-black h-4"></span>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Footer / Barcode */}
-                        <div className="border-t-2 border-black pt-2 flex flex-col items-center justify-center">
-                            <canvas ref={canvasRef} className="max-w-full h-16"></canvas>
-                            <div className="text-[10px] font-mono mt-1 text-center w-full">
-                                {pkg.codigoUnico} | REF: {pkg.id.toString().slice(-6)}
+                        {/* FILA 5: Código de Barras */}
+                        <div className="ticket-row no-border-bottom flex-col items-center justify-center pt-2" style={{flex: '0 0 auto'}}>
+                            <canvas ref={canvasRef} className="max-w-full"></canvas>
+                            <div className="text-[9px] font-mono text-center w-full leading-none mt-1">
+                                {pkg.codigoUnico}
+                            </div>
+                            <div className="text-[8px] font-mono text-center w-full leading-none text-slate-500">
+                                ID: {order.id}-{pkg.id}
                             </div>
                         </div>
                     </div>
@@ -288,8 +339,8 @@
             );
         };
 
-        // --- COMPONENTE DASHBOARD COMPONENTS (Igual que antes) ---
-        const InstallButton = () => { /* ... (Sin cambios) */
+        // --- DASHBOARD COMPONENTS (Sin cambios mayores) ---
+        const InstallButton = () => {
              const [deferredPrompt, setDeferredPrompt] = useState(null);
             useEffect(() => {
                 const handler = (e) => { e.preventDefault(); setDeferredPrompt(e); };
@@ -501,7 +552,6 @@
         };
 
         const MultiOrderForm = ({ config, onCancel, initialOrder, clientHistory, inventory, isEditing }) => {
-            /* ... (CÓDIGO DE FORMULARIO IGUAL QUE ANTES) ... */
              const [header, setHeader] = useState(initialOrder ? { codigo: initialOrder.codigo, cliente: initialOrder.cliente, maquina: initialOrder.maquina, partida: initialOrder.partida || '', fechaInicio: initialOrder.fechaInicio || new Date().toISOString().split('T')[0] } : { codigo: '', cliente: '', maquina: '', partida: '', fechaInicio: new Date().toISOString().split('T')[0] });
             const [pieces, setPieces] = useState(initialOrder?.subPiecesData || [{ id: 1, pieza: 'BLUSA', programa: '', talla: 'UNITALLA', totalPedido: 100, peso: '150', tiempo: '' }]);
             const [threadingData, setThreadingData] = useState(initialOrder?.threading || []);
@@ -1126,7 +1176,7 @@
                                 <h1 className="text-2xl font-black text-slate-800 flex gap-2 items-center">
                                     <Icon name="layout-dashboard"/> 
                                     <span>{viewMode === 'active' ? 'PLANTA' : 'HISTORIAL'}</span>
-                                    <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded ml-2">v3.0 BARCODE + PAPELETAS</span>
+                                    <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded ml-2">v3.1 PAPELETAS REDISEÑADAS</span>
                                 </h1>
                                 <div className="flex gap-2 items-center">
                                     <InstallButton />
