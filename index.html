@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sweaters Liliana Base de datos 2026 v01</title>
 
-    <link id="appIcon" rel="icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
-    <link id="appAppleIcon" rel="apple-touch-icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
+    <link id="appIcon" rel="icon" href="https://ejemplo.com/tu-imagen-industrial-cerebro.ico">
+    <link id="appAppleIcon" rel="apple-touch-icon" href="https://ejemplo.com/tu-imagen-industrial-cerebro.ico">
     <meta name="theme-color" content="#1e293b">
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -225,7 +225,7 @@
             return theme.textColor === 'text-white' ? darkColors[colorIndex] : lightColors[colorIndex];
         };
         
-        // --- NUEVO COMPONENTE: Gestor de Enlaces ---
+        // --- COMPONENTE: Gestor de Enlaces (Mantiene su funcionalidad CRUD) ---
         const LinkManager = ({ theme, links, setLinks }) => {
             const [isAdding, setIsAdding] = useState(false);
             const [newLink, setNewLink] = useState({ name: '', url: '', iconName: 'link' });
@@ -327,7 +327,7 @@
             );
         };
         
-        // --- COMPONENTE ACTUALIZADO: Cuadrícula de Estado Parpadeante ---
+        // --- COMPONENTE: Cuadrícula de Estado Parpadeante ---
 
         const StatusTile = ({ text, isWarning, theme }) => {
             // Randomize visual properties for the techno-effect
@@ -384,7 +384,7 @@
             );
         };
         
-        // --- COMPONENTE ACTUALIZADO: Botón de Enlace Neón Parpadeante (Ahora acepta el objeto link) ---
+        // --- COMPONENTE: Botón de Enlace Neón Parpadeante ---
         const NeonLinkButton = ({ theme, link, index }) => {
             const randomDuration = useMemo(() => Math.random() * (4 - 1.5) + 1.5, []);
             const colorClass = getLinkColorClass(theme, index);
@@ -419,7 +419,7 @@
             );
         };
 
-        // --- COMPONENTES EXISTENTES (Actualizados con la lógica de tema) ---
+        // --- COMPONENTES: Clock y RadioPlayer (Sin cambios estructurales) ---
 
         const Clock = ({ theme }) => {
             const [time, setTime] = useState(new Date());
@@ -525,9 +525,11 @@
             );
         };
 
+        // --- COMPONENTE ACTUALIZADO: WeatherWidget ---
         const WeatherWidget = ({ theme }) => {
-            const city = "LEÓN, GTO.";
-            const temp = "25°C";
+            // Ubicaciones actualizadas a Moroleón/Uriangato
+            const city = "MOROLEÓN - URIANGATO, GTO."; 
+            const temp = "25°C"; // Dato estático
             const icon = "sun";
             const desc = "Soleado";
 
@@ -543,7 +545,8 @@
                         </div>
                         <Icon name={icon} size={64} className="text-yellow-400 drop-shadow-lg"/>
                     </div>
-                    <div className="text-xs mt-3 text-current/60 font-bold border-t border-current/30 pt-2">Ubicación: {city} (Simulado)</div>
+                    {/* El texto (Simulado) ha sido eliminado */}
+                    <div className="text-xs mt-3 text-current/60 font-bold border-t border-current/30 pt-2">Ubicación: {city}</div>
                 </div>
             );
         };
@@ -575,7 +578,7 @@
         const App = () => {
             const [orders, setOrders] = useState([]);
             const [inventory, setInventory] = useState([]);
-            const [links, setLinks] = useState([]); // NUEVO: Estado para los enlaces de acceso directo
+            const [links, setLinks] = useState([]); 
             const [currentThemeId, setCurrentThemeId] = useState(localStorage.getItem('dashboardTheme') || 'darkIndustrial');
             
             const theme = themeConfig[currentThemeId];
@@ -585,7 +588,7 @@
                 { id: 'default-santoni', name: "SANTONI", url: "https://jesusvn1993mplvt3-ai.github.io/CIRINEO/", iconName: "tshirt" },
                 { id: 'default-inventory', name: "INVENTARIO", url: "https://jesusvn1993mplvt3-ai.github.io/Doc/", iconName: "boxes" },
                 { id: 'default-sock', name: "CALCETÍN", url: "https://sweaters-liliana.github.io/MAES26/", iconName: "socks" },
-                { id: 'default-generator', name: "GENERADOR", url: "https://jesusvn1993mplvt3-ai.github.io/GENERADOR-DE-PAPELETAS/", iconName: "printer" } // NUEVO ENLACE
+                { id: 'default-generator', name: "GENERADOR", url: "https://jesusvn1993mplvt3-ai.github.io/GENERADOR-DE-PAPELETAS/", iconName: "printer" } // ENLACE AGREGADO
             ]), []);
 
             // Carga inicial de datos
@@ -593,7 +596,7 @@
                 const u1 = db.collection('orders').where('status', '!=', 'ARCHIVADO').onSnapshot(s => setOrders(s.docs.map(d=>d.data()).filter(d=>d.progreso && d.progreso.length > 0)));
                 const u2 = db.collection('inventory').doc('main').onSnapshot(d => setInventory(d.data()?.items || []));
                 
-                // NUEVO: Suscripción a los enlaces
+                // Suscripción a los enlaces
                 const u3 = db.collection('dashboardLinks').onSnapshot(s => {
                     const dbLinks = s.docs.map(d => ({ id: d.id, ...d.data() }));
                     
@@ -638,7 +641,7 @@
                 // 2. Agregar estados de Órdenes (Solo órdenes activas con tiempo restante o advertencia)
                 const relevantOrders = orders
                     .map(calculateOrderStatus)
-                    .filter(s => s); // FILTRADO CLAVE: Solo se incluyen los resultados que NO son nulos (sin errores/datos incompletos)
+                    .filter(s => s); // FILTRADO CLAVE: Solo se incluyen los resultados que NO son nulos
                     
                 relevantOrders.forEach(status => {
                     statuses.push({
@@ -706,9 +709,10 @@
                     {/* --- Barra Lateral (Widgets y Navegación) --- */}
                     <div className={`sidebar p-6 lg:p-8 transition-colors ${theme.secondaryBg} ${theme.textColor}`}>
                         <WeatherWidget theme={theme} />
-                        <LinkManager theme={theme} links={links} setLinks={setLinks} /> {/* NUEVO GESTOR DE ENLACES */}
                         <RadioPlayer theme={theme} />
                         <ThemeSwitcher theme={theme} setTheme={setCurrentThemeId} />
+                        {/* CAMBIO SOLICITADO: LinkManager movido al final */}
+                        <LinkManager theme={theme} links={links} setLinks={setLinks} /> 
                     </div>
                 </div>
             );
