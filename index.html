@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sweaters Liliana Base de datos 2026 v01</title>
-    
+
     <link id="appIcon" rel="icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
     <link id="appAppleIcon" rel="apple-touch-icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
     <meta name="theme-color" content="#1e293b">
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -17,7 +17,7 @@
 
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    
+
     <style>
         /* Tipografía: Usaremos una pila de fuentes sans-serif moderna */
         body {
@@ -30,7 +30,7 @@
             flex-direction: column; /* Móvil: Apilado Verticalmente */
             min-height: 100vh;
         }
-        
+
         /* Layout para Escritorio (lg: 1024px o más) */
         @media (min-width: 1024px) {
             .dashboard-grid {
@@ -44,7 +44,7 @@
                 overflow-y: auto; /* Permite scroll en cada sección si el contenido es largo */
             }
         }
-        
+
         /* Animación de Parpadeo (Flicker) para la cuadrícula de estado y los enlaces */
         @keyframes flicker {
             0%, 100% { opacity: 0.95; }
@@ -53,11 +53,16 @@
             54% { opacity: 0.3; }
             56% { opacity: 0.95; }
         }
-        
+
         /* Estilos del Radio y Scrollbars */
         .radio-list { max-height: 180px; overflow-y: auto; }
         .radio-list::-webkit-scrollbar { width: 6px; background-color: transparent; }
         .radio-list::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 3px; }
+        
+        /* Estilos de Scrollbars para la lista de enlaces */
+        .link-list { max-height: 250px; overflow-y: auto; }
+        .link-list::-webkit-scrollbar { width: 6px; background-color: transparent; }
+        .link-list::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 3px; }
 
     </style>
 </head>
@@ -114,25 +119,25 @@
         };
 
         // --- UTILS (Funciones de negocio robustecidas contra datos nulos/incompletos) ---
-        
+
         const calculateTimeDiff = (timestamp) => {
             if (!timestamp) return { days: 0, hours: 0 };
             const now = Date.now();
             let date;
-            
+
             try {
-                if (timestamp.toDate) { 
+                if (timestamp.toDate) {
                     date = timestamp.toDate();
-                } 
+                }
                 else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
                     date = new Date(timestamp);
-                } 
+                }
                 else if (timestamp instanceof Date) {
                     date = timestamp;
                 } else {
-                    return { days: 0, hours: 0 }; 
+                    return { days: 0, hours: 0 };
                 }
-                
+
                 if (isNaN(date.getTime())) return { days: 0, hours: 0 };
             } catch (e) {
                 return { days: 0, hours: 0 };
@@ -153,13 +158,13 @@
             try {
                 const finishedPackages = order.progreso.filter(p => p.finished).length;
                 const totalPackages = order.progreso.length;
-                
+
                 const piecesFinished = order.progreso.filter(p => p.finished).reduce((sum, p) => sum + (Number(p.cantidad) || 0), 0);
                 const piecesLeft = (Number(order.totalPedido) || 0) - piecesFinished;
-                
+
                 const efficiency = totalPackages > 0 ? (finishedPackages / totalPackages) * 100 : 0;
-                
-                let lastUpdateTime = order.createdAt; 
+
+                let lastUpdateTime = order.createdAt;
                 order.progreso.forEach(p => {
                     if (p.fecha) {
                         const pDate = p.fecha.toDate ? p.fecha.toDate() : new Date(p.fecha);
@@ -172,7 +177,7 @@
 
                 const timeSinceCreation = calculateTimeDiff(order.createdAt);
                 const timeSinceLastUpdate = calculateTimeDiff(lastUpdateTime);
-                
+
                 let totalMinutesLeft = 0;
                 if (order.subPiecesData && Array.isArray(order.subPiecesData)) {
                     order.subPiecesData.forEach(p => {
@@ -186,7 +191,7 @@
                 const totalHoursLeft = totalMinutesLeft / 60;
                 const daysLeft = Math.floor(totalHoursLeft / 24);
                 const hoursLeft = Math.round(totalHoursLeft % 24);
-                
+
                 let statusMessage = '';
                 let isWarning = false;
 
@@ -206,11 +211,123 @@
             } catch (e) {
                 // If a critical error occurs during complex calculation, filter it out.
                  console.error(`❌ Error Crítico al procesar orden ${order.codigo || 'N/A'}:`, e);
-                 return null; 
+                 return null;
             }
         };
+        
+        // Función para asignar un color de acento/neón basado en el índice
+        const getLinkColorClass = (theme, index) => {
+            const darkColors = ['text-red-400', 'text-indigo-400', 'text-cyan-400', 'text-green-400', 'text-yellow-400', 'text-pink-400'];
+            const lightColors = ['text-red-600', 'text-indigo-600', 'text-cyan-600', 'text-green-600', 'text-yellow-600', 'text-pink-600'];
+            
+            const colorIndex = index % darkColors.length;
+            
+            return theme.textColor === 'text-white' ? darkColors[colorIndex] : lightColors[colorIndex];
+        };
+        
+        // --- NUEVO COMPONENTE: Gestor de Enlaces ---
+        const LinkManager = ({ theme, links, setLinks }) => {
+            const [isAdding, setIsAdding] = useState(false);
+            const [newLink, setNewLink] = useState({ name: '', url: '', iconName: 'link' });
+            const [editLink, setEditLink] = useState(null); // Para edición
+            
+            const accentTextClass = theme.accentColor;
+            const inputBg = theme.textColor === 'text-white' ? 'bg-slate-900 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-800';
+            const saveBtnColor = theme.navBtnColor;
+            const linkBg = theme.textColor === 'text-white' ? 'bg-slate-700 hover:bg-slate-600' : 'bg-gray-200 hover:bg-gray-300';
+            const accentColor = theme.accentColor.replace('text-', '');
 
-        // --- NUEVO COMPONENTE: Cuadrícula de Estado Parpadeante ---
+            const saveLink = async (linkData) => {
+                if (linkData.name && linkData.url) {
+                    try {
+                        if (linkData.id) {
+                            // Edición
+                            await db.collection('dashboardLinks').doc(linkData.id).update({
+                                name: linkData.name,
+                                url: linkData.url,
+                                iconName: linkData.iconName
+                            });
+                            setEditLink(null);
+                        } else {
+                            // Adición
+                            await db.collection('dashboardLinks').add({
+                                name: linkData.name,
+                                url: linkData.url,
+                                iconName: linkData.iconName,
+                                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                            setIsAdding(false);
+                            setNewLink({ name: '', url: '', iconName: 'link' });
+                        }
+                    } catch (e) {
+                        console.error("Error al guardar el enlace:", e);
+                        alert("Error al guardar el enlace. Consulta la consola.");
+                    }
+                }
+            };
+            
+            const deleteLink = async (id) => {
+                if (window.confirm("¿Seguro que quieres eliminar este acceso directo?")) {
+                    try {
+                        await db.collection('dashboardLinks').doc(id).delete();
+                    } catch (e) {
+                        console.error("Error al eliminar el enlace:", e);
+                        alert("Error al eliminar el enlace. Consulta la consola.");
+                    }
+                }
+            };
+            
+            const renderLinkForm = (data, setData, isEdit = false) => (
+                <div className={`p-3 rounded-lg border border-current/30 ${theme.widgetBg}`}>
+                    <p className="text-sm font-bold mb-1">{isEdit ? 'EDITAR' : 'AGREGAR'} ENLACE:</p>
+                    <input type="text" placeholder="Nombre (Ej: Generador)" value={data.name} onChange={(e) => setData({ ...data, name: e.target.value })} className={`w-full p-2 mb-1 text-sm border rounded ${inputBg}`} />
+                    <input type="url" placeholder="URL (Ej: https://...)" value={data.url} onChange={(e) => setData({ ...data, url: e.target.value })} className={`w-full p-2 mb-1 text-sm border rounded ${inputBg}`} />
+                    <div className="flex gap-2">
+                        <input type="text" placeholder="Icono (Ej: boxes o link)" value={data.iconName} onChange={(e) => setData({ ...data, iconName: e.target.value })} className={`flex-1 p-2 mb-2 text-sm border rounded ${inputBg}`} />
+                        <button onClick={() => saveLink(data)} disabled={!data.name || !data.url} className={`text-white font-bold p-2 rounded-lg text-sm transition-all shadow-md ${saveBtnColor} disabled:opacity-50 disabled:cursor-not-allowed`}>
+                            <Icon name="save" size={18} className="inline"/>
+                        </button>
+                    </div>
+                </div>
+            );
+
+
+            return (
+                <div className={`mt-6 p-4 rounded-xl shadow-lg transition-colors ${theme.widgetBg} ${theme.textColor}`} style={{ '--accent-color': theme.accentColor.replace('text-', '#') }}>
+                    <h3 className={`font-bold text-xl mb-3 flex items-center justify-between gap-2 ${accentTextClass}`}>
+                        <span><Icon name="link" size={20}/> Accesos Directos</span>
+                        <button onClick={() => { setIsAdding(!isAdding); setEditLink(null); }} className={`text-sm font-semibold p-1 rounded transition-colors ${theme.navBtnColor.replace('bg-', 'bg-').replace('-600', '-500').replace('-700', '-600')} text-white`}>
+                           <Icon name={isAdding ? "x" : "plus"} size={18}/>
+                        </button>
+                    </h3>
+                    
+                    {isAdding && renderLinkForm(newLink, setNewLink)}
+                    {editLink && renderLinkForm(editLink, setEditLink, true)}
+
+                    <div className="link-list space-y-2 mt-3 pt-3 border-t border-current/30">
+                        {links.map((link, index) => (
+                            <div key={link.id} className={`flex items-center justify-between text-sm p-2 rounded transition-colors ${linkBg}`}>
+                                <a href={link.url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 truncate ${accentTextClass} hover:underline`}>
+                                    <Icon name={link.iconName || 'link'} size={16}/>
+                                    <span className="font-bold">{link.name}</span>
+                                </a>
+                                <div className="flex gap-1 shrink-0">
+                                     <button onClick={() => { setEditLink(link); setIsAdding(false); }} className={`p-1 rounded transition-colors bg-blue-500/10 text-blue-400 hover:bg-blue-500/20`}>
+                                        <Icon name="pencil" size={16}/>
+                                    </button>
+                                    <button onClick={() => deleteLink(link.id)} className="p-1 bg-red-500/10 text-red-400 rounded hover:bg-red-500/20">
+                                         <Icon name="trash-2" size={16}/>
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                         {links.length === 0 && <p className="text-sm text-current/70 text-center">No hay accesos directos guardados.</p>}
+                    </div>
+                </div>
+            );
+        };
+        
+        // --- COMPONENTE ACTUALIZADO: Cuadrícula de Estado Parpadeante ---
 
         const StatusTile = ({ text, isWarning, theme }) => {
             // Randomize visual properties for the techno-effect
@@ -222,7 +339,7 @@
 
             return (
                 <div 
-                    className={`p-3 rounded-lg shadow-xl transition-all border border-current/20 font-mono overflow-hidden`}
+                    className={`p-3 rounded-lg shadow-xl transition-all border border-current/20 font-mono overflow-hidden ${tileBg}`}
                     style={{ 
                         opacity: randomOpacity,
                         animation: `flicker ${randomDuration}s infinite alternate` 
@@ -267,23 +384,25 @@
             );
         };
         
-        // --- NUEVO COMPONENTE: Botón de Enlace Neón Parpadeante ---
-        const NeonLinkButton = ({ theme, text, url, iconName, colorClass }) => {
+        // --- COMPONENTE ACTUALIZADO: Botón de Enlace Neón Parpadeante (Ahora acepta el objeto link) ---
+        const NeonLinkButton = ({ theme, link, index }) => {
             const randomDuration = useMemo(() => Math.random() * (4 - 1.5) + 1.5, []);
+            const colorClass = getLinkColorClass(theme, index);
+
             // Ajustar el color de fondo para el modo oscuro o claro
             const accentBg = theme.textColor === 'text-white' 
-                            ? colorClass.replace('text-', 'bg-').replace('-400', '-900').replace('-600', '-900') + '/80' 
+                            ? colorClass.replace('text-', 'bg-').replace('-400', '-900') + '/80' 
                             : 'bg-white/80';
 
             const neonShadow = colorClass.replace('text-', '').replace('-400', '-500').replace('-600', '-700');
             
             return (
                 <a 
-                    href={url}
+                    href={link.url}
                     target="_blank" 
                     rel="noopener noreferrer" 
                     className={`
-                        flex items-center justify-center p-4 rounded-xl shadow-2xl transition-all 
+                        flex flex-col items-center justify-center p-4 rounded-xl shadow-2xl transition-all 
                         font-extrabold text-2xl lg:text-3xl font-mono text-center
                         border-2 border-current hover:opacity-90 active:scale-[0.98]
                         ${accentBg} ${colorClass} 
@@ -294,8 +413,8 @@
                         boxShadow: `0 0 15px ${neonShadow}`
                     }}
                 >
-                    <Icon name={iconName} size={32} className="mr-3"/> 
-                    {text}
+                    <Icon name={link.iconName || 'link'} size={32} className="mb-1"/> 
+                    <span className="text-xl lg:text-2xl">{link.name}</span>
                 </a>
             );
         };
@@ -318,8 +437,6 @@
                 </div>
             );
         };
-        
-        // ELIMINACIÓN: NavButtons fue removido y su contenido movido al MainContent.
         
         const RadioPlayer = ({ theme }) => {
             const [stations, setStations] = useState([]);
@@ -458,22 +575,45 @@
         const App = () => {
             const [orders, setOrders] = useState([]);
             const [inventory, setInventory] = useState([]);
+            const [links, setLinks] = useState([]); // NUEVO: Estado para los enlaces de acceso directo
             const [currentThemeId, setCurrentThemeId] = useState(localStorage.getItem('dashboardTheme') || 'darkIndustrial');
             
             const theme = themeConfig[currentThemeId];
+
+            // 1. Enlaces por defecto y carga de Firebase
+            const defaultLinks = useMemo(() => ([
+                { id: 'default-santoni', name: "SANTONI", url: "https://jesusvn1993mplvt3-ai.github.io/CIRINEO/", iconName: "tshirt" },
+                { id: 'default-inventory', name: "INVENTARIO", url: "https://jesusvn1993mplvt3-ai.github.io/Doc/", iconName: "boxes" },
+                { id: 'default-sock', name: "CALCETÍN", url: "https://sweaters-liliana.github.io/MAES26/", iconName: "socks" },
+                { id: 'default-generator', name: "GENERADOR", url: "https://jesusvn1993mplvt3-ai.github.io/GENERADOR-DE-PAPELETAS/", iconName: "printer" } // NUEVO ENLACE
+            ]), []);
+
+            // Carga inicial de datos
+            useEffect(() => {
+                const u1 = db.collection('orders').where('status', '!=', 'ARCHIVADO').onSnapshot(s => setOrders(s.docs.map(d=>d.data()).filter(d=>d.progreso && d.progreso.length > 0)));
+                const u2 = db.collection('inventory').doc('main').onSnapshot(d => setInventory(d.data()?.items || []));
+                
+                // NUEVO: Suscripción a los enlaces
+                const u3 = db.collection('dashboardLinks').onSnapshot(s => {
+                    const dbLinks = s.docs.map(d => ({ id: d.id, ...d.data() }));
+                    
+                    // Filtrar los enlaces por defecto para no duplicar los que ya están en la DB (por URL o nombre)
+                    const filteredDefaults = defaultLinks.filter(dLink => 
+                        !dbLinks.some(dbLink => dbLink.url === dLink.url || dbLink.name === dLink.name)
+                    );
+                    
+                    // Combinar los enlaces de Firebase con los enlaces por defecto (los de Firebase tienen prioridad)
+                    setLinks([...dbLinks, ...filteredDefaults]);
+                });
+                
+                return () => { u1(); u2(); u3(); };
+            }, [defaultLinks]);
 
             // Guarda el tema en localStorage
             useEffect(() => {
                 localStorage.setItem('dashboardTheme', currentThemeId);
             }, [currentThemeId]);
             
-            // Carga inicial de datos
-            useEffect(() => {
-                const u1 = db.collection('orders').where('status', '!=', 'ARCHIVADO').onSnapshot(s => setOrders(s.docs.map(d=>d.data()).filter(d=>d.progreso && d.progreso.length > 0)));
-                const u2 = db.collection('inventory').doc('main').onSnapshot(d => setInventory(d.data()?.items || []));
-                return () => { u1(); u2(); };
-            }, []);
-
             const allStatuses = useMemo(() => {
                 const statuses = [];
                 const inventoryCopy = [...inventory];
@@ -524,6 +664,8 @@
                 document.documentElement.style.setProperty('--accent-color', theme.accentColor.replace('text-', '#'));
             }, [theme]);
             
+            // Determina el número de columnas de la cuadrícula de enlaces
+            const linkGridColumns = links.length <= 3 ? `grid-cols-1 md:grid-cols-${links.length}` : 'grid-cols-1 md:grid-cols-3';
 
             return (
                 <div className="dashboard-grid">
@@ -544,35 +686,16 @@
                                 <Clock theme={theme} />
                             </div>
                             
-                            {/* --- SECCIÓN DE ACCESOS DIRECTOS MEJORADA --- */}
-                            <div className="mt-10 w-full max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
-                                
-                                {/* SANTONI (Enlace corregido y resaltado) */}
-                                <NeonLinkButton 
-                                    theme={theme}
-                                    text="SANTONI"
-                                    url="https://jesusvn1993mplvt3-ai.github.io/CIRINEO/" 
-                                    iconName="tshirt"
-                                    colorClass={theme.accentColor.replace('text-sky-400', 'text-red-400').replace('text-teal-600', 'text-red-600')}
-                                />
-                                
-                                {/* INVENTARIO */}
-                                <NeonLinkButton 
-                                    theme={theme}
-                                    text="INVENTARIO"
-                                    url="https://jesusvn1993mplvt3-ai.github.io/Doc/" 
-                                    iconName="boxes"
-                                    colorClass={theme.accentColor.replace('text-sky-400', 'text-indigo-400').replace('text-teal-600', 'text-indigo-600')}
-                                />
-                                
-                                {/* CALCETÍN */}
-                                <NeonLinkButton 
-                                    theme={theme}
-                                    text="CALCETÍN"
-                                    url="https://sweaters-liliana.github.io/MAES26/" 
-                                    iconName="socks"
-                                    colorClass={theme.accentColor.replace('text-sky-400', 'text-cyan-400').replace('text-teal-600', 'text-cyan-600')}
-                                />
+                            {/* --- SECCIÓN DE ACCESOS DIRECTOS MEJORADA (Dinamizada) --- */}
+                            <div className={`mt-10 w-full max-w-3xl mx-auto grid ${linkGridColumns} gap-6`}>
+                                {links.map((link, index) => (
+                                    <NeonLinkButton 
+                                        key={link.id}
+                                        theme={theme}
+                                        link={link}
+                                        index={index}
+                                    />
+                                ))}
                             </div>
                             {/* --- FIN DE SECCIÓN DE ACCESOS DIRECTOS MEJORADA --- */}
                             
@@ -583,9 +706,9 @@
                     {/* --- Barra Lateral (Widgets y Navegación) --- */}
                     <div className={`sidebar p-6 lg:p-8 transition-colors ${theme.secondaryBg} ${theme.textColor}`}>
                         <WeatherWidget theme={theme} />
+                        <LinkManager theme={theme} links={links} setLinks={setLinks} /> {/* NUEVO GESTOR DE ENLACES */}
                         <RadioPlayer theme={theme} />
                         <ThemeSwitcher theme={theme} setTheme={setCurrentThemeId} />
-                        {/* NavButtons ha sido movido a la sección principal */}
                     </div>
                 </div>
             );
