@@ -45,7 +45,7 @@
             }
         }
         
-        /* Animación de Parpadeo (Flicker) para la cuadrícula de estado */
+        /* Animación de Parpadeo (Flicker) para la cuadrícula de estado y los enlaces */
         @keyframes flicker {
             0%, 100% { opacity: 0.95; }
             50% { opacity: 0.3; }
@@ -266,7 +266,39 @@
                 </div>
             );
         };
+        
+        // --- NUEVO COMPONENTE: Botón de Enlace Neón Parpadeante ---
+        const NeonLinkButton = ({ theme, text, url, iconName, colorClass }) => {
+            const randomDuration = useMemo(() => Math.random() * (4 - 1.5) + 1.5, []);
+            // Ajustar el color de fondo para el modo oscuro o claro
+            const accentBg = theme.textColor === 'text-white' 
+                            ? colorClass.replace('text-', 'bg-').replace('-400', '-900').replace('-600', '-900') + '/80' 
+                            : 'bg-white/80';
 
+            const neonShadow = colorClass.replace('text-', '').replace('-400', '-500').replace('-600', '-700');
+            
+            return (
+                <a 
+                    href={url}
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className={`
+                        flex items-center justify-center p-4 rounded-xl shadow-2xl transition-all 
+                        font-extrabold text-2xl lg:text-3xl font-mono text-center
+                        border-2 border-current hover:opacity-90 active:scale-[0.98]
+                        ${accentBg} ${colorClass} 
+                    `}
+                    style={{ 
+                        animation: `flicker ${randomDuration}s infinite alternate`,
+                        borderColor: neonShadow,
+                        boxShadow: `0 0 15px ${neonShadow}`
+                    }}
+                >
+                    <Icon name={iconName} size={32} className="mr-3"/> 
+                    {text}
+                </a>
+            );
+        };
 
         // --- COMPONENTES EXISTENTES (Actualizados con la lógica de tema) ---
 
@@ -512,44 +544,39 @@
                                 <Clock theme={theme} />
                             </div>
                             
-                            {/* NUEVOS ENLACES PRINCIPALES IMPONENTES */}
-                            <div className="mt-8 w-full max-w-6xl mx-auto px-4 lg:px-0">
-                                {/* Fila 1: INVENTARIO (Izquierda) y SANTONI (Derecha - Resaltado como activo) */}
-                                <div className="flex justify-between items-end">
-                                    <a 
-                                        href="https://jesusvn1993mplvt3-ai.github.io/Doc/" 
-                                        target="_blank" 
-                                        rel="noopener noreferrer" 
-                                        className={`font-black text-5xl md:text-6xl lg:text-7xl transition-colors hover:opacity-80 ${theme.accentColor.replace('text-sky-400', 'text-indigo-400').replace('text-teal-600', 'text-indigo-600')}`}
-                                        style={{textShadow: '0 0 5px rgba(0,0,0,0.4)'}}
-                                    >
-                                        INVENTARIO
-                                    </a>
-                                    {/* SANTONI - Página actual, estilizado para verse como un botón activo/pegado a la derecha */}
-                                    <div 
-                                        className={`text-4xl md:text-5xl lg:text-6xl font-black p-1 md:p-2 rounded-lg transition-all ${theme.accentColor.replace('text-sky-400', 'text-red-400').replace('text-teal-600', 'text-red-600')}`} 
-                                        style={{textShadow: '0 0 5px rgba(0,0,0,0.4)'}}
-                                    >
-                                        SANTONI
-                                    </div>
-                                </div>
+                            {/* --- SECCIÓN DE ACCESOS DIRECTOS MEJORADA --- */}
+                            <div className="mt-10 w-full max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
                                 
-                                {/* Fila 2: CALCETÍN (Izquierda) */}
-                                <div className="flex justify-start items-end mt-4">
-                                    <a 
-                                        href="https://sweaters-liliana.github.io/MAES26/" 
-                                        target="_blank" 
-                                        rel="noopener noreferrer" 
-                                        className={`font-black text-5xl md:text-6xl lg:text-7xl transition-colors hover:opacity-80 ${theme.accentColor.replace('text-sky-400', 'text-cyan-400').replace('text-teal-600', 'text-cyan-600')}`}
-                                        style={{textShadow: '0 0 5px rgba(0,0,0,0.4)'}}
-                                    >
-                                        CALCETÍN
-                                    </a>
-                                </div>
+                                {/* SANTONI (Enlace corregido y resaltado) */}
+                                <NeonLinkButton 
+                                    theme={theme}
+                                    text="SANTONI"
+                                    url="https://jesusvn1993mplvt3-ai.github.io/CIRINEO/" 
+                                    iconName="tshirt"
+                                    colorClass={theme.accentColor.replace('text-sky-400', 'text-red-400').replace('text-teal-600', 'text-red-600')}
+                                />
                                 
-                                <hr className={`mt-8 border-t-4 ${theme.textColor === 'text-white' ? 'border-slate-700' : 'border-gray-300'}`}/>
+                                {/* INVENTARIO */}
+                                <NeonLinkButton 
+                                    theme={theme}
+                                    text="INVENTARIO"
+                                    url="https://jesusvn1993mplvt3-ai.github.io/Doc/" 
+                                    iconName="boxes"
+                                    colorClass={theme.accentColor.replace('text-sky-400', 'text-indigo-400').replace('text-teal-600', 'text-indigo-600')}
+                                />
+                                
+                                {/* CALCETÍN */}
+                                <NeonLinkButton 
+                                    theme={theme}
+                                    text="CALCETÍN"
+                                    url="https://sweaters-liliana.github.io/MAES26/" 
+                                    iconName="socks"
+                                    colorClass={theme.accentColor.replace('text-sky-400', 'text-cyan-400').replace('text-teal-600', 'text-cyan-600')}
+                                />
                             </div>
+                            {/* --- FIN DE SECCIÓN DE ACCESOS DIRECTOS MEJORADA --- */}
                             
+                            <hr className={`mt-10 border-t-4 w-full max-w-6xl mx-auto ${theme.textColor === 'text-white' ? 'border-slate-700' : 'border-gray-300'}`}/>
                         </div>
                     </div>
                     
