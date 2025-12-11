@@ -121,16 +121,33 @@
             }
         };
 
-        // --- UTILS (Mantienes las funciones de lógica de negocio) ---
+        // --- UTILS (Funciones de negocio robustecidas contra datos nulos/incompletos) ---
+        
         const calculateTimeDiff = (timestamp) => {
-            // ... (Lógica de calculateTimeDiff se mantiene igual)
             if (!timestamp) return { days: 0, hours: 0 };
             const now = Date.now();
-            let date = timestamp;
-            if (typeof date === 'string') {
-                date = new Date(date);
-            } else if (timestamp.toDate) {
-                date = timestamp.toDate();
+            let date;
+            
+            try {
+                // 1. Handle Firebase Timestamp (needs .toDate())
+                if (timestamp.toDate) { 
+                    date = timestamp.toDate();
+                } 
+                // 2. Handle standard date formats (string/number)
+                else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+                    date = new Date(timestamp);
+                } 
+                // 3. Handle Date objects
+                else if (timestamp instanceof Date) {
+                    date = timestamp;
+                } else {
+                    return { days: 0, hours: 0 }; 
+                }
+                
+                if (isNaN(date.getTime())) return { days: 0, hours: 0 }; // Invalid date
+            } catch (e) {
+                // Si algo falla al parsear la fecha (error de Firebase o formato), devolvemos 0
+                return { days: 0, hours: 0 };
             }
 
             const diffMs = now - date.getTime();
@@ -140,51 +157,73 @@
         };
 
         const calculateOrderStatus = (order) => {
-            // ... (Lógica de calculateOrderStatus se mantiene igual, adaptada para ser más robusta)
-            const finishedPackages = order.progreso.filter(p => p.finished).length;
-            const totalPackages = order.progreso.length;
-            const piecesLeft = order.totalPedido - order.progreso.filter(p => p.finished).reduce((sum, p) => sum + p.cantidad, 0);
-            const efficiency = totalPackages > 0 ? (finishedPackages / totalPackages) * 100 : 0;
-            
-            const lastUpdateDate = order.progreso.reduce((latest, p) => {
-                const date = p.fecha ? new Date(p.fecha) : new Date(0);
-                return date > latest ? date : latest;
-            }, new Date(0));
-            
-            const lastUpdateTime = lastUpdateDate.getTime() > 0 ? lastUpdateDate.getTime() : order.createdAt.toDate().getTime();
-
-            const timeSinceCreation = calculateTimeDiff(order.createdAt);
-            const timeSinceLastUpdate = calculateTimeDiff(lastUpdateTime);
-            
-            // Cálculo del tiempo restante (simplificado y mejorado para el display)
-            let totalMinutesLeft = 0;
-            order.subPiecesData.forEach(p => {
-                const packagesToFinish = order.progreso.filter(pkg => pkg.piezaNombre === p.pieza && !pkg.finished);
-                const totalPiecesInRemainingPackages = packagesToFinish.reduce((sum, pkg) => sum + pkg.cantidad, 0);
-                const pieceTime = Number(p.tiempo) || 0;
-                totalMinutesLeft += (totalPiecesInRemainingPackages * pieceTime);
-            });
-
-            const totalHoursLeft = totalMinutesLeft / 60;
-            const daysLeft = Math.floor(totalHoursLeft / 24);
-            const hoursLeft = Math.round(totalHoursLeft % 24);
-            
-            let statusMessage = '';
-            let isWarning = false;
-
-            if (piecesLeft <= 0) {
-                statusMessage = `✅ Orden ${order.codigo} (Máquina #${order.maquina}) TERMINADA.`;
-            } else if (timeSinceLastUpdate.days >= 3) {
-                statusMessage = `🔴 Maq #${order.maquina}: Modelo ${order.codigo}. La orden se ingresó hace ${timeSinceCreation.days} días y no ha habido **actualización** en ${timeSinceLastUpdate.days} días.`;
-                isWarning = true;
-            } else if (totalHoursLeft > 0) {
-                 statusMessage = `⏱️ Máquina #${order.maquina}: Faltan ${daysLeft} días y ${hoursLeft} hrs para terminar el modelo ${order.codigo}. Eficiencia: ${efficiency.toFixed(0)}%.`;
-                 if (efficiency < 50) isWarning = true;
-            } else {
-                 statusMessage = `Máquina #${order.maquina}: Modelo ${order.codigo}. En proceso.`;
+            // Safety check for basic required data
+            if (!order || !order.progreso || !order.createdAt || !order.maquina) {
+                return { statusMessage: "⚠️ Error: Datos de orden incompletos o nulos.", isWarning: true, maquina: 'N/A', codigo: order?.codigo || 'N/A' };
             }
 
-            return { statusMessage, isWarning, maquina: order.maquina, codigo: order.codigo };
+            try {
+                const finishedPackages = order.progreso.filter(p => p.finished).length;
+                const totalPackages = order.progreso.length;
+                
+                // Use a safe reduce for total pieces finished
+                const piecesFinished = order.progreso.filter(p => p.finished).reduce((sum, p) => sum + (Number(p.cantidad) || 0), 0);
+                const piecesLeft = (Number(order.totalPedido) || 0) - piecesFinished;
+                
+                const efficiency = totalPackages > 0 ? (finishedPackages / totalPackages) * 100 : 0;
+                
+                // Find the latest update time (defaulting to creation time)
+                let lastUpdateTime = order.createdAt; 
+                order.progreso.forEach(p => {
+                    if (p.fecha) {
+                        // Safe way to compare dates regardless of them being Timestamp objects or strings
+                        const pDate = p.fecha.toDate ? p.fecha.toDate() : new Date(p.fecha);
+                        const lastDate = lastUpdateTime.toDate ? lastUpdateTime.toDate() : new Date(lastUpdateTime);
+                        if (pDate.getTime() > lastDate.getTime()) {
+                            lastUpdateTime = p.fecha;
+                        }
+                    }
+                });
+
+                const timeSinceCreation = calculateTimeDiff(order.createdAt);
+                const timeSinceLastUpdate = calculateTimeDiff(lastUpdateTime);
+                
+                // Calculation of totalMinutesLeft (protected by null check on subPiecesData)
+                let totalMinutesLeft = 0;
+                if (order.subPiecesData && Array.isArray(order.subPiecesData)) {
+                    order.subPiecesData.forEach(p => {
+                        const packagesToFinish = order.progreso.filter(pkg => pkg.piezaNombre === p.pieza && !pkg.finished);
+                        const totalPiecesInRemainingPackages = packagesToFinish.reduce((sum, pkg) => sum + (Number(pkg.cantidad) || 0), 0);
+                        const pieceTime = Number(p.tiempo) || 0;
+                        totalMinutesLeft += (totalPiecesInRemainingPackages * pieceTime);
+                    });
+                }
+
+                const totalHoursLeft = totalMinutesLeft / 60;
+                const daysLeft = Math.floor(totalHoursLeft / 24);
+                const hoursLeft = Math.round(totalHoursLeft % 24);
+                
+                let statusMessage = '';
+                let isWarning = false;
+
+                if (piecesLeft <= 0) {
+                    statusMessage = `✅ Orden ${order.codigo} (Máquina #${order.maquina}) TERMINADA.`;
+                } else if (timeSinceLastUpdate.days >= 3) {
+                    statusMessage = `🔴 Maq #${order.maquina}: Modelo ${order.codigo}. La orden se ingresó hace ${timeSinceCreation.days} días y no ha habido **actualización** en ${timeSinceLastUpdate.days} días.`;
+                    isWarning = true;
+                } else if (totalHoursLeft > 0) {
+                     statusMessage = `⏱️ Máquina #${order.maquina}: Faltan ${daysLeft} días y ${hoursLeft} hrs para terminar el modelo ${order.codigo}. Eficiencia: ${efficiency.toFixed(0)}%.`;
+                     if (efficiency < 50) isWarning = true;
+                } else {
+                     statusMessage = `Máquina #${order.maquina}: Modelo ${order.codigo}. En proceso.`;
+                }
+
+                return { statusMessage, isWarning, maquina: order.maquina, codigo: order.codigo };
+            } catch (e) {
+                // En caso de un error crítico inesperado en el cálculo, registramos el error y mostramos un mensaje seguro.
+                 console.error(`❌ Error Crítico al procesar orden ${order.codigo || 'N/A'}:`, e);
+                 return { statusMessage: `❌ Error Crítico al procesar orden ${order.codigo || 'N/A'}.`, isWarning: true, maquina: order?.maquina || 'N/A', codigo: order?.codigo || 'N/A' };
+            }
         };
 
         // --- COMPONENTES ---
@@ -208,6 +247,7 @@
         
         const NavButtons = ({ theme }) => {
             const buttons = [
+                // URLs ajustadas para que parezcan módulos internos sin el nombre del repositorio
                 { name: "Inventario", url: "https://jesusvn1993mplvt3-ai.github.io/Doc/", icon: "warehouse", color: theme.navBtnColor.replace('indigo', 'orange') },
                 { name: "Santoni", url: "https://jesusvn1993mplvt3-ai.github.io/CIRINEO/", icon: "socks", color: theme.navBtnColor.replace('indigo', 'sky') },
                 { name: "Calcetín", url: "https://sweaters-liliana.github.io/MAES26/", icon: "shoe", color: theme.navBtnColor.replace('indigo', 'green') },
@@ -368,13 +408,18 @@
         const App = () => {
             const [orders, setOrders] = useState([]);
             const [inventory, setInventory] = useState([]);
-            const [dynamicText, setDynamicText] = useState("Cargando datos...");
+            const [dynamicText, setDynamicText] = useState("Conectando con la base de datos...");
             const [textKey, setTextKey] = useState(0); 
             const [isWarning, setIsWarning] = useState(false);
-            const [currentThemeId, setCurrentThemeId] = useState('darkIndustrial'); // Tema por defecto
+            const [currentThemeId, setCurrentThemeId] = useState(localStorage.getItem('dashboardTheme') || 'darkIndustrial'); // Cargar tema guardado
             
             const theme = themeConfig[currentThemeId];
 
+            // Guardar el tema seleccionado en localStorage
+            useEffect(() => {
+                localStorage.setItem('dashboardTheme', currentThemeId);
+            }, [currentThemeId]);
+            
             useEffect(() => {
                 const u1 = db.collection('orders').where('status', '!=', 'ARCHIVADO').onSnapshot(s => setOrders(s.docs.map(d=>d.data()).filter(d=>d.progreso && d.progreso.length > 0)));
                 const u2 = db.collection('inventory').doc('main').onSnapshot(d => setInventory(d.data()?.items || []));
@@ -385,18 +430,22 @@
                 const statuses = [];
                 const inventoryCopy = [...inventory];
                 
-                // 1. Agregar estados de Inventario (Máximo 3, seleccionados al azar si hay muchos)
+                // 1. Agregar estados de Inventario
                 for (let i = 0; i < Math.min(3, inventoryCopy.length); i++) {
                     const randomIndex = Math.floor(Math.random() * inventoryCopy.length);
-                    const item = inventoryCopy.splice(randomIndex, 1)[0]; // Saca el item para no repetirlo
+                    const item = inventoryCopy.splice(randomIndex, 1)[0]; 
                     
                     const text = `📊 INVENTARIO: ${item.material} ${item.calibre || ''} Stock ${Number(item.stock).toFixed(1)} kg.`;
                     const isWarn = Number(item.stock) < Number(item.minStock);
                     
-                    statuses.push({ text: isWarn ? `⚠️ ${text}` : text, isWarning: isWarn, type: 'inventory' });
+                    if (isWarn) {
+                         statuses.push({ text: `⚠️ ${text} (STOCK BAJO)`, isWarning: true, type: 'inventory-low' });
+                    } else {
+                         statuses.push({ text: text, isWarning: false, type: 'inventory-ok' });
+                    }
                 }
 
-                // 2. Agregar estados de Órdenes (Solo órdenes con problemas o relevantes)
+                // 2. Agregar estados de Órdenes
                 const relevantOrders = orders.map(calculateOrderStatus).filter(s => s.isWarning || s.statusMessage.includes('Faltan'));
                 relevantOrders.forEach(status => {
                     statuses.push({
@@ -406,12 +455,15 @@
                     });
                 });
                 
-                // Si no hay problemas, o pocas órdenes, agregar un mensaje genérico.
+                // Si la lista de estados es pobre, se añaden mensajes de bienvenida y estado general.
                 if (statuses.length < 3) {
-                     statuses.push({ text: "Operación en Línea. Revisando el flujo de producción...", isWarning: false, type: 'idle' });
+                     statuses.unshift({ text: "Operación en Línea. Revisando el flujo de producción...", isWarning: false, type: 'idle' });
+                }
+                 if (statuses.length < 2) {
+                     statuses.unshift({ text: "Bienvenido a Sweaters Liliana. Sistema en línea.", isWarning: false, type: 'welcome' });
                 }
 
-                return statuses.length > 0 ? statuses : [{ text: "Bienvenido a Sweaters Liliana. Sistema en línea.", isWarning: false, type: 'welcome' }];
+                return statuses;
             }, [orders, inventory]);
             
             // Lógica del timer para alternar el texto
@@ -434,9 +486,11 @@
                 return () => clearInterval(interval);
             }, [allStatuses]);
 
-            // Aplicar el tema al <body>
+            // Aplicar el tema al <body> y el color de acento para el scrollbar
             useEffect(() => {
                 document.body.className = theme.primaryBg;
+                // Ajuste para el color de la barra de desplazamiento
+                document.documentElement.style.setProperty('--accent-color', theme.accentColor.replace('text-', '#'));
             }, [theme]);
             
             // Determinar la clase para el texto dinámico (Advertencia o Acento)
