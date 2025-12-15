@@ -14,6 +14,7 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/recharts@2.10.3/umd/Recharts.min.js"></script>
 
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
@@ -71,6 +72,9 @@
 
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
+        // Importar componentes de Recharts
+        const { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } = Recharts;
+        
         const Icon = ({ name, size = 20, className }) => {
             useEffect(() => { lucide.createIcons(); }, [name]);
             return <i data-lucide={name} width={size} height={size} className={className}></i>;
@@ -418,6 +422,105 @@
                 </a>
             );
         };
+        
+        // --- NUEVO COMPONENTE: Gráfico de Progreso de Producción (Recharts) ---
+        const ProductionProgressChart = ({ orders, theme }) => {
+            const [totalPackages, setTotalPackages] = useState(0);
+            const [finishedPackages, setFinishedPackages] = useState(0);
+            const [dataLoaded, setDataLoaded] = useState(false);
+            
+            // 1. Cálculo del progreso
+            useEffect(() => {
+                let total = 0;
+                let finished = 0;
+                
+                orders.forEach(order => {
+                    if (Array.isArray(order.progreso)) {
+                        total += order.progreso.length;
+                        finished += order.progreso.filter(p => p.finished).length;
+                    }
+                });
+                
+                setTotalPackages(total);
+                setFinishedPackages(finished);
+                setDataLoaded(true);
+            }, [orders]);
+            
+            if (!dataLoaded || totalPackages === 0) {
+                 return <div className={`text-center py-8 ${theme.textColor} opacity-60`}>Conectando con la Matriz de Paquetes...</div>;
+            }
+
+            const pendingPackages = totalPackages - finishedPackages;
+            const progressPercentage = totalPackages > 0 ? (finishedPackages / totalPackages) * 100 : 0;
+
+            // Utiliza el color de acento del tema (ej. #0ea5e9 para sky-400) para el progreso.
+            const accentHex = theme.accentColor.replace('text-', '#').replace('400', '500').replace('600', '700');
+
+            const data = [
+                // Terminado - Color de acento
+                { name: 'Terminado', value: finishedPackages, color: accentHex + 'D0' }, 
+                // Pendiente - Color de fondo secundario discreto
+                { name: 'Pendiente', value: pendingPackages, color: theme.textColor === 'text-white' ? '#475569' : '#e2e8f0' }
+            ];
+            
+            // Determina si el texto interno debe ser oscuro o claro
+            const centerTextColor = theme.textColor === 'text-white' ? 'text-white' : 'text-gray-800';
+            
+            return (
+                <div className={`mt-10 p-4 rounded-xl shadow-2xl transition-colors w-full max-w-lg mx-auto ${theme.widgetBg} ${theme.textColor}`}>
+                    <h3 className={`font-bold text-xl mb-4 flex items-center justify-center gap-2 ${theme.accentColor}`}><Icon name="layers" size={20}/> Progreso Global de Paquetes</h3>
+                    
+                    <div className="relative" style={{ width: '100%', height: 300 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={data}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={90} // Dona (Doughnut)
+                                    outerRadius={120}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                    isAnimationActive={true}
+                                >
+                                    {data.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.color} />
+                                    ))}
+                                </Pie>
+                                <Tooltip 
+                                    contentStyle={{ 
+                                        backgroundColor: theme.secondaryBg.replace('bg-', '#').replace('A0', ''), 
+                                        borderColor: theme.accentColor.replace('text-', '#'),
+                                        color: theme.textColor.includes('white') ? '#fff' : '#000',
+                                        borderRadius: '8px'
+                                    }}
+                                    formatter={(value, name) => [value, name === 'Terminado' ? 'Paquetes Terminados' : 'Paquetes Pendientes']}
+                                />
+                            </PieChart>
+                        </ResponsiveContainer>
+
+                        {/* Texto Central de la Dona */}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                            <span className={`text-5xl font-extrabold ${theme.accentColor}`}>{progressPercentage.toFixed(1)}%</span>
+                            <span className={`text-base font-semibold ${centerTextColor} opacity-80`}>GLOBAL</span>
+                            <span className={`text-sm ${centerTextColor} opacity-60`}>{finishedPackages} de {totalPackages} PQTs</span>
+                        </div>
+                    </div>
+                    
+                    <div className="flex justify-around mt-4 text-sm font-semibold border-t border-current/30 pt-3">
+                        <div className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-full`} style={{backgroundColor: accentHex}}></div>
+                            <span>Terminado: {finishedPackages}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-full ${theme.textColor === 'text-white' ? 'bg-slate-600' : 'bg-gray-300'}`}></div>
+                            <span>Pendiente: {pendingPackages}</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
 
         // --- COMPONENTES: Clock y RadioPlayer (Sin cambios estructurales) ---
 
@@ -684,6 +787,9 @@
                             
                             {/* NUEVA CUADRÍCULA DE ESTADO */}
                             <FlickeringStatusGrid allStatuses={allStatuses} theme={theme} />
+                            
+                            {/* GRÁFICA DE PROGRESO DE PRODUCCIÓN (NUEVA) */}
+                            <ProductionProgressChart orders={orders} theme={theme} />
                             
                             <div className="mt-12 w-full max-w-lg mx-auto">
                                 <Clock theme={theme} />
