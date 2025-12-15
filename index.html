@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sweaters Liliana Base de datos 2026 v01</title>
+    <title>Sweaters Liliana Control Profesional</title>
 
     <link id="appIcon" rel="icon" href="https://ejemplo.com/tu-imagen-industrial-cerebro.ico">
     <link id="appAppleIcon" rel="apple-touch-icon" href="https://ejemplo.com/tu-imagen-industrial-cerebro.ico">
@@ -14,75 +14,51 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://unpkg.com/recharts@2.10.3/umd/Recharts.min.js"></script>
 
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
     <style>
-        /* Tipografía: Usaremos una pila de fuentes sans-serif moderna */
+        /* Tipografía */
         body {
             font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-        }
-
-        /* Estilos base para la tipografía y el fondo (Responsive) */
-        .dashboard-grid {
-            display: flex;
-            flex-direction: column; /* Móvil: Apilado Verticalmente */
             min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .main-container {
+            min-height: 100vh;
+            padding: 50px 20px;
+            /* Fuerza el contenido a estar encima del fondo */
+            position: relative; 
+            z-index: 10;
         }
 
-        /* Layout para Escritorio (lg: 1024px o más) */
-        @media (min-width: 1024px) {
-            .dashboard-grid {
-                display: grid;
-                grid-template-columns: 1fr 320px; /* Contenido principal y barra lateral de 320px */
-                height: 100vh;
-                overflow: hidden; /* Evita scroll en el layout principal de escritorio */
-            }
-            .main-content, .sidebar {
-                height: 100vh;
-                overflow-y: auto; /* Permite scroll en cada sección si el contenido es largo */
-            }
-        }
-
-        /* Animación de Parpadeo (Flicker) para la cuadrícula de estado y los enlaces */
+        /* Animación de Parpadeo (Flicker) para el efecto neón en los botones */
         @keyframes flicker {
-            0%, 100% { opacity: 0.95; }
-            50% { opacity: 0.3; }
-            52% { opacity: 0.6; }
-            54% { opacity: 0.3; }
-            56% { opacity: 0.95; }
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+            52% { opacity: 0.95; }
+        }
+        
+        /* Animación de Parpadeo para las papeletas (súper sutil) */
+        @keyframes flicker-low {
+            0%, 100% { opacity: 0.05; }
+            50% { opacity: 0.03; }
         }
 
-        /* Estilos del Radio y Scrollbars */
-        .radio-list { max-height: 180px; overflow-y: auto; }
+        /* Estilos para el scrollbar (se mantiene para limpieza) */
         .radio-list::-webkit-scrollbar { width: 6px; background-color: transparent; }
-        .radio-list::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 3px; }
-        
-        /* Estilos de Scrollbars para la lista de enlaces */
-        .link-list { max-height: 250px; overflow-y: auto; }
+        .radio-list::-webkit-scrollbar-thumb { background: #38bdf8; border-radius: 3px; }
         .link-list::-webkit-scrollbar { width: 6px; background-color: transparent; }
-        .link-list::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 3px; }
-
+        .link-list::-webkit-scrollbar-thumb { background: #38bdf8; border-radius: 3px; }
     </style>
 </head>
-<body class="font-sans">
+<body class="font-sans bg-slate-900">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef } = React;
+        const { useState, useEffect, useMemo } = React;
         
-        // --- CORRECCIÓN: Definición segura de componentes de Recharts ---
-        // Si window.Recharts no existe al inicio, definimos placeholders para que el script no falle.
-        const Recharts = window.Recharts || {};
-        const PieChart = Recharts.PieChart || (() => <div className="text-red-500 font-bold p-4">Error: Gráfica no disponible.</div>);
-        const Pie = Recharts.Pie || (() => null);
-        const Cell = Recharts.Cell || (() => null);
-        const ResponsiveContainer = Recharts.ResponsiveContainer || (({ children }) => <div style={{ width: '100%', height: 300 }}>{children}</div>);
-        const Tooltip = Recharts.Tooltip || (() => null);
-        // -----------------------------------------------------------------
-
         const Icon = ({ name, size = 20, className }) => {
             useEffect(() => { lucide.createIcons(); }, [name]);
             return <i data-lucide={name} width={size} height={size} className={className}></i>;
@@ -102,158 +78,147 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // --- DEFINICIÓN DE TEMAS ---
-        const themeConfig = {
-            darkIndustrial: {
-                id: 'darkIndustrial',
-                name: "Industrial Oscuro",
-                primaryBg: "bg-slate-900",
-                secondaryBg: "bg-slate-800",
-                accentColor: "text-sky-400",
-                warningColor: "text-red-400",
-                textColor: "text-white",
-                navBtnColor: "bg-indigo-600 hover:bg-indigo-700",
-                widgetBg: "bg-slate-700/50 backdrop-blur-sm",
-                clockBg: "bg-slate-700"
-            },
-            cleanLight: {
-                id: 'cleanLight',
-                name: "Claro Limpio",
-                primaryBg: "bg-gray-100",
-                secondaryBg: "bg-white",
-                accentColor: "text-teal-600",
-                warningColor: "text-red-600",
-                textColor: "text-gray-800",
-                navBtnColor: "bg-teal-600 hover:bg-teal-700",
-                widgetBg: "bg-white border border-gray-200",
-                clockBg: "bg-teal-100 text-teal-800"
-            }
+        // --- DEFINICIÓN DE TEMA ÚNICO ---
+        const theme = {
+            id: 'professionalDark',
+            name: "Industrial Profesional",
+            primaryBg: "bg-slate-900", 
+            overlayBg: "bg-white/5 backdrop-blur-md", 
+            accentColor: "text-sky-400", 
+            warningColor: "text-red-400",
+            textColor: "text-white",
+            navBtnColor: "bg-sky-600 hover:bg-sky-700",
         };
 
-        // --- UTILS (Funciones de negocio robustecidas contra datos nulos/incompletos) ---
-
-        const calculateTimeDiff = (timestamp) => {
-            if (!timestamp) return { days: 0, hours: 0 };
-            const now = Date.now();
-            let date;
-
-            try {
-                if (timestamp.toDate) {
-                    date = timestamp.toDate();
-                }
-                else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
-                    date = new Date(timestamp);
-                }
-                else if (timestamp instanceof Date) {
-                    date = timestamp;
-                } else {
-                    return { days: 0, hours: 0 };
-                }
-
-                if (isNaN(date.getTime())) return { days: 0, hours: 0 };
-            } catch (e) {
-                return { days: 0, hours: 0 };
-            }
-
-            const diffMs = now - date.getTime();
-            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-            const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            return { days: diffDays, hours: diffHours };
-        };
-
-        const calculateOrderStatus = (order) => {
-            // Safety check: returns NULL if essential data is missing (NEW: Filters out incomplete data)
-            if (!order || !order.progreso || !order.createdAt || !order.maquina || !order.codigo) {
-                return null;
-            }
-
-            try {
-                const finishedPackages = order.progreso.filter(p => p.finished).length;
-                const totalPackages = order.progreso.length;
-
-                const piecesFinished = order.progreso.filter(p => p.finished).reduce((sum, p) => sum + (Number(p.cantidad) || 0), 0);
-                const piecesLeft = (Number(order.totalPedido) || 0) - piecesFinished;
-
-                const efficiency = totalPackages > 0 ? (finishedPackages / totalPackages) * 100 : 0;
-
-                let lastUpdateTime = order.createdAt;
-                order.progreso.forEach(p => {
-                    if (p.fecha) {
-                        const pDate = p.fecha.toDate ? p.fecha.toDate() : new Date(p.fecha);
-                        const lastDate = lastUpdateTime.toDate ? lastUpdateTime.toDate() : new Date(lastUpdateTime);
-                        if (pDate.getTime() > lastDate.getTime()) {
-                            lastUpdateTime = p.fecha;
-                        }
-                    }
-                });
-
-                const timeSinceCreation = calculateTimeDiff(order.createdAt);
-                const timeSinceLastUpdate = calculateTimeDiff(lastUpdateTime);
-
-                let totalMinutesLeft = 0;
-                if (order.subPiecesData && Array.isArray(order.subPiecesData)) {
-                    order.subPiecesData.forEach(p => {
-                        const packagesToFinish = order.progreso.filter(pkg => pkg.piezaNombre === p.pieza && !pkg.finished);
-                        const totalPiecesInRemainingPackages = packagesToFinish.reduce((sum, pkg) => sum + (Number(pkg.cantidad) || 0), 0);
-                        const pieceTime = Number(p.tiempo) || 0;
-                        totalMinutesLeft += (totalPiecesInRemainingPackages * pieceTime);
-                    });
-                }
-
-                const totalHoursLeft = totalMinutesLeft / 60;
-                const daysLeft = Math.floor(totalHoursLeft / 24);
-                const hoursLeft = Math.round(totalHoursLeft % 24);
-
-                let statusMessage = '';
-                let isWarning = false;
-
-                if (piecesLeft <= 0) {
-                    statusMessage = `✅ ORDEN ${order.codigo} (MAQ #${order.maquina}) TERMINADA`;
-                } else if (timeSinceLastUpdate.days >= 3) {
-                    statusMessage = `🔴 MAQ #${order.maquina}: Modelo ${order.codigo}. Sin actualización en ${timeSinceLastUpdate.days} días.`;
-                    isWarning = true;
-                } else if (totalHoursLeft > 0) {
-                     statusMessage = `⏱️ MAQ #${order.maquina}: Falta ${daysLeft}D ${hoursLeft}H. Efic: ${efficiency.toFixed(0)}%.`;
-                     if (efficiency < 50) isWarning = true;
-                } else {
-                     statusMessage = `MAQ #${order.maquina}: Modelo ${order.codigo}. EN PROCESO.`;
-                }
-
-                return { statusMessage, isWarning, maquina: order.maquina, codigo: order.codigo };
-            } catch (e) {
-                // If a critical error occurs during complex calculation, filter it out.
-                 console.error(`❌ Error Crítico al procesar orden ${order.codigo || 'N/A'}:`, e);
-                 return null;
-            }
-        };
-        
-        // Función para asignar un color de acento/neón basado en el índice
+        // --- UTILS ---
         const getLinkColorClass = (theme, index) => {
             const darkColors = ['text-red-400', 'text-indigo-400', 'text-cyan-400', 'text-green-400', 'text-yellow-400', 'text-pink-400'];
-            const lightColors = ['text-red-600', 'text-indigo-600', 'text-cyan-600', 'text-green-600', 'text-yellow-600', 'text-pink-600'];
-            
             const colorIndex = index % darkColors.length;
-            
-            return theme.textColor === 'text-white' ? darkColors[colorIndex] : lightColors[colorIndex];
+            return darkColors[colorIndex];
+        };
+
+        // --- COMPONENTE: FONDO DINÁMICO DE PAPELETAS ---
+        const PaperBackground = ({ orders }) => {
+            const paperElements = useMemo(() => {
+                // Colores discretos de papel (casi blanco/gris muy claro)
+                const colors = ['#f5f5f5', '#e5e5e5', '#f0f0f0', '#d4d4d4']; 
+
+                // 1. Filtrar solo órdenes ACTIVAS (estas son las "papeletas tiradas")
+                const activeOrders = orders.filter(order => order.status !== 'ARCHIVADO');
+                
+                // 2. Si no hay órdenes, mostramos un número fijo de placeholders
+                if (activeOrders.length === 0) {
+                    return Array(20).fill(null).map((_, i) => ({
+                        id: `placeholder-${i}`,
+                        text: "ESPERANDO ORDEN",
+                        color: colors[i % colors.length],
+                        rotation: Math.random() * 360,
+                        x: Math.random() * 100,
+                        y: Math.random() * 100,
+                    }));
+                }
+
+                // 3. Generar un elemento visual por cada orden activa (se duplican para mayor densidad visual)
+                let elements = [];
+                activeOrders.forEach((order, index) => {
+                    const progress = order.progreso ? (order.progreso.filter(p => p.finished).length / order.progreso.length) * 100 : 0;
+                    const orderText = `ORDEN ${order.codigo || 'N/A'} #\nMAQUINA: ${order.maquina || 'N/A'}\nPROGRESO: ${progress.toFixed(0)}%`;
+                    
+                    // Genera múltiples "papeletas" por orden
+                    for(let i=0; i<3; i++) {
+                         elements.push({
+                            id: `${order.codigo}-${i}`, 
+                            text: orderText,
+                            color: colors[(index + i) % colors.length],
+                            rotation: Math.random() * 360, 
+                            x: Math.random() * 100, 
+                            y: Math.random() * 100, 
+                            opacity: 0.05 + Math.random() * 0.02, 
+                            sizeFactor: 0.8 + Math.random() * 0.4 
+                        });
+                    }
+                });
+                
+                return elements;
+            }, [orders]); 
+
+            return (
+                <div className="fixed inset-0 overflow-hidden -z-10">
+                    {paperElements.map((paper) => (
+                        <div
+                            key={paper.id}
+                            className="absolute pointer-events-none transition-opacity duration-1000"
+                            style={{
+                                top: `${paper.y}%`,
+                                left: `${paper.x}%`,
+                                width: `${40 * paper.sizeFactor}vw`, 
+                                height: `${20 * paper.sizeFactor}vh`,
+                                backgroundColor: paper.color,
+                                opacity: paper.opacity, 
+                                transform: `translate(-50%, -50%) rotate(${paper.rotation}deg)`,
+                                boxShadow: '0 0 10px rgba(0,0,0,0.1)',
+                                whiteSpace: 'pre-wrap',
+                                fontSize: '1.5vw',
+                                color: '#1f2937', 
+                                padding: '10px',
+                                fontFamily: 'monospace',
+                                border: '1px solid rgba(0,0,0,0.05)',
+                                animation: `flicker-low ${Math.random() * (10 - 5) + 5}s infinite alternate`,
+                            }}
+                        >
+                            {paper.text}
+                        </div>
+                    ))}
+                </div>
+            );
         };
         
-        // --- COMPONENTE: Gestor de Enlaces (Mantiene su funcionalidad CRUD) ---
-        const LinkManager = ({ theme, links, setLinks }) => {
+        // --- COMPONENTE: Botón de Enlace Neón ---
+        const NeonLinkButton = ({ link, index }) => {
+            const randomDuration = useMemo(() => Math.random() * (4 - 1.5) + 1.5, []);
+            const colorClass = getLinkColorClass(theme, index);
+            const accentBg = colorClass.replace('text-', 'bg-').replace('-400', '-900') + '/80'; 
+            const neonShadow = colorClass.replace('text-', '').replace('-400', '-500');
+            
+            return (
+                <a 
+                    href={link.url}
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className={`
+                        flex flex-col items-center justify-center p-4 rounded-xl transition-all 
+                        font-extrabold text-xl lg:text-2xl font-mono text-center
+                        border-2 border-current hover:opacity-90 active:scale-[0.98]
+                        ${accentBg} ${colorClass} 
+                    `}
+                    style={{ 
+                        animation: `flicker ${randomDuration}s infinite alternate`,
+                        borderColor: neonShadow,
+                        boxShadow: `0 0 15px ${neonShadow}`
+                    }}
+                >
+                    <Icon name={link.iconName || 'link'} size={32} className="mb-1"/> 
+                    <span className="text-lg lg:text-xl">{link.name}</span>
+                </a>
+            );
+        };
+
+        // --- COMPONENTE: Gestor de Enlaces ---
+        const LinkManager = ({ links, setLinks }) => {
             const [isAdding, setIsAdding] = useState(false);
             const [newLink, setNewLink] = useState({ name: '', url: '', iconName: 'link' });
-            const [editLink, setEditLink] = useState(null); // Para edición
+            const [editLink, setEditLink] = useState(null); 
             
             const accentTextClass = theme.accentColor;
-            const inputBg = theme.textColor === 'text-white' ? 'bg-slate-900 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-800';
+            const inputBg = 'bg-slate-800 border-slate-700 text-white placeholder-slate-500'; 
             const saveBtnColor = theme.navBtnColor;
-            const linkBg = theme.textColor === 'text-white' ? 'bg-slate-700 hover:bg-slate-600' : 'bg-gray-200 hover:bg-gray-300';
-            const accentColor = theme.accentColor.replace('text-', '');
+            const linkBg = 'bg-slate-800/70 hover:bg-slate-700/80';
+
 
             const saveLink = async (linkData) => {
                 if (linkData.name && linkData.url) {
                     try {
                         if (linkData.id) {
-                            // Edición
                             await db.collection('dashboardLinks').doc(linkData.id).update({
                                 name: linkData.name,
                                 url: linkData.url,
@@ -261,7 +226,6 @@
                             });
                             setEditLink(null);
                         } else {
-                            // Adición
                             await db.collection('dashboardLinks').add({
                                 name: linkData.name,
                                 url: linkData.url,
@@ -290,8 +254,8 @@
             };
             
             const renderLinkForm = (data, setData, isEdit = false) => (
-                <div className={`p-3 rounded-lg border border-current/30 ${theme.widgetBg}`}>
-                    <p className="text-sm font-bold mb-1">{isEdit ? 'EDITAR' : 'AGREGAR'} ENLACE:</p>
+                <div className={`p-3 rounded-lg border border-current/30 bg-slate-800`}>
+                    <p className="text-sm font-bold mb-1 text-white">{isEdit ? 'EDITAR' : 'AGREGAR'} ENLACE:</p>
                     <input type="text" placeholder="Nombre (Ej: Generador)" value={data.name} onChange={(e) => setData({ ...data, name: e.target.value })} className={`w-full p-2 mb-1 text-sm border rounded ${inputBg}`} />
                     <input type="url" placeholder="URL (Ej: https://...)" value={data.url} onChange={(e) => setData({ ...data, url: e.target.value })} className={`w-full p-2 mb-1 text-sm border rounded ${inputBg}`} />
                     <div className="flex gap-2">
@@ -305,9 +269,9 @@
 
 
             return (
-                <div className={`mt-6 p-4 rounded-xl shadow-lg transition-colors ${theme.widgetBg} ${theme.textColor}`} style={{ '--accent-color': theme.accentColor.replace('text-', '#') }}>
+                <div className={`mt-8 p-4 rounded-xl shadow-2xl transition-colors bg-slate-900/50 ${theme.textColor}`} style={{ '--accent-color': theme.accentColor.replace('text-', '#') }}>
                     <h3 className={`font-bold text-xl mb-3 flex items-center justify-between gap-2 ${accentTextClass}`}>
-                        <span><Icon name="link" size={20}/> Accesos Directos</span>
+                        <span><Icon name="link" size={20}/> Administrar Accesos</span>
                         <button onClick={() => { setIsAdding(!isAdding); setEditLink(null); }} className={`text-sm font-semibold p-1 rounded transition-colors ${theme.navBtnColor.replace('bg-', 'bg-').replace('-600', '-500').replace('-700', '-600')} text-white`}>
                            <Icon name={isAdding ? "x" : "plus"} size={18}/>
                         </button>
@@ -338,504 +302,88 @@
                 </div>
             );
         };
-        
-        // --- COMPONENTE: Cuadrícula de Estado Parpadeante ---
-
-        const StatusTile = ({ text, isWarning, theme }) => {
-            // Randomize visual properties for the techno-effect
-            const randomOpacity = useMemo(() => Math.random() * (0.95 - 0.4) + 0.4, []); 
-            const randomDuration = useMemo(() => Math.random() * (4 - 1.5) + 1.5, []);
-
-            const tileBg = isWarning ? 'bg-red-800/80' : 'bg-sky-800/80';
-            const textColor = isWarning ? theme.warningColor : theme.accentColor;
-
-            return (
-                <div 
-                    className={`p-3 rounded-lg shadow-xl transition-all border border-current/20 font-mono overflow-hidden ${tileBg}`}
-                    style={{ 
-                        opacity: randomOpacity,
-                        animation: `flicker ${randomDuration}s infinite alternate` 
-                    }}
-                >
-                    <p className={`text-xs lg:text-sm font-bold truncate ${textColor}`}>
-                        {text}
-                    </p>
-                </div>
-            );
-        };
-
-        const FlickeringStatusGrid = ({ allStatuses, theme }) => {
-            const TILE_COUNT = 30; // Un poco más grande para llenar bien el espacio
-            
-            // Generate and randomize data points
-            const dataPoints = useMemo(() => {
-                if (allStatuses.length === 0) return Array(TILE_COUNT).fill({ text: "Conectando con la Matriz de Datos...", isWarning: false });
-                
-                const points = [];
-                for (let i = 0; i < TILE_COUNT; i++) {
-                    // Cycle through the statuses array
-                    points.push(allStatuses[i % allStatuses.length]);
-                }
-                
-                // Shuffle the array to make the display random
-                for (let i = points.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [points[i], points[j]] = [points[j], points[i]];
-                }
-                
-                return points;
-            }, [allStatuses]);
-            
-
-            return (
-                <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2 lg:gap-3 mt-10 w-full">
-                    {dataPoints.map((data, index) => (
-                        <StatusTile key={index} text={data.text} isWarning={data.isWarning} theme={theme} />
-                    ))}
-                </div>
-            );
-        };
-        
-        // --- COMPONENTE: Botón de Enlace Neón Parpadeante ---
-        const NeonLinkButton = ({ theme, link, index }) => {
-            const randomDuration = useMemo(() => Math.random() * (4 - 1.5) + 1.5, []);
-            const colorClass = getLinkColorClass(theme, index);
-
-            // Ajustar el color de fondo para el modo oscuro o claro
-            const accentBg = theme.textColor === 'text-white' 
-                            ? colorClass.replace('text-', 'bg-').replace('-400', '-900') + '/80' 
-                            : 'bg-white/80';
-
-            const neonShadow = colorClass.replace('text-', '').replace('-400', '-500').replace('-600', '-700');
-            
-            return (
-                <a 
-                    href={link.url}
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className={`
-                        flex flex-col items-center justify-center p-4 rounded-xl shadow-2xl transition-all 
-                        font-extrabold text-2xl lg:text-3xl font-mono text-center
-                        border-2 border-current hover:opacity-90 active:scale-[0.98]
-                        ${accentBg} ${colorClass} 
-                    `}
-                    style={{ 
-                        animation: `flicker ${randomDuration}s infinite alternate`,
-                        borderColor: neonShadow,
-                        boxShadow: `0 0 15px ${neonShadow}`
-                    }}
-                >
-                    <Icon name={link.iconName || 'link'} size={32} className="mb-1"/> 
-                    <span className="text-xl lg:text-2xl">{link.name}</span>
-                </a>
-            );
-        };
-        
-        // --- NUEVO COMPONENTE: Gráfico de Progreso de Producción (Recharts) ---
-        const ProductionProgressChart = ({ orders, theme }) => {
-            
-            // Si PieChart es la función de placeholder, mostramos el error.
-            if (PieChart.name === 'div') { 
-                return <div className={`mt-10 p-4 rounded-xl shadow-2xl transition-colors w-full max-w-lg mx-auto ${theme.widgetBg} ${theme.textColor}`}>
-                    <h3 className={`font-bold text-xl mb-4 flex items-center justify-center gap-2 ${theme.accentColor}`}><Icon name="layers" size={20}/> Progreso Global de Paquetes</h3>
-                    <div className="text-center text-red-400 font-bold p-8">ERROR: La librería de gráficos Recharts no se cargó correctamente.</div>
-                </div>;
-            }
-
-            const [totalPackages, setTotalPackages] = useState(0);
-            const [finishedPackages, setFinishedPackages] = useState(0);
-            const [dataLoaded, setDataLoaded] = useState(false);
-            
-            // 1. Cálculo del progreso
-            useEffect(() => {
-                let total = 0;
-                let finished = 0;
-                
-                orders.forEach(order => {
-                    if (Array.isArray(order.progreso)) {
-                        total += order.progreso.length;
-                        finished += order.progreso.filter(p => p.finished).length;
-                    }
-                });
-                
-                setTotalPackages(total);
-                setFinishedPackages(finished);
-                setDataLoaded(true);
-            }, [orders]);
-            
-            if (!dataLoaded || totalPackages === 0) {
-                 return <div className={`text-center py-8 ${theme.textColor} opacity-60`}>Conectando con la Matriz de Paquetes...</div>;
-            }
-
-            const pendingPackages = totalPackages - finishedPackages;
-            const progressPercentage = totalPackages > 0 ? (finishedPackages / totalPackages) * 100 : 0;
-
-            // Utiliza el color de acento del tema (ej. #0ea5e9 para sky-400) para el progreso.
-            const accentHex = theme.accentColor.replace('text-', '#').replace('400', '500').replace('600', '700');
-
-            const data = [
-                // Terminado - Color de acento
-                { name: 'Terminado', value: finishedPackages, color: accentHex + 'D0' }, 
-                // Pendiente - Color de fondo secundario discreto
-                { name: 'Pendiente', value: pendingPackages, color: theme.textColor === 'text-white' ? '#475569' : '#e2e8f0' }
-            ];
-            
-            // Determina si el texto interno debe ser oscuro o claro
-            const centerTextColor = theme.textColor === 'text-white' ? 'text-white' : 'text-gray-800';
-            
-            return (
-                <div className={`mt-10 p-4 rounded-xl shadow-2xl transition-colors w-full max-w-lg mx-auto ${theme.widgetBg} ${theme.textColor}`}>
-                    <h3 className={`font-bold text-xl mb-4 flex items-center justify-center gap-2 ${theme.accentColor}`}><Icon name="layers" size={20}/> Progreso Global de Paquetes</h3>
-                    
-                    <div className="relative" style={{ width: '100%', height: 300 }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={data}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={90} // Dona (Doughnut)
-                                    outerRadius={120}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                    isAnimationActive={true}
-                                >
-                                    {data.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                    ))}
-                                </Pie>
-                                <Tooltip 
-                                    contentStyle={{ 
-                                        backgroundColor: theme.secondaryBg.replace('bg-', '#').replace('A0', ''), 
-                                        borderColor: theme.accentColor.replace('text-', '#'),
-                                        color: theme.textColor.includes('white') ? '#fff' : '#000',
-                                        borderRadius: '8px'
-                                    }}
-                                    formatter={(value, name) => [value, name === 'Terminado' ? 'Paquetes Terminados' : 'Paquetes Pendientes']}
-                                />
-                            </PieChart>
-                        </ResponsiveContainer>
-
-                        {/* Texto Central de la Dona */}
-                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <span className={`text-5xl font-extrabold ${theme.accentColor}`}>{progressPercentage.toFixed(1)}%</span>
-                            <span className={`text-base font-semibold ${centerTextColor} opacity-80`}>GLOBAL</span>
-                            <span className={`text-sm ${centerTextColor} opacity-60`}>{finishedPackages} de {totalPackages} PQTs}</span>
-                        </div>
-                    </div>
-                    
-                    <div className="flex justify-around mt-4 text-sm font-semibold border-t border-current/30 pt-3">
-                        <div className="flex items-center gap-2">
-                            <div className={`w-3 h-3 rounded-full`} style={{backgroundColor: accentHex}}></div>
-                            <span>Terminado: {finishedPackages}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className={`w-3 h-3 rounded-full ${theme.textColor === 'text-white' ? 'bg-slate-600' : 'bg-gray-300'}`}></div>
-                            <span>Pendiente: {pendingPackages}</span>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-
-        // --- COMPONENTES: Clock y RadioPlayer (Sin cambios estructurales) ---
-
-        const Clock = ({ theme }) => {
-            const [time, setTime] = useState(new Date());
-            useEffect(() => {
-                const timer = setInterval(() => setTime(new Date()), 1000);
-                return () => clearInterval(timer);
-            }, []);
-            
-            const accentColor = theme.accentColor.replace('text-', 'text-');
-            
-            return (
-                <div className={`text-center font-mono p-4 rounded-lg shadow-2xl transition-colors ${theme.clockBg} ${theme.textColor === 'text-white' ? 'text-white' : 'text-gray-800'}`}>
-                    <div className="text-6xl lg:text-7xl font-black">{time.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
-                    <div className={`text-sm font-semibold mt-1 ${accentColor}`}>{time.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                </div>
-            );
-        };
-        
-        const RadioPlayer = ({ theme }) => {
-            const [stations, setStations] = useState([]);
-            const [searchUrl, setSearchUrl] = useState('');
-            const [name, setName] = useState('');
-            const [currentStation, setCurrentStation] = useState(null);
-            const audioRef = useRef(new Audio());
-            
-            useEffect(() => {
-                const unsubscribe = db.collection('radioStations').onSnapshot(s => {
-                    setStations(s.docs.map(d => ({ id: d.id, ...d.data() })));
-                });
-                audioRef.current.volume = 0.5;
-                return () => { unsubscribe(); audioRef.current.pause(); };
-            }, []);
-
-            const playStation = (station) => {
-                if (currentStation && currentStation.id === station.id) {
-                    audioRef.current.pause();
-                    setCurrentStation(null);
-                } else {
-                    audioRef.current.src = station.url;
-                    audioRef.current.play().catch(e => console.error("Error al reproducir:", e));
-                    setCurrentStation(station);
-                }
-            };
-
-            const addStation = async () => {
-                if (name && searchUrl) {
-                    await db.collection('radioStations').add({ name, url: searchUrl, addedAt: firebase.firestore.FieldValue.serverTimestamp() });
-                    setName('');
-                    setSearchUrl('');
-                }
-            };
-            
-            const deleteStation = async (id) => {
-                if (window.confirm("¿Seguro que quieres eliminar esta estación?")) {
-                    await db.collection('radioStations').doc(id).delete();
-                    if (currentStation && currentStation.id === id) {
-                         audioRef.current.pause();
-                         setCurrentStation(null);
-                    }
-                }
-            };
-            
-            const accentTextClass = theme.accentColor;
-            const stationBg = theme.textColor === 'text-white' ? 'bg-slate-700 hover:bg-slate-600' : 'bg-gray-200 hover:bg-gray-300';
-            const playingBg = theme.accentColor.replace('text-', 'bg-').replace('-400', '-200');
-            const playingText = theme.accentColor.replace('text-', 'text-');
-            const inputBg = theme.textColor === 'text-white' ? 'bg-slate-900 border-slate-600 text-white' : 'bg-white border-gray-300 text-gray-800';
-            const saveBtnColor = theme.navBtnColor;
-
-            return (
-                <div className={`mt-6 p-4 rounded-xl shadow-lg transition-colors ${theme.widgetBg} ${theme.textColor}`} style={{ '--accent-color': theme.accentColor.replace('text-', '#') }}>
-                    <h3 className={`font-bold text-xl mb-3 flex items-center gap-2 ${accentTextClass}`}><Icon name="radio" size={20}/> Radio FM/Internet</h3>
-                    
-                    <div className="flex items-center gap-2 mb-3">
-                        <input type="range" min="0" max="1" step="0.01" defaultValue="0.5" onChange={(e) => audioRef.current.volume = e.target.value} className={`flex-1 accent-current ${theme.accentColor.replace('text-', '')}`} />
-                        <Icon name="volume-2" size={18} className="text-current"/>
-                    </div>
-
-                    <div className="radio-list space-y-2 mb-3 border-b border-current/30 pb-3">
-                        {stations.map(s => (
-                            <div key={s.id} className={`flex items-center justify-between text-sm p-2 rounded transition-colors ${stationBg} ${currentStation?.id === s.id ? `${playingBg} ${playingText} font-bold` : ''}`}>
-                                <div className="truncate">{s.name}</div>
-                                <div className="flex gap-1 shrink-0">
-                                    <button onClick={() => playStation(s)} className={`p-1 rounded transition-colors text-white ${currentStation?.id === s.id ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}>
-                                        <Icon name={currentStation?.id === s.id ? "pause" : "play"} size={16}/>
-                                    </button>
-                                    <button onClick={() => deleteStation(s.id)} className="p-1 bg-red-500/10 text-red-400 rounded hover:bg-red-500/20">
-                                         <Icon name="trash-2" size={16}/>
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                        {stations.length === 0 && <p className="text-sm text-current/70 text-center">No hay estaciones guardadas.</p>}
-                    </div>
-                    
-                    <p className="text-sm font-bold text-current/80 mb-1">AGREGAR ESTACIÓN:</p>
-                    <input type="text" placeholder="Nombre (Ej: La Zeta)" value={name} onChange={(e) => setName(e.target.value)} className={`w-full p-2 mb-1 text-sm border rounded ${inputBg}`} />
-                    <input type="url" placeholder="URL de Stream (.mp3, .m3u, .m3u8)" value={searchUrl} onChange={(e) => setSearchUrl(e.target.value)} className={`w-full p-2 mb-2 text-sm border rounded ${inputBg}`} />
-                    <button onClick={addStation} disabled={!name || !searchUrl} className={`w-full text-white font-bold p-3 rounded-lg text-sm transition-all shadow-md ${saveBtnColor} disabled:opacity-50 disabled:cursor-not-allowed`}>
-                        <Icon name="save" size={18} className="inline mr-1"/> Guardar Estación
-                    </button>
-                </div>
-            );
-        };
-
-        // --- COMPONENTE ACTUALIZADO: WeatherWidget ---
-        const WeatherWidget = ({ theme }) => {
-            // Ubicaciones actualizadas a Moroleón/Uriangato
-            const city = "MOROLEÓN - URIANGATO, GTO."; 
-            const temp = "25°C"; // Dato estático
-            const icon = "sun";
-            const desc = "Soleado";
-
-            const accentTextClass = theme.accentColor;
-
-            return (
-                <div className={`p-4 rounded-xl shadow-lg transition-colors ${theme.widgetBg} ${theme.textColor}`}>
-                    <h3 className={`font-bold text-xl mb-3 flex items-center gap-2 ${accentTextClass}`}><Icon name="cloud-lightning" size={20}/> Clima de la Zona</h3>
-                    <div className="flex justify-between items-center p-2">
-                        <div>
-                            <div className={`text-5xl font-black ${accentTextClass}`}>{temp}</div>
-                            <div className="text-base font-semibold text-current/80">{desc}</div>
-                        </div>
-                        <Icon name={icon} size={64} className="text-yellow-400 drop-shadow-lg"/>
-                    </div>
-                    {/* El texto (Simulado) ha sido eliminado */}
-                    <div className="text-xs mt-3 text-current/60 font-bold border-t border-current/30 pt-2">Ubicación: {city}</div>
-                </div>
-            );
-        };
-        
-        const ThemeSwitcher = ({ theme, setTheme }) => {
-            const themesArray = Object.values(themeConfig);
-            
-            return (
-                <div className="p-4 rounded-xl shadow-lg bg-slate-700/50 backdrop-blur-sm text-white mt-6">
-                    <h3 className="font-bold text-xl mb-3 flex items-center gap-2 text-white"><Icon name="palette" size={20}/> Temas</h3>
-                    <div className="flex space-x-3">
-                        {themesArray.map((t) => (
-                            <button 
-                                key={t.id} 
-                                onClick={() => setTheme(t.id)} 
-                                className={`flex-1 p-2 rounded-lg text-sm font-semibold transition-all shadow-md ${t.id === theme.id ? 'ring-4 ring-offset-2 ring-sky-500' : 'hover:opacity-80'}`}
-                                style={{backgroundColor: t.secondaryBg.replace('bg-', ''), color: t.textColor.includes('white') ? 'white' : 'black'}}
-                            >
-                                {t.name}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )
-        }
 
         // --- COMPONENTE PRINCIPAL DE LA PÁGINA ---
 
         const App = () => {
             const [orders, setOrders] = useState([]);
-            const [inventory, setInventory] = useState([]);
             const [links, setLinks] = useState([]); 
-            const [currentThemeId, setCurrentThemeId] = useState(localStorage.getItem('dashboardTheme') || 'darkIndustrial');
-            
-            const theme = themeConfig[currentThemeId];
 
-            // 1. Enlaces por defecto y carga de Firebase
+            // 1. Enlaces por defecto 
             const defaultLinks = useMemo(() => ([
                 { id: 'default-santoni', name: "SANTONI", url: "https://jesusvn1993mplvt3-ai.github.io/CIRINEO/", iconName: "tshirt" },
                 { id: 'default-inventory', name: "INVENTARIO", url: "https://jesusvn1993mplvt3-ai.github.io/HILATURAS/", iconName: "boxes" },
                 { id: 'default-sock', name: "CALCETÍN", url: "https://sweaters-liliana.github.io/MAES26/", iconName: "socks" },
-                { id: 'default-generator', name: "PAPELETAS", url: "https://jesusvn1993mplvt3-ai.github.io/GENERADOR-DE-PAPELETAS/", iconName: "printer" } // ENLACE AGREGADO
+                // ESTE ES EL ENLACE AL GENERADOR DE PAPELETAS (archivo 'generador de papeletas.html' que subiste)
+                { id: 'default-generator', name: "PAPELETAS", url: "https://jesusvn1993mplvt3-ai.github.io/GENERADOR-DE-PAPELETAS/", iconName: "printer" }
             ]), []);
 
             // Carga inicial de datos
             useEffect(() => {
+                // Solo órdenes activas (Status != ARCHIVADO) para el fondo de papeletas
                 const u1 = db.collection('orders').where('status', '!=', 'ARCHIVADO').onSnapshot(s => setOrders(s.docs.map(d=>d.data()).filter(d=>d.progreso && d.progreso.length > 0)));
-                const u2 = db.collection('inventory').doc('main').onSnapshot(d => setInventory(d.data()?.items || []));
                 
                 // Suscripción a los enlaces
-                const u3 = db.collection('dashboardLinks').onSnapshot(s => {
+                const u2 = db.collection('dashboardLinks').onSnapshot(s => {
                     const dbLinks = s.docs.map(d => ({ id: d.id, ...d.data() }));
                     
-                    // Filtrar los enlaces por defecto para no duplicar los que ya están en la DB (por URL o nombre)
                     const filteredDefaults = defaultLinks.filter(dLink => 
                         !dbLinks.some(dbLink => dbLink.url === dLink.url || dbLink.name === dLink.name)
                     );
                     
-                    // Combinar los enlaces de Firebase con los enlaces por defecto (los de Firebase tienen prioridad)
                     setLinks([...dbLinks, ...filteredDefaults]);
                 });
                 
-                return () => { u1(); u2(); u3(); };
+                return () => { u1(); u2(); };
             }, [defaultLinks]);
-
-            // Guarda el tema en localStorage
-            useEffect(() => {
-                localStorage.setItem('dashboardTheme', currentThemeId);
-            }, [currentThemeId]);
-            
-            const allStatuses = useMemo(() => {
-                const statuses = [];
-                const inventoryCopy = [...inventory];
-                
-                // 1. Agregar estados de Inventario (Solo los que están bajos o al azar)
-                const lowStockItems = inventoryCopy.filter(item => Number(item.stock) < Number(item.minStock));
-                
-                // Mezcla ítems bajos y ítems normales para tener variedad
-                const mixedItems = [...lowStockItems];
-                inventoryCopy.forEach(item => {
-                    if (!mixedItems.includes(item)) mixedItems.push(item);
-                });
-                
-                for (let i = 0; i < Math.min(6, mixedItems.length); i++) {
-                    const item = mixedItems[i];
-                    const text = `📊 INV: ${item.material} ${item.calibre || ''} Stock ${Number(item.stock).toFixed(1)} kg.`;
-                    const isWarn = Number(item.stock) < Number(item.minStock);
-                    
-                    statuses.push({ text: isWarn ? `⚠️ ${text}` : text, isWarning: isWarn, type: 'inventory' });
-                }
-
-                // 2. Agregar estados de Órdenes (Solo órdenes activas con tiempo restante o advertencia)
-                const relevantOrders = orders
-                    .map(calculateOrderStatus)
-                    .filter(s => s); // FILTRADO CLAVE: Solo se incluyen los resultados que NO son nulos
-                    
-                relevantOrders.forEach(status => {
-                    statuses.push({
-                        text: status.statusMessage,
-                        isWarning: status.isWarning,
-                        type: 'order',
-                    });
-                });
-                
-                // 3. Mensajes de estado general/bienvenida
-                if (statuses.length < 5) { // Garantizamos que haya algunos mensajes de relleno si la BD está vacía/pequeña
-                     statuses.push({ text: "OPERACIÓN EN LÍNEA. FLUJO DE DATOS ESTABLE.", isWarning: false, type: 'idle' });
-                     statuses.push({ text: "BIENVENIDO. SISTEMA DE PRODUCCIÓN V01.", isWarning: false, type: 'welcome' });
-                }
-
-                return statuses;
-            }, [orders, inventory]);
-            
-            // Aplicar el tema al <body>
-            useEffect(() => {
-                document.body.className = theme.primaryBg;
-                // Ajuste para el color de la barra de desplazamiento
-                document.documentElement.style.setProperty('--accent-color', theme.accentColor.replace('text-', '#'));
-            }, [theme]);
             
             // Determina el número de columnas de la cuadrícula de enlaces
-            const linkGridColumns = links.length <= 3 ? `grid-cols-1 md:grid-cols-${links.length}` : 'grid-cols-1 md:grid-cols-3';
+            const linkGridColumns = links.length <= 3 ? `grid-cols-1 sm:grid-cols-${links.length}` : 'grid-cols-2 md:grid-cols-3';
 
             return (
-                <div className="dashboard-grid">
-                    {/* --- Contenido Principal (Visualización de Datos) --- */}
-                    <div className={`main-content p-4 lg:p-12 flex flex-col items-center justify-start transition-colors ${theme.primaryBg}`}>
-                        <div className="text-center w-full max-w-6xl mx-auto">
-                            <h1 className={`text-5xl lg:text-7xl font-extrabold ${theme.accentColor} mb-2 tracking-tighter`}>
-                                SWEATERS LILIANA
-                            </h1>
-                            <h2 className={`text-lg lg:text-xl font-bold ${theme.textColor} opacity-70 mb-8`}>
-                                DASHBOARD PRINCIPAL <span className="text-yellow-500">2026 v01</span>
-                            </h2>
-                            
-                            {/* NUEVA CUADRÍCULA DE ESTADO */}
-                            <FlickeringStatusGrid allStatuses={allStatuses} theme={theme} />
-                            
-                            {/* GRÁFICA DE PROGRESO DE PRODUCCIÓN (NUEVA) */}
-                            <ProductionProgressChart orders={orders} theme={theme} />
-                            
-                            <div className="mt-12 w-full max-w-lg mx-auto">
-                                <Clock theme={theme} />
-                            </div>
-                            
-                            {/* --- SECCIÓN DE ACCESOS DIRECTOS MEJORADA (Dinamizada) --- */}
-                            <div className={`mt-10 w-full max-w-3xl mx-auto grid ${linkGridColumns} gap-6`}>
-                                {links.map((link, index) => (
-                                    <NeonLinkButton 
-                                        key={link.id}
-                                        theme={theme}
-                                        link={link}
-                                        index={index}
-                                    />
-                                ))}
-                            </div>
-                            {/* --- FIN DE SECCIÓN DE ACCESOS DIRECTOS MEJORADA --- */}
-                            
-                            <hr className={`mt-10 border-t-4 w-full max-w-6xl mx-auto ${theme.textColor === 'text-white' ? 'border-slate-700' : 'border-gray-300'}`}/>
-                        </div>
-                    </div>
+                <div className="relative">
                     
-                    {/* --- Barra Lateral (Widgets y Navegación) --- */}
-                    <div className={`sidebar p-6 lg:p-8 transition-colors ${theme.secondaryBg} ${theme.textColor}`}>
-                        <WeatherWidget theme={theme} />
-                        <RadioPlayer theme={theme} />
-                        <ThemeSwitcher theme={theme} setTheme={setCurrentThemeId} />
-                        {/* CAMBIO SOLICITADO: LinkManager movido al final */}
-                        <LinkManager theme={theme} links={links} setLinks={setLinks} /> 
+                    {/* --- FONDO DINÁMICO (Las "papeletas tiradas") --- */}
+                    <PaperBackground orders={orders} />
+                    
+                    {/* --- CONTENIDO PRINCIPAL (Centrado y Limpio) --- */}
+                    <div className={`main-container flex justify-center items-start ${theme.primaryBg}`}>
+                        <div className={`w-full max-w-5xl mx-auto p-4 lg:p-10 rounded-2xl shadow-2xl ${theme.overlayBg} ${theme.textColor}`}>
+                            
+                            {/* --- HEADER --- */}
+                            <header className="text-center mb-10">
+                                <h1 className={`text-5xl lg:text-7xl font-extrabold ${theme.accentColor} mb-2 tracking-tighter`}>
+                                    S. LILIANA
+                                </h1>
+                                <h2 className={`text-lg lg:text-xl font-bold ${theme.textColor} opacity-80`}>
+                                    CENTRO DE CONTROL DE PRODUCCIÓN
+                                </h2>
+                            </header>
+                            
+                            {/* --- SECCIÓN DE ACCESOS DIRECTOS --- */}
+                            <section className="mb-10">
+                                <h3 className={`font-bold text-2xl mb-6 text-center ${theme.accentColor}`}>
+                                    ACCESOS RÁPIDOS (APLICACIONES)
+                                </h3>
+                                <div className={`grid ${linkGridColumns} gap-6`}>
+                                    {links.map((link, index) => (
+                                        <NeonLinkButton 
+                                            key={link.id}
+                                            link={link}
+                                            index={index}
+                                        />
+                                    ))}
+                                </div>
+                            </section>
+                            
+                            <hr className="border-t border-slate-700/50 my-10"/>
+
+                            {/* --- GESTOR DE ENLACES --- */}
+                            <section className="w-full max-w-lg mx-auto">
+                                <LinkManager links={links} setLinks={setLinks} /> 
+                            </section>
+
+                        </div>
                     </div>
                 </div>
             );
