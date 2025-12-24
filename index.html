@@ -2,71 +2,52 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sweaters Liliana Control Profesional</title>
-
-    <link id="appIcon" rel="icon" href="https://ejemplo.com/tu-imagen-industrial-cerebro.ico">
-    <link id="appAppleIcon" rel="apple-touch-icon" href="https://ejemplo.com/tu-imagen-industrial-cerebro.ico">
-    <meta name="theme-color" content="#1e293b">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Generador de Pedidos Standalone</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
 
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
     <style>
-        /* Tipografía */
-        body {
-            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-        .main-container {
-            min-height: 100vh;
-            padding: 50px 20px;
-            /* Fuerza el contenido a estar encima del fondo */
-            position: relative; 
-            z-index: 10;
-        }
-
-        /* Animación de Parpadeo (Flicker) para el efecto neón en los botones */
-        @keyframes flicker {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.8; }
-            52% { opacity: 0.95; }
-        }
+        /* Estilos específicos para el comportamiento móvil y scroll */
+        body { background-color: #0f172a; color: white; }
         
-        /* Animación de Parpadeo para las papeletas (súper sutil) */
-        @keyframes flicker-low {
-            0%, 100% { opacity: 0.05; }
-            50% { opacity: 0.03; }
+        .smooth-scroll { -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
+        
+        /* Zona de scroll seguro para móviles */
+        .safe-scroll-zone {
+            position: fixed; right: 0; top: 20%; bottom: 20%; width: 40px;
+            background: rgba(255,255,255,0.1);
+            border-top-left-radius: 20px; border-bottom-left-radius: 20px;
+            z-index: 9999; display: flex; align-items: center; justify-content: center;
+            touch-action: none; transition: opacity 0.3s;
         }
+        .safe-scroll-zone:active { background: rgba(255,255,255,0.2); }
+        .safe-scroll-zone i { color: rgba(255,255,255,0.5); font-size: 24px; }
 
-        /* Estilos para el scrollbar (se mantiene para limpieza) */
-        .radio-list::-webkit-scrollbar { width: 6px; background-color: transparent; }
-        .radio-list::-webkit-scrollbar-thumb { background: #38bdf8; border-radius: 3px; }
-        .link-list::-webkit-scrollbar { width: 6px; background-color: transparent; }
-        .link-list::-webkit-scrollbar-thumb { background: #38bdf8; border-radius: 3px; }
+        /* Animaciones */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-in { animation: fadeIn 0.3s ease-out; }
     </style>
 </head>
-<body class="font-sans bg-slate-900">
+<body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect, useMemo, useRef } = React;
         
-        const Icon = ({ name, size = 20, className }) => {
-            useEffect(() => { lucide.createIcons(); }, [name]);
-            return <i data-lucide={name} width={size} height={size} className={className}></i>;
-        };
-
-        // --- Configuración de Firebase (Se mantiene) ---
+        // --- 1. CONFIGURACIÓN DE BASE DE DATOS ---
         const firebaseConfig = {
-            apiKey: "AIzaSyBqHgV4vDat1-VmZfKbiPg7nuiX-ROcexw",
+            apiKey: "AIzaSyCngQL1pdqghv2vbjkPycT1Xf0C46f7jYs",
             authDomain: "cirineo-cec21.firebaseapp.com",
             projectId: "cirineo-cec21",
             storageBucket: "cirineo-cec21.firebasestorage.app",
@@ -78,313 +59,323 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // --- DEFINICIÓN DE TEMA ÚNICO ---
-        const theme = {
-            id: 'professionalDark',
-            name: "Industrial Profesional",
-            primaryBg: "bg-slate-900", 
-            overlayBg: "bg-white/5 backdrop-blur-md", 
-            accentColor: "text-sky-400", 
-            warningColor: "text-red-400",
-            textColor: "text-white",
-            navBtnColor: "bg-sky-600 hover:bg-sky-700",
+        // --- 2. UTILIDADES ---
+        const Icon = ({ name, size = 18, className }) => <i data-lucide={name} width={size} height={size} className={className}></i>;
+        
+        const generateSmartID = (partida, pieces, maquina) => {
+            const piecePrefixes = pieces.map(p => p.pieza.substring(0, 2).toUpperCase()).join('/');
+            return `${partida}-${piecePrefixes}-M${maquina}`;
         };
 
-        // --- UTILS ---
-        const getLinkColorClass = (theme, index) => {
-            const darkColors = ['text-red-400', 'text-indigo-400', 'text-cyan-400', 'text-green-400', 'text-yellow-400', 'text-pink-400'];
-            const colorIndex = index % darkColors.length;
-            return darkColors[colorIndex];
+        // --- 3. COMPONENTE EDITOR DE BORRADOR (Necesario para el paso de revisión) ---
+        const DraftEditor = ({ draft, onSave, onCancel }) => {
+            const [localDraft, setLocalDraft] = useState(draft);
+            const [inventory, setInventory] = useState([]);
+            const [suggestions, setSuggestions] = useState({ index: null, items: [] });
+            
+            useEffect(() => {
+                const unsubscribe = db.collection('inventory').doc('main').onSnapshot(doc => { if (doc.exists && doc.data().items) setInventory(doc.data().items); });
+                return () => unsubscribe();
+            }, []);
+
+            const addThread = () => setLocalDraft({ ...localDraft, threading: [...(localDraft.threading || []), { guia: (localDraft.threading?.length || 0) + 1, material: '', porcentaje: '', materialId: null }] });
+            const removeThread = (idx) => setLocalDraft({ ...localDraft, threading: localDraft.threading.filter((_, i) => i !== idx) });
+            const updateThread = (idx, field, val) => { const newThreads = [...localDraft.threading]; newThreads[idx] = { ...newThreads[idx], [field]: val }; setLocalDraft({ ...localDraft, threading: newThreads }); };
+            
+            const handleMaterialInput = (idx, val) => { 
+                updateThread(idx, 'material', val); 
+                if (val.length > 1) { 
+                    const filtered = inventory.filter(i => `${i.material} ${i.color}`.toLowerCase().includes(val.toLowerCase())); 
+                    setSuggestions({ index: idx, items: filtered }); 
+                } else { setSuggestions({ index: null, items: [] }); } 
+            };
+            
+            const selectSuggestion = (idx, item) => { 
+                const newThreads = [...localDraft.threading]; 
+                newThreads[idx] = { ...newThreads[idx], material: `${item.material} - ${item.color}`, materialId: item.id, stockDisponible: item.stock || '0' }; 
+                setLocalDraft({ ...localDraft, threading: newThreads }); 
+                setSuggestions({ index: null, items: [] }); 
+            };
+            
+            const calculateConsumption = (hilo) => { 
+                if (!hilo.materialId || !hilo.porcentaje) return 0; 
+                const totalGramos = localDraft.subPiecesData.reduce((acc, p) => acc + (Number(p.peso || 0) * Number(p.totalPedido || 0)), 0); 
+                return ((totalGramos * (Number(hilo.porcentaje) / 100)) / 1000).toFixed(2); 
+            };
+            
+            const updatePiece = (idx, field, val) => { const newPieces = [...localDraft.subPiecesData]; newPieces[idx] = { ...newPieces[idx], [field]: val }; setLocalDraft({ ...localDraft, subPiecesData: newPieces }); };
+            
+            return (
+                <div className="flex flex-col h-full text-slate-800">
+                    <div className="bg-indigo-600 p-4 text-white flex justify-between items-center shrink-0"><h2 className="font-bold text-lg"><Icon name="edit-3" className="inline mr-2"/> Editando Orden Máquina {localDraft.maquina}</h2></div>
+                    <div className="p-6 overflow-y-auto flex-grow space-y-6">
+                        <div className="grid grid-cols-3 gap-4 bg-slate-50 p-4 rounded border">
+                            <div><label className="block text-xs font-bold text-gray-500">Máquina</label><input type="number" value={localDraft.maquina} onChange={e=>setLocalDraft({...localDraft, maquina: e.target.value})} className="w-full border p-1 rounded font-black text-xl"/></div>
+                            <div><label className="block text-xs font-bold text-gray-500">Cliente</label><input value={localDraft.cliente} disabled className="w-full border p-1 rounded bg-gray-200 text-gray-500"/></div>
+                             <div><label className="block text-xs font-bold text-gray-500">Partida</label><input value={localDraft.partida} disabled className="w-full border p-1 rounded bg-gray-200 text-gray-500"/></div>
+                        </div>
+                        <div>
+                            <div className="flex justify-between items-center mb-2"><h3 className="font-bold text-sm text-slate-700">Enhebrado e Inventario</h3><button onClick={addThread} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold hover:bg-blue-200">+ Hilo</button></div>
+                            <table className="w-full text-xs border">
+                                <thead className="bg-slate-200"><tr><th className="p-1 w-10">Guía</th><th className="p-1">Material</th><th className="p-1 w-16">%</th><th className="p-1 w-24">Consumo</th><th className="p-1 w-8"></th></tr></thead>
+                                <tbody>
+                                    {(localDraft.threading || []).map((h, i) => (
+                                        <tr key={i} className="relative">
+                                            <td><input value={h.guia} onChange={e=>updateThread(i,'guia',e.target.value)} className="w-full text-center border-none bg-transparent"/></td>
+                                            <td className="p-1"><input value={h.material} onChange={e => handleMaterialInput(i, e.target.value)} className="w-full border p-1 rounded outline-none"/>{suggestions.index === i && suggestions.items.length > 0 && (<div className="absolute z-50 bg-white border shadow-lg w-full max-w-md max-h-40 overflow-y-auto left-0 mt-1 rounded">{suggestions.items.map(item => (<div key={item.id} onClick={() => selectSuggestion(i, item)} className="p-2 hover:bg-indigo-50 cursor-pointer border-b flex justify-between items-center"><div><span className="font-bold text-slate-700">{item.material}</span><span className="text-slate-500 ml-1">- {item.color}</span></div><span className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-[10px] font-bold">Stock: {item.stock || 0}kg</span></div>))}</div>)}</td>
+                                            <td><input value={h.porcentaje} onChange={e=>updateThread(i,'porcentaje',e.target.value)} className="w-full text-center border p-1" placeholder="%"/></td>
+                                            <td className="text-center font-bold text-red-600 bg-red-50">{calculateConsumption(h)} Kg</td>
+                                            <td className="text-center"><button onClick={()=>removeThread(i)} className="text-red-500 font-bold">x</button></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-sm text-slate-700 mb-2">Detalles Técnicos (Piezas)</h3>
+                            {localDraft.subPiecesData.map((p, idx) => (
+                                <div key={idx} className="bg-white border rounded p-3 mb-2 shadow-sm">
+                                    <div className="font-bold text-indigo-700 mb-2 border-b pb-1">{p.pieza}</div>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        <div><label className="text-[10px] font-bold text-gray-400">Talla</label><input value={p.talla} onChange={e=>updatePiece(idx,'talla',e.target.value)} className="w-full border p-1 rounded text-xs font-bold"/></div>
+                                         <div><label className="text-[10px] font-bold text-gray-400">Peso (g)</label><input value={p.peso} onChange={e=>updatePiece(idx,'peso',e.target.value)} className="w-full border p-1 rounded text-xs"/></div>
+                                         <div><label className="text-[10px] font-bold text-gray-400">Tiempo (min)</label><input value={p.tiempo} onChange={e=>updatePiece(idx,'tiempo',e.target.value)} className="w-full border p-1 rounded text-xs"/></div>
+                                        <div><label className="text-[10px] font-bold text-gray-400">Cant.</label><input value={p.totalPedido} disabled className="w-full border p-1 rounded text-xs bg-gray-100 text-center"/></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="p-4 bg-gray-100 border-t flex justify-end gap-3">
+                        <button onClick={onCancel} className="px-4 py-2 rounded text-slate-600 font-bold hover:bg-slate-200">Cancelar</button>
+                        <button onClick={() => onSave(localDraft)} className="px-6 py-2 rounded bg-green-600 text-white font-bold hover:bg-green-700 shadow flex items-center gap-2"><Icon name="check-circle"/> CONFIRMAR</button>
+                    </div>
+                </div>
+            );
         };
 
-        // --- COMPONENTE: FONDO DINÁMICO DE PAPELETAS ---
-        const PaperBackground = ({ orders }) => {
-            const paperElements = useMemo(() => {
-                // Colores discretos de papel (casi blanco/gris muy claro)
-                const colors = ['#f5f5f5', '#e5e5e5', '#f0f0f0', '#d4d4d4']; 
+        // --- 4. MODAL GENERADOR PRINCIPAL ---
+        const OrderGeneratorModal = ({ onClose, onProcess }) => {
+            const [step, setStep] = useState('input');
+            const [drafts, setDrafts] = useState([]);
+            const [currentDraftIndex, setCurrentDraftIndex] = useState(null);
+            const [form, setForm] = useState({ modelo: '', cliente: '', fecha: new Date().toISOString().split('T')[0], partidaCodigo: '', totalPrendas: 0 });
+            const [components, setComponents] = useState([{ descripcion: '', sufijo: '', maquina: '', multiplicador: 1, piezasPorPaquete: 0 }]);
+            
+            // Mobile UI Helpers
+            const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+            const contentRef = useRef(null);
 
-                // 1. Filtrar solo órdenes ACTIVAS (estas son las "papeletas tiradas")
-                const activeOrders = orders.filter(order => order.status !== 'ARCHIVADO');
-                
-                // 2. Si no hay órdenes, mostramos un número fijo de placeholders
-                if (activeOrders.length === 0) {
-                    return Array(20).fill(null).map((_, i) => ({
-                        id: `placeholder-${i}`,
-                        text: "ESPERANDO ORDEN",
-                        color: colors[i % colors.length],
-                        rotation: Math.random() * 360,
-                        x: Math.random() * 100,
-                        y: Math.random() * 100,
-                    }));
+            const handleInputFocus = (e) => {
+                setIsKeyboardOpen(true);
+                if (e.target.type === 'number' || e.target.type === 'tel' || e.target.inputMode === 'numeric') {
+                    e.target.select();
                 }
+            };
+            const handleInputBlur = () => { setIsKeyboardOpen(false); };
 
-                // 3. Generar un elemento visual por cada orden activa (se duplican para mayor densidad visual)
-                let elements = [];
-                activeOrders.forEach((order, index) => {
-                    const progress = order.progreso ? (order.progreso.filter(p => p.finished).length / order.progreso.length) * 100 : 0;
-                    const orderText = `ORDEN ${order.codigo || 'N/A'} #\nMAQUINA: ${order.maquina || 'N/A'}\nPROGRESO: ${progress.toFixed(0)}%`;
-                    
-                    // Genera múltiples "papeletas" por orden
-                    for(let i=0; i<3; i++) {
-                         elements.push({
-                            id: `${order.codigo}-${i}`, 
-                            text: orderText,
-                            color: colors[(index + i) % colors.length],
-                            rotation: Math.random() * 360, 
-                            x: Math.random() * 100, 
-                            y: Math.random() * 100, 
-                            opacity: 0.05 + Math.random() * 0.02, 
-                            sizeFactor: 0.8 + Math.random() * 0.4 
+            const handleScrollZoneMove = (e) => {
+                if (contentRef.current) {
+                    const touch = e.touches[0];
+                    const height = window.innerHeight;
+                    const percentage = touch.clientY / height;
+                    const scrollHeight = contentRef.current.scrollHeight;
+                    contentRef.current.scrollTop = percentage * scrollHeight - (height/2);
+                    e.preventDefault(); 
+                }
+            };
+
+            useEffect(() => {
+                if (!form.fecha) return;
+                const fechaObj = new Date(form.fecha + 'T00:00:00');
+                const meses = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
+                const mes = meses[fechaObj.getMonth()];
+                const year = fechaObj.getFullYear().toString().slice(-2);
+                setForm(prev => ({ ...prev, partidaCodigo: `${mes}${year}_01` }));
+            }, [form.fecha]);
+
+            const handleGenerateDrafts = () => {
+                if (!form.partidaCodigo || !form.cliente || !form.modelo) return alert("Faltan datos generales");
+                const ordersByMachine = {};
+                let hasValidComponent = false;
+                components.forEach(comp => {
+                    if(!comp.descripcion || !comp.maquina) return;
+                    hasValidComponent = true;
+                    const maquinaKey = String(comp.maquina);
+                    if (!ordersByMachine[maquinaKey]) {
+                        ordersByMachine[maquinaKey] = {
+                            codigo: form.modelo.toUpperCase(), cliente: form.cliente.toUpperCase(), maquina: maquinaKey, partida: form.partidaCodigo.toUpperCase(),
+                            subPiecesData: [], predefinedPackages: [], createdAt: new Date().toLocaleString('es-MX'),
+                            threading: [{ guia: 1, material: '', porcentaje: '', materialId: null }, { guia: 2, material: '', porcentaje: '', materialId: null }]
+                        };
+                    }
+                    const totalPiezasComp = form.totalPrendas * comp.multiplicador;
+                    ordersByMachine[maquinaKey].subPiecesData.push({ id: Date.now() + Math.random(), pieza: comp.descripcion.toUpperCase(), talla: 'UNI', totalPedido: totalPiezasComp, peso: '', tiempo: '' });
+                    const numPaquetes = comp.piezasPorPaquete > 0 ? Math.ceil(totalPiezasComp / comp.piezasPorPaquete) : 0;
+                    for (let i = 1; i <= numPaquetes; i++) {
+                        const cantidad = (i === numPaquetes && totalPiezasComp % comp.piezasPorPaquete !== 0) ? totalPiezasComp % comp.piezasPorPaquete : comp.piezasPorPaquete;
+                        ordersByMachine[maquinaKey].predefinedPackages.push({
+                            id: Date.now() + Math.random() + i, piezaNombre: comp.descripcion.toUpperCase(), cantidad: cantidad, paqueteNum: i, paquetesDePieza: numPaquetes,
+                            codigoUnico: `${form.partidaCodigo}${comp.sufijo}_${i}_${numPaquetes}`, finished: false, tejedor: '', fecha: '', defectos: '', agujas: ''
                         });
                     }
                 });
-                
-                return elements;
-            }, [orders]); 
-
-            return (
-                <div className="fixed inset-0 overflow-hidden -z-10">
-                    {paperElements.map((paper) => (
-                        <div
-                            key={paper.id}
-                            className="absolute pointer-events-none transition-opacity duration-1000"
-                            style={{
-                                top: `${paper.y}%`,
-                                left: `${paper.x}%`,
-                                width: `${40 * paper.sizeFactor}vw`, 
-                                height: `${20 * paper.sizeFactor}vh`,
-                                backgroundColor: paper.color,
-                                opacity: paper.opacity, 
-                                transform: `translate(-50%, -50%) rotate(${paper.rotation}deg)`,
-                                boxShadow: '0 0 10px rgba(0,0,0,0.1)',
-                                whiteSpace: 'pre-wrap',
-                                fontSize: '1.5vw',
-                                color: '#1f2937', 
-                                padding: '10px',
-                                fontFamily: 'monospace',
-                                border: '1px solid rgba(0,0,0,0.05)',
-                                animation: `flicker-low ${Math.random() * (10 - 5) + 5}s infinite alternate`,
-                            }}
-                        >
-                            {paper.text}
-                        </div>
-                    ))}
-                </div>
-            );
-        };
-        
-        // --- COMPONENTE: Botón de Enlace Neón ---
-        const NeonLinkButton = ({ link, index }) => {
-            const randomDuration = useMemo(() => Math.random() * (4 - 1.5) + 1.5, []);
-            const colorClass = getLinkColorClass(theme, index);
-            const accentBg = colorClass.replace('text-', 'bg-').replace('-400', '-900') + '/80'; 
-            const neonShadow = colorClass.replace('text-', '').replace('-400', '-500');
-            
-            return (
-                <a 
-                    href={link.url}
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className={`
-                        flex flex-col items-center justify-center p-4 rounded-xl transition-all 
-                        font-extrabold text-xl lg:text-2xl font-mono text-center
-                        border-2 border-current hover:opacity-90 active:scale-[0.98]
-                        ${accentBg} ${colorClass} 
-                    `}
-                    style={{ 
-                        animation: `flicker ${randomDuration}s infinite alternate`,
-                        borderColor: neonShadow,
-                        boxShadow: `0 0 15px ${neonShadow}`
-                    }}
-                >
-                    <Icon name={link.iconName || 'link'} size={32} className="mb-1"/> 
-                    <span className="text-lg lg:text-xl">{link.name}</span>
-                </a>
-            );
-        };
-
-        // --- COMPONENTE: Gestor de Enlaces ---
-        const LinkManager = ({ links, setLinks }) => {
-            const [isAdding, setIsAdding] = useState(false);
-            const [newLink, setNewLink] = useState({ name: '', url: '', iconName: 'link' });
-            const [editLink, setEditLink] = useState(null); 
-            
-            const accentTextClass = theme.accentColor;
-            const inputBg = 'bg-slate-800 border-slate-700 text-white placeholder-slate-500'; 
-            const saveBtnColor = theme.navBtnColor;
-            const linkBg = 'bg-slate-800/70 hover:bg-slate-700/80';
-
-
-            const saveLink = async (linkData) => {
-                if (linkData.name && linkData.url) {
-                    try {
-                        if (linkData.id) {
-                            await db.collection('dashboardLinks').doc(linkData.id).update({
-                                name: linkData.name,
-                                url: linkData.url,
-                                iconName: linkData.iconName
-                            });
-                            setEditLink(null);
-                        } else {
-                            await db.collection('dashboardLinks').add({
-                                name: linkData.name,
-                                url: linkData.url,
-                                iconName: linkData.iconName,
-                                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                            });
-                            setIsAdding(false);
-                            setNewLink({ name: '', url: '', iconName: 'link' });
-                        }
-                    } catch (e) {
-                        console.error("Error al guardar el enlace:", e);
-                        alert("Error al guardar el enlace. Consulta la consola.");
-                    }
-                }
+                if(!hasValidComponent) return alert("Agrega al menos un componente válido");
+                setDrafts(Object.values(ordersByMachine));
+                setStep('staging');
             };
-            
-            const deleteLink = async (id) => {
-                if (window.confirm("¿Seguro que quieres eliminar este acceso directo?")) {
-                    try {
-                        await db.collection('dashboardLinks').doc(id).delete();
-                    } catch (e) {
-                        console.error("Error al eliminar el enlace:", e);
-                        alert("Error al eliminar el enlace. Consulta la consola.");
-                    }
-                }
-            };
-            
-            const renderLinkForm = (data, setData, isEdit = false) => (
-                <div className={`p-3 rounded-lg border border-current/30 bg-slate-800`}>
-                    <p className="text-sm font-bold mb-1 text-white">{isEdit ? 'EDITAR' : 'AGREGAR'} ENLACE:</p>
-                    <input type="text" placeholder="Nombre (Ej: Generador)" value={data.name} onChange={(e) => setData({ ...data, name: e.target.value })} className={`w-full p-2 mb-1 text-sm border rounded ${inputBg}`} />
-                    <input type="url" placeholder="URL (Ej: https://...)" value={data.url} onChange={(e) => setData({ ...data, url: e.target.value })} className={`w-full p-2 mb-1 text-sm border rounded ${inputBg}`} />
-                    <div className="flex gap-2">
-                        <input type="text" placeholder="Icono (Ej: boxes o link)" value={data.iconName} onChange={(e) => setData({ ...data, iconName: e.target.value })} className={`flex-1 p-2 mb-2 text-sm border rounded ${inputBg}`} />
-                        <button onClick={() => saveLink(data)} disabled={!data.name || !data.url} className={`text-white font-bold p-2 rounded-lg text-sm transition-all shadow-md ${saveBtnColor} disabled:opacity-50 disabled:cursor-not-allowed`}>
-                            <Icon name="save" size={18} className="inline"/>
-                        </button>
-                    </div>
-                </div>
-            );
 
-
-            return (
-                <div className={`mt-8 p-4 rounded-xl shadow-2xl transition-colors bg-slate-900/50 ${theme.textColor}`} style={{ '--accent-color': theme.accentColor.replace('text-', '#') }}>
-                    <h3 className={`font-bold text-xl mb-3 flex items-center justify-between gap-2 ${accentTextClass}`}>
-                        <span><Icon name="link" size={20}/> Administrar Accesos</span>
-                        <button onClick={() => { setIsAdding(!isAdding); setEditLink(null); }} className={`text-sm font-semibold p-1 rounded transition-colors ${theme.navBtnColor.replace('bg-', 'bg-').replace('-600', '-500').replace('-700', '-600')} text-white`}>
-                           <Icon name={isAdding ? "x" : "plus"} size={18}/>
-                        </button>
-                    </h3>
+            const handleSaveOne = async (finalDraft) => {
+                try {
+                    const invDoc = await db.collection('inventory').doc('main').get();
+                    let currentItems = invDoc.exists && invDoc.data().items ? invDoc.data().items : [];
+                    const batch = db.batch();
+                    const newId = String(Date.now() + Math.random());
+                    const orderRef = db.collection('orders').doc(newId);
+                    const displayId = generateSmartID(finalDraft.partida, finalDraft.subPiecesData, finalDraft.maquina);
                     
-                    {isAdding && renderLinkForm(newLink, setNewLink)}
-                    {editLink && renderLinkForm(editLink, setEditLink, true)}
+                    batch.set(orderRef, { ...finalDraft, id: Number(newId), displayId: displayId, progreso: finalDraft.predefinedPackages, status: 'EN PROCESO', totalPedido: finalDraft.subPiecesData.reduce((a,b)=>a+Number(b.totalPedido),0) });
+                    
+                    const totalGramos = finalDraft.subPiecesData.reduce((acc, p) => acc + (Number(p.peso || 0) * Number(p.totalPedido || 0)), 0);
+                    
+                    (finalDraft.threading || []).forEach(hilo => {
+                        if (hilo.materialId) {
+                            const cantADescontar = Number(((totalGramos * (Number(hilo.porcentaje) / 100)) / 1000).toFixed(2));
+                            const itemIndex = currentItems.findIndex(i => i.id === hilo.materialId);
+                            if(itemIndex !== -1) {
+                                currentItems[itemIndex].stock = (parseFloat(currentItems[itemIndex].stock || 0) - cantADescontar).toFixed(2);
+                                const moveRef = db.collection('inventory_movements').doc();
+                                batch.set(moveRef, { materialId: hilo.materialId, type: 'SALIDA_ORDEN', quantityKg: cantADescontar, orderId: displayId, model: finalDraft.codigo, partida: finalDraft.partida, timestamp: firebase.firestore.FieldValue.serverTimestamp(), note: `Consumo automático` });
+                            }
+                        }
+                    });
+                    
+                    batch.set(db.collection('inventory').doc('main'), { items: currentItems });
+                    await batch.commit();
+                    
+                    const remaining = drafts.filter((_, i) => i !== currentDraftIndex);
+                    setDrafts(remaining); setStep('staging'); setCurrentDraftIndex(null);
+                    if (remaining.length === 0) { alert("¡Órdenes creadas con éxito!"); onProcess(); }
+                } catch (e) { console.error("Error save:", e); alert("Error al guardar."); }
+            };
 
-                    <div className="link-list space-y-2 mt-3 pt-3 border-t border-current/30">
-                        {links.map((link, index) => (
-                            <div key={link.id} className={`flex items-center justify-between text-sm p-2 rounded transition-colors ${linkBg}`}>
-                                <a href={link.url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 truncate ${accentTextClass} hover:underline`}>
-                                    <Icon name={link.iconName || 'link'} size={16}/>
-                                    <span className="font-bold">{link.name}</span>
-                                </a>
-                                <div className="flex gap-1 shrink-0">
-                                     <button onClick={() => { setEditLink(link); setIsAdding(false); }} className={`p-1 rounded transition-colors bg-blue-500/10 text-blue-400 hover:bg-blue-500/20`}>
-                                        <Icon name="pencil" size={16}/>
-                                    </button>
-                                    <button onClick={() => deleteLink(link.id)} className="p-1 bg-red-500/10 text-red-400 rounded hover:bg-red-500/20">
-                                         <Icon name="trash-2" size={16}/>
-                                    </button>
+            // Renders para los diferentes estados del modal
+            if (step === 'editing' && currentDraftIndex !== null) return (<div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4"><div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl h-[90vh] overflow-hidden relative"><DraftEditor draft={drafts[currentDraftIndex]} onSave={handleSaveOne} onCancel={() => setStep('staging')} /></div></div>);
+            
+            if (step === 'staging') return (<div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4"><div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl h-[80vh] overflow-hidden flex flex-col text-slate-800"><div className="bg-orange-600 p-4 text-white flex justify-between items-center shrink-0"><div><h1 className="text-xl font-bold flex items-center gap-2"><Icon name="layers"/> Órdenes Preparadas</h1></div><button onClick={() => setStep('input')} className="text-white bg-orange-700 px-3 py-1 rounded text-xs font-bold">Volver</button></div><div className="p-6 overflow-y-auto bg-slate-100 flex-grow grid grid-cols-1 md:grid-cols-2 gap-4">{drafts.length === 0 && <div className="col-span-full flex flex-col items-center justify-center text-gray-400 py-10"><Icon name="check-circle" size={48} className="mb-2"/><button onClick={onClose} className="mt-4 text-blue-600 font-bold hover:underline">Cerrar</button></div>}{drafts.map((draft, idx) => (<div key={idx} className="bg-white rounded shadow border-l-4 border-indigo-500 p-4 flex flex-col justify-between"><div><div className="flex justify-between items-start mb-2"><h3 className="font-black text-xl text-slate-700">MÁQUINA {draft.maquina}</h3><span className="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-1 rounded">BORRADOR</span></div><div className="text-sm text-gray-600 mb-2"><p><strong>Cliente:</strong> {draft.cliente}</p><p><strong>Piezas:</strong> {draft.subPiecesData.map(p=>p.pieza).join(', ')}</p></div></div><button onClick={() => { setCurrentDraftIndex(idx); setStep('editing'); }} className="w-full mt-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded flex items-center justify-center gap-2"><Icon name="edit"/> REVISAR, PESOS E INVENTARIO</button></div>))}</div></div></div>);
+
+            return (
+                <div className="fixed inset-0 bg-black/95 z-[60] flex items-center justify-center p-0 md:p-4">
+                    {!isKeyboardOpen && (
+                        <div className="safe-scroll-zone md:hidden" onTouchMove={handleScrollZoneMove}>
+                            <Icon name="chevrons-up-down" />
+                        </div>
+                    )}
+
+                    <div className="bg-slate-900 rounded-none md:rounded-lg shadow-2xl w-full max-w-5xl h-full md:h-[90vh] flex flex-col border border-slate-700">
+                        <div className="bg-slate-900 p-4 border-b border-slate-700 flex justify-between items-center shrink-0 shadow-md z-10">
+                            <div><h1 className="text-xl font-bold flex items-center gap-2 text-white"><i className="fas fa-magic text-blue-400"></i> Generador</h1></div>
+                            <button onClick={onClose} className="bg-red-600 hover:bg-red-700 text-white font-bold p-2 rounded shadow-lg flex items-center justify-center w-10 h-10 transition">
+                                <Icon name="x" size={24}/>
+                            </button>
+                        </div>
+                        
+                        <div ref={contentRef} className="flex-grow overflow-y-auto smooth-scroll bg-slate-950">
+                            <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-4 bg-slate-800 p-4 rounded shadow-sm border border-slate-700">
+                                    <h2 className="text-lg font-black text-blue-400 border-b border-slate-600 pb-2 flex items-center gap-2"><Icon name="file-text"/> 1. Datos Generales</h2>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 mb-1">Modelo</label>
+                                            <input value={form.modelo} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => setForm({...form, modelo: e.target.value.toUpperCase()})} className="w-full p-3 bg-slate-900 border border-slate-600 rounded font-bold uppercase text-lg text-white focus:border-blue-500 outline-none placeholder-slate-600" placeholder="EJ: F450"/>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-400 mb-1">Cliente</label>
+                                            <input value={form.cliente} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => setForm({...form, cliente: e.target.value.toUpperCase()})} className="w-full p-3 bg-slate-900 border border-slate-600 rounded font-bold uppercase text-lg text-white focus:border-blue-500 outline-none placeholder-slate-600" placeholder="EJ: ZARA"/>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div><label className="block text-xs font-bold text-slate-400 mb-1">Fecha Entrega</label><input type="date" value={form.fecha} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => setForm({...form, fecha: e.target.value})} className="w-full p-2 bg-slate-900 border border-slate-600 text-white rounded outline-none"/></div>
+                                        <div><label className="block text-xs font-bold text-slate-400 mb-1">Cód. Partida</label><input value={form.partidaCodigo} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => setForm({...form, partidaCodigo: e.target.value.toUpperCase()})} className="w-full p-2 bg-slate-900 border border-slate-600 text-gray-300 rounded font-black outline-none"/></div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-400 mb-1">Cantidad TOTAL Pedido</label>
+                                        <input type="tel" inputMode="numeric" value={form.totalPrendas} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => setForm({...form, totalPrendas: Number(e.target.value)})} className="w-full p-3 border border-slate-600 rounded bg-slate-900 text-3xl font-black text-center text-blue-300 focus:bg-slate-800 focus:border-blue-500 outline-none"/>
+                                        <p className="text-[10px] text-center text-slate-500 mt-1">Toca para editar cantidad total</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center bg-slate-800 p-3 rounded shadow-sm border border-slate-700">
+                                        <h2 className="text-lg font-black text-green-400 flex items-center gap-2"><Icon name="scissors"/> 2. Componentes</h2>
+                                        <button onClick={() => setComponents([...components, { descripcion: '', sufijo: '', maquina: '', multiplicador: 1, piezasPorPaquete: 0 }])} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full font-bold shadow flex gap-1 items-center transform active:scale-95 transition"><Icon name="plus" size={16}/> AGREGAR</button>
+                                    </div>
+                                    
+                                    <div className="space-y-4 md:h-80 md:overflow-y-auto pr-1 pb-10 md:pb-0">
+                                        {components.map((comp, idx) => (
+                                            <div key={idx} className="bg-slate-800 p-4 rounded-xl shadow-md border-l-4 border-indigo-500 relative animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                                <button onClick={() => setComponents(components.filter((_, i) => i !== idx))} className="absolute top-2 right-2 text-red-400 hover:text-red-300 p-2"><Icon name="trash-2" size={18}/></button>
+                                                <div className="mb-3 pr-8"><label className="text-[10px] font-bold text-slate-400 uppercase">Nombre de la Pieza</label><input value={comp.descripcion} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => { const newComps=[...components]; newComps[idx].descripcion=e.target.value.toUpperCase(); setComponents(newComps); }} className="w-full p-2 bg-slate-800 border-b-2 border-slate-600 focus:border-indigo-500 outline-none text-base font-bold uppercase text-white placeholder-slate-600" placeholder="EJ: DELANTERO"/></div>
+                                                <div className="grid grid-cols-2 gap-3 mb-3">
+                                                    <div><label className="text-[10px] font-bold text-slate-400">Sufijo Cód.</label><input value={comp.sufijo} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => { const newComps=[...components]; newComps[idx].sufijo=e.target.value.toUpperCase(); setComponents(newComps); }} className="w-full p-2 bg-slate-900 rounded border border-slate-600 text-xs font-bold uppercase text-center text-white" placeholder="EJ: A"/></div>
+                                                    <div><label className="text-[10px] font-bold text-slate-400">Máquina #</label><input type="tel" inputMode="numeric" value={comp.maquina} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => { const newComps=[...components]; newComps[idx].maquina=e.target.value; setComponents(newComps); }} className="w-full p-2 border border-slate-600 rounded font-black text-xl text-center text-white bg-slate-900"/></div>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-3 bg-slate-900 p-2 rounded border border-slate-700">
+                                                    <div><label className="text-[10px] font-bold text-slate-500">Multiplicador</label><input type="tel" inputMode="numeric" value={comp.multiplicador} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => { const newComps=[...components]; newComps[idx].multiplicador=Number(e.target.value); setComponents(newComps); }} className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-center font-bold text-white"/></div>
+                                                    <div><label className="text-[10px] font-bold text-slate-500">Pzs por Paquete</label><input type="tel" inputMode="numeric" value={comp.piezasPorPaquete} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => { const newComps=[...components]; newComps[idx].piezasPorPaquete=Number(e.target.value); setComponents(newComps); }} className="w-full p-2 border border-slate-600 bg-slate-800 rounded text-center font-bold text-blue-300"/></div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <div className="h-24 md:hidden"></div>
+                                    </div>
                                 </div>
                             </div>
-                        ))}
-                         {links.length === 0 && <p className="text-sm text-current/70 text-center">No hay accesos directos guardados.</p>}
+                        </div>
+
+                        <div className="bg-slate-900 p-4 shrink-0 flex justify-end shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.5)] z-20 border-t border-slate-700">
+                            <button onClick={handleGenerateDrafts} className="bg-blue-600 hover:bg-blue-500 text-white w-full md:w-auto px-8 py-3 rounded-lg font-bold shadow-lg transform active:scale-95 transition flex items-center justify-center gap-2 text-lg">
+                                <span>SIGUIENTE</span> <Icon name="arrow-right"/>
+                            </button>
+                        </div>
                     </div>
                 </div>
             );
         };
 
-        // --- COMPONENTE PRINCIPAL DE LA PÁGINA ---
-
+        // --- 5. APLICACIÓN PRINCIPAL (CONTENEDOR) ---
         const App = () => {
-            const [orders, setOrders] = useState([]);
-            const [links, setLinks] = useState([]); 
+            const [showGenerator, setShowGenerator] = useState(false);
 
-            // 1. Enlaces por defecto 
-            const defaultLinks = useMemo(() => ([
-                { id: 'default-santoni', name: "SANTONI", url: "https://jesusvn1993mplvt3-ai.github.io/CIRINEO/", iconName: "tshirt" },
-                { id: 'default-inventory', name: "INVENTARIO", url: "https://jesusvn1993mplvt3-ai.github.io/HILATURAS/", iconName: "boxes" },
-                { id: 'default-sock', name: "CALCETÍN", url: "https://sweaters-liliana.github.io/MAES26/", iconName: "socks" },
-                // ESTE ES EL ENLACE AL GENERADOR DE PAPELETAS (archivo 'generador de papeletas.html' que subiste)
-                { id: 'default-generator', name: "PAPELETAS", url: "https://jesusvn1993mplvt3-ai.github.io/GENERADOR-DE-PAPELETAS/", iconName: "printer" }
-            ]), []);
-
-            // Carga inicial de datos
             useEffect(() => {
-                // Solo órdenes activas (Status != ARCHIVADO) para el fondo de papeletas
-                const u1 = db.collection('orders').where('status', '!=', 'ARCHIVADO').onSnapshot(s => setOrders(s.docs.map(d=>d.data()).filter(d=>d.progreso && d.progreso.length > 0)));
-                
-                // Suscripción a los enlaces
-                const u2 = db.collection('dashboardLinks').onSnapshot(s => {
-                    const dbLinks = s.docs.map(d => ({ id: d.id, ...d.data() }));
-                    
-                    const filteredDefaults = defaultLinks.filter(dLink => 
-                        !dbLinks.some(dbLink => dbLink.url === dLink.url || dbLink.name === dLink.name)
-                    );
-                    
-                    setLinks([...dbLinks, ...filteredDefaults]);
-                });
-                
-                return () => { u1(); u2(); };
-            }, [defaultLinks]);
-            
-            // Determina el número de columnas de la cuadrícula de enlaces
-            const linkGridColumns = links.length <= 3 ? `grid-cols-1 sm:grid-cols-${links.length}` : 'grid-cols-2 md:grid-cols-3';
+                lucide.createIcons();
+            }, [showGenerator]);
+
+            const handleProcessComplete = () => {
+                setShowGenerator(false);
+                // Aquí podrías recargar una lista de pedidos si fuera necesario
+            };
 
             return (
-                <div className="relative">
+                <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-center p-4">
+                    <h1 className="text-3xl font-black text-white mb-6">Módulo Independiente</h1>
                     
-                    {/* --- FONDO DINÁMICO (Las "papeletas tiradas") --- */}
-                    <PaperBackground orders={orders} />
-                    
-                    {/* --- CONTENIDO PRINCIPAL (Centrado y Limpio) --- */}
-                    <div className={`main-container flex justify-center items-start ${theme.primaryBg}`}>
-                        <div className={`w-full max-w-5xl mx-auto p-4 lg:p-10 rounded-2xl shadow-2xl ${theme.overlayBg} ${theme.textColor}`}>
-                            
-                            {/* --- HEADER --- */}
-                            <header className="text-center mb-10">
-                                <h1 className={`text-5xl lg:text-7xl font-extrabold ${theme.accentColor} mb-2 tracking-tighter`}>
-                                    S. LILIANA
-                                </h1>
-                                <h2 className={`text-lg lg:text-xl font-bold ${theme.textColor} opacity-80`}>
-                                    CENTRO DE CONTROL DE PRODUCCIÓN
-                                </h2>
-                            </header>
-                            
-                            {/* --- SECCIÓN DE ACCESOS DIRECTOS --- */}
-                            <section className="mb-10">
-                                <h3 className={`font-bold text-2xl mb-6 text-center ${theme.accentColor}`}>
-                                    ACCESOS RÁPIDOS (APLICACIONES)
-                                </h3>
-                                <div className={`grid ${linkGridColumns} gap-6`}>
-                                    {links.map((link, index) => (
-                                        <NeonLinkButton 
-                                            key={link.id}
-                                            link={link}
-                                            index={index}
-                                        />
-                                    ))}
-                                </div>
-                            </section>
-                            
-                            <hr className="border-t border-slate-700/50 my-10"/>
+                    <button 
+                        onClick={() => setShowGenerator(true)}
+                        className="bg-green-600 hover:bg-green-500 text-white px-8 py-4 rounded-xl font-bold text-xl shadow-lg transform hover:scale-105 transition flex items-center gap-3"
+                    >
+                        <Icon name="wand-2" size={24} /> ABRIR GENERADOR DE PEDIDOS
+                    </button>
 
-                            {/* --- GESTOR DE ENLACES --- */}
-                            <section className="w-full max-w-lg mx-auto">
-                                <LinkManager links={links} setLinks={setLinks} /> 
-                            </section>
+                    <p className="mt-4 text-slate-500 text-sm max-w-md">
+                        Esta es una extracción del generador. Al crear un pedido aquí, se guardará en la base de datos "Cirineo" original.
+                    </p>
 
-                        </div>
-                    </div>
+                    {showGenerator && (
+                        <OrderGeneratorModal 
+                            onClose={() => setShowGenerator(false)} 
+                            onProcess={handleProcessComplete} 
+                        />
+                    )}
                 </div>
             );
         };
