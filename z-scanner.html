@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Z-SCANNER | Cirineo</title>
+    
+    <link rel="icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        body { background-color: #000; color: #fff; font-family: system-ui, -apple-system, sans-serif; overscroll-behavior: none; }
+        .scan-region-highlight { border-radius: 20px !important; border: 2px solid #3b82f6 !important; box-shadow: 0 0 20px rgba(59, 130, 246, 0.5) !important; }
+        .animate-pulse-green { animation: pulseGreen 0.5s ease-in-out; }
+        @keyframes pulseGreen { 0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(74, 222, 128, 0); } 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <audio id="beep-ok" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
+    <audio id="beep-error" src="https://assets.mixkit.co/active_storage/sfx/940/940-preview.mp3"></audio>
+
+    <script type="text/babel">
+        // --- CONFIGURACIÓN FIREBASE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyD...", // Reemplaza si es necesario
+            authDomain: "cirineo-check.firebaseapp.com",
+            projectId: "cirineo-check",
+            storageBucket: "cirineo-check.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef"
+        };
+
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const Icon = ({ name, size = 24, className = "" }) => {
+            const LucideIcon = window.lucide.icons[name.replace(/-([a-z])/g, g => g[1].toUpperCase()).replace(/^([a-z])/, g => g.toUpperCase())];
+            return LucideIcon ? <LucideIcon size={size} className={className} /> : null;
+        };
+
+        const App = () => {
+            const [scanning, setScanning] = React.useState(false);
+            const [lastScan, setLastScan] = React.useState(null);
+            const [message, setMessage] = React.useState({ type: '', text: '' });
+            const [processing, setProcessing] = React.useState(false);
+            const [stats, setStats] = React.useState({ today: 0, session: 0 });
+
+            // Referencia al escáner
+            const html5QrcodeScannerRef = React.useRef(null);
+
+            // Iniciar Escáner
+            React.useEffect(() => {
+                startScanner();
+                return () => stopScanner();
+            }, []);
+
+            const playSound = (type) => {
+                const audio = document.getElementById(type === 'ok' ? 'beep-ok' : 'beep-error');
+                if (audio) { audio.currentTime = 0; audio.play().catch(e => console.log(e)); }
+            };
+
+            const startScanner = () => {
+                const config = { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 };
+                
+                // Intentar usar cámara trasera
+                html5QrcodeScannerRef.current = new Html5Qrcode("reader");
+                html5QrcodeScannerRef.current.start(
+                    { facingMode: "environment" }, 
+                    config, 
+                    onScanSuccess, 
+                    (errorMessage) => { /* Ignorar errores de frame vacío */ }
+                ).catch(err => {
+                    console.error("Error al iniciar cámara", err);
+                    setMessage({ type: 'error', text: 'No se pudo acceder a la cámara' });
+                });
+                setScanning(true);
+            };
+
+            const stopScanner = () => {
+                if (html5QrcodeScannerRef.current) {
+                    html5QrcodeScannerRef.current.stop().then(() => {
+                        html5QrcodeScannerRef.current.clear();
+                    }).catch(err => console.error(err));
+                }
+                setScanning(false);
+            };
+
+            const onScanSuccess = async (decodedText, decodedResult) => {
+                if (processing) return; // Evitar doble lectura rápida
+                
+                // Validar formato Z
+                if (!decodedText.startsWith("Z-")) {
+                    console.log("QR no válido para este sistema:", decodedText);
+                    return; // Ignoramos silenciosamente códigos que no son nuestros
+                }
+
+                setProcessing(true);
+                
+                // Pausar escáner visualmente
+                if(html5QrcodeScannerRef.current) html5QrcodeScannerRef.current.pause();
+
+                try {
+                    // Formato: Z-ORDERID-UID
+                    const parts = decodedText.split('-');
+                    if (parts.length < 3) throw new Error("Formato QR inválido");
+                    
+                    const orderId = parts[1];
+                    const uid = parts[2];
+
+                    // Transacción para garantizar consistencia
+                    await db.runTransaction(async (transaction) => {
+                        const docRef = db.collection('zorders').doc(orderId);
+                        const doc = await transaction.get(docRef);
+
+                        if (!doc.exists) throw new Error("Orden no encontrada");
+
+                        const data = doc.data();
+                        let found = false;
+                        let partName = "";
+                        let bundleIndex = 0;
+                        let alreadyScanned = false;
+
+                        // Buscar el bulto en la estructura anidada
+                        const newParts = data.parts.map(p => {
+                            const newBundles = p.bundles.map(b => {
+                                if (b.uid === uid) {
+                                    found = true;
+                                    partName = p.name;
+                                    bundleIndex = b.bundleIndex;
+                                    
+                                    if (b.status === "EN_CONSOLIDACION" || b.status === "COMPLETADO") {
+                                        alreadyScanned = true;
+                                        return b;
+                                    }
+                                    
+                                    // MARCAR COMO ESCANEADO (Enviado a consolidador)
+                                    return { 
+                                        ...b, 
+                                        status: "EN_CONSOLIDACION", 
+                                        scannedAt: new Date().toISOString() 
+                                    };
+                                }
+                                return b;
+                            });
+                            return { ...p, bundles: newBundles };
+                        });
+
+                        if (!found) throw new Error("Bulto no pertenece a esta orden");
+                        if (alreadyScanned) throw new Error(`Bulto ${bundleIndex} de ${partName} YA FUE ESCANEADO`);
+
+                        transaction.update(docRef, { parts: newParts });
+                        
+                        return { model: data.model, partName, bundleIndex };
+                    }).then((res) => {
+                        // Éxito
+                        playSound('ok');
+                        setLastScan({
+                            model: res.model,
+                            part: res.partName,
+                            bundle: res.bundleIndex,
+                            time: new Date().toLocaleTimeString()
+                        });
+                        setMessage({ type: 'success', text: 'REGISTRADO CORRECTAMENTE' });
+                        setStats(prev => ({ ...prev, session: prev.session + 1 }));
+                    });
+
+                } catch (error) {
+                    playSound('error');
+                    setMessage({ type: 'error', text: error.message });
+                    // Vibrar si es posible
+                    if (navigator.vibrate) navigator.vibrate(200);
+                } finally {
+                    // Reanudar escáner después de 1.5s para dar tiempo a ver el mensaje
+                    setTimeout(() => {
+                        setProcessing(false);
+                        setMessage({ type: '', text: '' });
+                        if(html5QrcodeScannerRef.current) html5QrcodeScannerRef.current.resume();
+                    }, 1500);
+                }
+            };
+
+            return (
+                <div className="h-screen flex flex-col bg-black">
+                    {/* Header */}
+                    <div className="p-4 flex justify-between items-center bg-slate-900 border-b border-slate-800">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-black text-white">Z</div>
+                            <div>
+                                <h1 className="font-bold text-lg leading-none">Z-SCANNER</h1>
+                                <p className="text-xs text-slate-400">Entrada a Consolidador</p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <div className="text-2xl font-black text-blue-500">{stats.session}</div>
+                            <p className="text-[10px] text-slate-500 uppercase">Sesión</p>
+                        </div>
+                    </div>
+
+                    {/* Área de Cámara */}
+                    <div className="flex-1 relative bg-black overflow-hidden flex flex-col items-center justify-center">
+                        <div id="reader" className="w-full h-full object-cover"></div>
+                        
+                        {/* Overlay decorativo estilo 'Balta' */}
+                        <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
+                            <div className="w-64 h-64 border-2 border-blue-500/50 rounded-3xl relative">
+                                <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-xl"></div>
+                                <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-xl"></div>
+                                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-xl"></div>
+                                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-xl"></div>
+                                {processing && <div className="absolute inset-0 bg-blue-500/20 animate-pulse rounded-2xl"></div>}
+                            </div>
+                            <p className="mt-4 text-xs font-bold text-blue-400 uppercase tracking-widest animate-pulse">
+                                {processing ? "PROCESANDO..." : "APUNTA AL CÓDIGO QR"}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Panel de Estado / Feedback */}
+                    <div className={`p-6 min-h-[180px] rounded-t-3xl -mt-6 relative z-10 transition-colors duration-300 ${
+                        message.type === 'error' ? 'bg-red-900' : 
+                        message.type === 'success' ? 'bg-green-900' : 'bg-slate-900'
+                    }`}>
+                        <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
+                        
+                        {message.text ? (
+                            <div className="text-center animate-bounce">
+                                <Icon name={message.type === 'error' ? 'alert-circle' : 'check-circle'} size={48} className="mx-auto mb-2 text-white" />
+                                <h2 className="text-2xl font-black text-white uppercase">{message.text}</h2>
+                            </div>
+                        ) : lastScan ? (
+                            <div className="flex items-center gap-4">
+                                <div className="w-16 h-16 bg-white/10 rounded-xl flex items-center justify-center border border-white/20">
+                                    <Icon name="package" size={32} className="text-blue-400" />
+                                </div>
+                                <div>
+                                    <p className="text-xs text-slate-400 font-bold mb-1">ÚLTIMO REGISTRO</p>
+                                    <h3 className="text-2xl font-black text-white leading-none">{lastScan.model}</h3>
+                                    <div className="flex gap-2 mt-1">
+                                        <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-xs font-bold uppercase">{lastScan.part}</span>
+                                        <span className="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-xs font-bold">BULTO {lastScan.bundle}</span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 mt-1 text-right w-full">{lastScan.time}</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center text-slate-500 py-4">
+                                <Icon name="scan" size={32} className="mx-auto mb-2 opacity-50" />
+                                <p className="text-sm font-medium">Listo para escanear</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
