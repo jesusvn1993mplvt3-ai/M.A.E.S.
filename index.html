@@ -3,519 +3,264 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cirineo Ultimate - Generador & Papeletas (Fase Z)</title>
-    
-    <link rel="icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
-    
+    <title>Agrupador de Papeletas Cirineo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
 
     <style>
-        body { background-color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; -webkit-print-color-adjust: exact; }
-        .print-only { display: none; }
-        
-        @media print {
-            .no-print { display: none !important; }
-            .print-only { display: block !important; }
-            body { background: white; }
-            @page { margin: 0.5cm; size: auto; }
-            .page-break { page-break-before: always; }
+        body { background-color: #f1f5f9; font-family: 'Roboto Condensed', sans-serif; }
+        /* Estilos para la etiqueta apilada */
+        .stacked-label-container {
+            width: 6in; /* Ancho fijo para PDF */
+            display: flex;
+            background: white;
+            border: 2px solid black;
+            box-sizing: border-box;
+            height: auto; 
+            min-height: 4in;
         }
-
-        /* Animaciones */
-        .fade-in { animation: fadeIn 0.3s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .stack-left-col { width: 25%; border-right: 2px solid black; display: flex; flex-direction: column; }
+        .stack-mid-col { width: 60%; border-right: 2px solid black; display: flex; flex-direction: column; }
+        .stack-right-col { width: 15%; display: flex; align-items: center; justify-content: center; background: #fff; overflow: hidden; }
+        
+        .mini-label-row { display: flex; height: 25%; border-bottom: 2px solid black; box-sizing: border-box;}
+        .mini-label-row:last-child { border-bottom: none; }
+        
+        .mini-img { width: 100%; height: 100%; object-fit: contain; padding: 2px; }
+        .lbl-data-row { display: flex; border-bottom: 1px solid #000; height: 33.33%; }
+        .lbl-data-col { padding: 1px 4px; border-right: 1px solid #000; display: flex; flex-direction: column; justify-content: center;}
+        .lbl-title { font-size: 8px; font-weight: 700; color: #555; text-transform: uppercase; line-height: 1; }
+        .lbl-val { font-family: 'Oswald'; font-weight: 700; font-size: 16px; line-height: 1; color: black;}
+        .lbl-val-big { font-family: 'Oswald'; font-weight: 700; font-size: 24px; line-height: 0.9; color: black;}
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        // --- CONFIGURACIÓN FIREBASE (La misma de siempre) ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyD...", // Reemplaza con tu API Key si es necesario, o usa la configuración existente del navegador
-            authDomain: "cirineo-check.firebaseapp.com",
-            projectId: "cirineo-check",
-            storageBucket: "cirineo-check.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:abcdef"
-        };
-
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
+        const { useState, useEffect, useRef, useMemo } = React;
+        const firebaseConfig = { apiKey: "AIzaSyCngQL1pdqghv2vbjkPycT1Xf0C46f7jYs", authDomain: "cirineo-cec21.firebaseapp.com", projectId: "cirineo-cec21", storageBucket: "cirineo-cec21.firebasestorage.app", messagingSenderId: "620210618284", appId: "1:620210618284:web:482bab9bf74650fff18409" };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // --- COMPONENTES AUXILIARES ---
-        const Icon = ({ name, size = 20, className = "" }) => {
-            const LucideIcon = window.lucide.icons[name.replace(/-([a-z])/g, (g) => g[1].toUpperCase()).replace(/^([a-z])/, (g) => g.toUpperCase())];
-            return LucideIcon ? <LucideIcon size={size} className={className} /> : null;
+        const Icon = ({ name }) => {
+            const r = useRef(null);
+            useEffect(() => { if (r.current && lucide.icons[name]) r.current.innerHTML = lucide.icons[name].toSvg({ width: 16, height: 16 }); }, [name]);
+            return <span ref={r} className="inline-block"/>;
         };
 
-        // Componente Inteligente de Imagen
-        const SmartImage = ({ modelName, className }) => {
-            const [src, setSrc] = React.useState(null);
-            const [attempt, setAttempt] = React.useState(0);
-            
-            // Prioridad de extensiones: PNG -> WEBP -> JPG -> JPEG
-            const extensions = ['png', 'webp', 'jpg', 'jpeg'];
-            const baseUrl = "https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/Planificador/refs/heads/main/Modelos/";
+        // --- Componente de una fila de etiqueta (sin barcode individual) ---
+        const MiniLabelRow = ({ pkgData, orderData, imgSrc }) => (
+            <div className="mini-label-row" style={{height: '1.2in'}}> 
+                {/* Izquierda: Imagen */}
+                <div className="w-1/4 border-r-2 border-black p-1 flex items-center justify-center">
+                     {imgSrc ? <img src={imgSrc} className="mini-img"/> : <span className="text-xs text-gray-400">Sin img</span>}
+                </div>
+                {/* Centro: Datos */}
+                <div className="w-3/4 flex flex-col">
+                    <div className="lbl-data-row">
+                        <div className="w-2/3 lbl-data-col bg-black text-white"><span className="lbl-title text-gray-300">MODELO</span><span className="lbl-val-big text-white">{orderData.codigo}</span></div>
+                        <div className="w-1/3 lbl-data-col text-center"><span className="lbl-title">PAQUETE</span><span className="lbl-val-big">{pkgData.paqueteNum}/{pkgData.paquetesDePieza}</span></div>
+                    </div>
+                    <div className="lbl-data-row bg-gray-100">
+                         <div className="w-full lbl-data-col flex items-center justify-center"><span className="lbl-val-big" style={{fontSize:'32px'}}>{pkgData.piezaNombre?.split(' ')[0]}</span></div>
+                    </div>
+                    <div className="lbl-data-row" style={{borderBottom:'none'}}>
+                        <div className="w-2/3 lbl-data-col"><span className="lbl-title">CLIENTE</span><span className="lbl-val truncate text-xs">{orderData.cliente}</span></div>
+                        <div className="w-1/3 lbl-data-col text-center bg-red-50 text-red-900"><span className="lbl-title text-red-700">PARTIDA</span><span className="lbl-val text-sm">{orderData.partida}</span></div>
+                    </div>
+                </div>
+            </div>
+        );
 
-            React.useEffect(() => {
-                setAttempt(0);
-                setSrc(`${baseUrl}${modelName}.${extensions[0]}`);
-            }, [modelName]);
+        // --- Componente Principal de la Etiqueta Agrupada ---
+        const StackedLabel = ({ selectedPackages, order, imageSources }) => {
+            const svgRef = useRef(null);
+            const [imgSrc, setImgSrc] = useState(null);
 
-            const handleError = () => {
-                const nextAttempt = attempt + 1;
-                if (nextAttempt < extensions.length) {
-                    setAttempt(nextAttempt);
-                    setSrc(`${baseUrl}${modelName}.${extensions[nextAttempt]}`);
-                } else {
-                    // Fallback final si no encuentra nada
-                    setSrc("https://via.placeholder.com/300x300?text=SIN+IMAGEN"); 
+            // 1. Generar el "Súper Código"
+            const indexes = selectedPackages.map(p => p.paqueteNum).join(',');
+            // Formato mágico: GRP|MODELO|PARTIDA|INDICES
+            const groupBarcodeValue = `GRP|${order.codigo}|${order.partida || 'SN'}|${indexes}`;
+
+            useEffect(() => {
+                if(imageSources?.length > 0 && order.codigo) setImgSrc(`${imageSources[0].url}/${order.codigo}.jpg`);
+                else setImgSrc(null);
+            }, [order.codigo, imageSources]);
+
+            useEffect(() => {
+                if (svgRef.current && groupBarcodeValue) {
+                    try {
+                        // Usamos CODE128 que permite caracteres alfanuméricos
+                        JsBarcode(svgRef.current, groupBarcodeValue, { 
+                            format: "CODE128", width: 1.5, height: 80, displayValue: false, margin: 5 
+                        });
+                    } catch (e) { console.error("Barcode error", e); }
                 }
-            };
+            }, [groupBarcodeValue]);
 
-            return <img src={src} onError={handleError} className={className} alt={modelName} />;
+            // Calculamos la altura total basada en cuántos paquetes hay
+            const totalHeight = `${selectedPackages.length * 1.2}in`;
+
+            return (
+                <div className="stacked-label-container" style={{height: totalHeight}}>
+                    <div className="w-10/12 flex flex-col border-r-2 border-black">
+                        {selectedPackages.map((pkg, idx) => (
+                            <MiniLabelRow key={idx} pkgData={pkg} orderData={order} imgSrc={imgSrc} />
+                        ))}
+                    </div>
+                    {/* Barra lateral derecha con el código maestro */}
+                    <div className="w-2/12 flex items-center justify-center bg-white overflow-hidden relative">
+                         <div style={{ 
+                             transform: 'rotate(90deg)', 
+                             whiteSpace: 'nowrap',
+                             display: 'flex', flexDirection: 'column', alignItems: 'center'
+                         }}>
+                            <svg ref={svgRef}></svg>
+                            {/* Mostramos el código "humano" para debug, en producción se puede quitar */}
+                            <span className="text-[8px] font-mono mt-1">{groupBarcodeValue}</span>
+                        </div>
+                    </div>
+                </div>
+            );
         };
 
-        // --- APLICACIÓN PRINCIPAL ---
         const App = () => {
-            // Estados del Formulario
-            const [model, setModel] = React.useState("");
-            const [client, setClient] = React.useState("");
-            const [totalQty, setTotalQty] = React.useState("");
-            
-            // Estado de las Partes (Componentes del modelo)
-            const [parts, setParts] = React.useState([
-                { id: 1, name: "General", ratio: 1, machine: "1" } // Parte por defecto
-            ]);
+            const [orders, setOrders] = useState([]);
+            const [selectedOrder, setSelectedOrder] = useState(null);
+            const [availablePackages, setAvailablePackages] = useState([]);
+            const [checkedPackages, setCheckedPackages] = useState({});
+            const [imageSources, setImageSources] = useState([]);
+            const pdfRef = useRef(null);
+            const [isGenerating, setIsGenerating] = useState(false);
 
-            // Estados de UI y Datos
-            const [materials, setMaterials] = React.useState([]);
-            const [selectedMaterial, setSelectedMaterial] = React.useState("");
-            const [loading, setLoading] = React.useState(false);
-            const [printData, setPrintData] = React.useState(null); // Datos listos para imprimir
-            const [showSuccess, setShowSuccess] = React.useState(false);
-
-            // Cargar Materiales (Inventario Real)
-            React.useEffect(() => {
-                const unsubscribe = db.collection('materiales').onSnapshot(snapshot => {
-                    const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                    setMaterials(docs);
-                });
-                return () => unsubscribe();
+            useEffect(() => {
+                 db.collection('app_config').doc('imagenes').onSnapshot(d => setImageSources(d.data()?.sources || []));
+                 db.collection('orders').where('status', '!=', 'ARCHIVADO').onSnapshot(s => {
+                     setOrders(s.docs.map(d => ({...d.data(), id: d.id})).sort((a,b)=>b.id - a.id));
+                 });
             }, []);
 
-            // Añadir una parte al modelo
-            const addPart = () => {
-                setParts([...parts, { id: Date.now(), name: "", ratio: "", machine: "" }]);
-            };
-
-            // Eliminar una parte
-            const removePart = (id) => {
-                if(parts.length > 1) {
-                    setParts(parts.filter(p => p.id !== id));
-                }
-            };
-
-            // Actualizar dato de una parte
-            const updatePart = (id, field, value) => {
-                setParts(parts.map(p => p.id === id ? { ...p, [field]: value } : p));
-            };
-
-            // Guardar Orden
-            const handleSave = async () => {
-                if (!model || !totalQty || !client || !selectedMaterial) {
-                    alert("Por favor completa todos los campos principales y selecciona material.");
-                    return;
-                }
-
-                // Validar partes
-                const invalidPart = parts.find(p => !p.name || !p.ratio || !p.machine);
-                if (invalidPart) {
-                    alert("Por favor completa la información de todas las partes (Nombre, Ratio, Máquina).");
-                    return;
-                }
-
-                setLoading(true);
-
-                try {
-                    const qty = parseInt(totalQty);
-                    
-                    // 1. Generar estructura de partes con cálculo de bultos
-                    const processedParts = parts.map(p => {
-                        const ratio = parseFloat(p.ratio); // Piezas por lienzo
-                        const bundlesNeeded = Math.ceil(qty / ratio);
-                        return {
-                            ...p,
-                            ratio: ratio,
-                            bundlesNeeded: bundlesNeeded,
-                            // Generamos IDs únicos para cada bulto aquí mismo
-                            bundles: Array.from({ length: bundlesNeeded }).map((_, i) => ({
-                                bundleIndex: i + 1,
-                                uid: Math.random().toString(36).substr(2, 9), // ID único corto
-                                qtyInBundle: (i === bundlesNeeded - 1) ? (qty % ratio === 0 ? ratio : qty % ratio) : ratio
-                            }))
-                        };
+            useEffect(() => {
+                if(selectedOrder && selectedOrder.progreso) {
+                    // Filtrar solo paquetes únicos y ordenarlos
+                    const unique = [];
+                    const map = new Map();
+                    selectedOrder.progreso.forEach(p => {
+                        if(!map.has(p.paqueteNum)) {
+                            map.set(p.paqueteNum, true);
+                            unique.push(p);
+                        }
                     });
-
-                    const orderData = {
-                        model: model.toUpperCase(),
-                        client: client.toUpperCase(),
-                        totalQty: qty,
-                        materialId: selectedMaterial,
-                        parts: processedParts,
-                        status: "PENDIENTE",
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        generatedBy: "Z-SYSTEM"
-                    };
-
-                    // 2. Guardar en ZORDERS (Nueva colección)
-                    const docRef = await db.collection('zorders').add(orderData);
-
-                    // 3. Descontar Inventario (Colección MATERIALES original)
-                    // Calculamos gasto aproximado (esto se puede refinar luego con pesos reales)
-                    // Por ahora descontamos una cantidad simbólica o basada en peso si existe
-                    const matRef = db.collection('materiales').doc(selectedMaterial);
-                    await db.runTransaction(async (transaction) => {
-                        const matDoc = await transaction.get(matRef);
-                        if (!matDoc.exists) throw "Material no existe";
-                        
-                        const currentKilos = matDoc.data().kilos || 0;
-                        // Supongamos 0.2kg por prenda promedio si no hay dato exacto, solo para que reste algo
-                        const deduction = qty * 0.2; 
-                        
-                        transaction.update(matRef, { kilos: currentKilos - deduction });
-                        
-                        // Registrar movimiento en ZINV_MOVEMENTS
-                        const moveRef = db.collection('zinv_movements').doc();
-                        transaction.set(moveRef, {
-                            materialId: selectedMaterial,
-                            type: "SALIDA",
-                            amount: deduction,
-                            reason: `Orden ${model} - ${docRef.id}`,
-                            date: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                    });
-
-                    // 4. Preparar Impresión
-                    setPrintData({ id: docRef.id, ...orderData });
-                    setShowSuccess(true);
-                    
-                    // Reset parcial
-                    setModel("");
-                    setTotalQty("");
-                    // No reseteamos partes para facilitar captura repetitiva del mismo estilo
-
-                } catch (error) {
-                    console.error("Error:", error);
-                    alert("Error al guardar: " + error.message);
-                } finally {
-                    setLoading(false);
+                    setAvailablePackages(unique.sort((a,b) => a.paqueteNum - b.paqueteNum));
+                    setCheckedPackages({}); // Resetear selección
+                } else {
+                    setAvailablePackages([]);
                 }
+            }, [selectedOrder]);
+
+            const handleCheck = (pkgNum) => {
+                setCheckedPackages(prev => ({...prev, [pkgNum]: !prev[pkgNum]}));
             };
 
-            const triggerPrint = () => {
-                window.print();
+            const selectedPackagesList = useMemo(() => {
+                return availablePackages.filter(p => checkedPackages[p.paqueteNum]);
+            }, [availablePackages, checkedPackages]);
+
+            const downloadPDF = async () => {
+                if(selectedPackagesList.length === 0) return;
+                setIsGenerating(true);
+                await new Promise(r => setTimeout(r, 500));
+                const opt = {
+                    margin: 0,
+                    filename: `GRUPO_${selectedOrder.codigo}_${selectedPackagesList.length}pzs.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'in', format: [6, selectedPackagesList.length * 1.2], orientation: 'portrait' } // Altura dinámica
+                };
+                try { await html2pdf().set(opt).from(pdfRef.current).save(); } catch(e){console.error(e);}
+                setIsGenerating(false);
             };
 
             return (
-                <div className="min-h-screen">
-                    
-                    {/* --- INTERFAZ DE CAPTURA (NO IMPRIMIBLE) --- */}
-                    <div className="no-print max-w-5xl mx-auto p-4 lg:p-8">
-                        <header className="mb-8 flex justify-between items-center">
-                            <div>
-                                <h1 className="text-3xl font-black text-slate-800 tracking-tight">CIRINEO <span className="text-blue-600">Z</span></h1>
-                                <p className="text-slate-500 font-medium">Generador de Órdenes Multi-Parte</p>
-                            </div>
-                            <div className="text-right">
-                                <div className="text-xs font-bold bg-purple-100 text-purple-700 px-3 py-1 rounded-full inline-block mb-1">FASE BETA (Z)</div>
-                                <p className="text-xs text-slate-400">Base de datos: zorders</p>
-                            </div>
-                        </header>
-
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                            
-                            {/* Columna Izquierda: Datos Principales */}
-                            <div className="space-y-6">
-                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                                    <h2 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><Icon name="package" /> Datos del Pedido</h2>
-                                    
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 mb-1">MODELO</label>
-                                            <input 
-                                                type="text" 
-                                                value={model}
-                                                onChange={e => setModel(e.target.value.toUpperCase())}
-                                                className="w-full text-2xl font-black text-slate-800 border-b-2 border-slate-200 focus:border-blue-600 outline-none py-2 uppercase bg-transparent"
-                                                placeholder="Ej. M028"
-                                            />
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-500 mb-1">CANTIDAD TOTAL</label>
-                                                <input 
-                                                    type="number" 
-                                                    value={totalQty}
-                                                    onChange={e => setTotalQty(e.target.value)}
-                                                    className="w-full font-bold text-slate-800 border rounded-lg p-2"
-                                                    placeholder="0"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-500 mb-1">CLIENTE</label>
-                                                <input 
-                                                    type="text" 
-                                                    value={client}
-                                                    onChange={e => setClient(e.target.value)}
-                                                    className="w-full font-bold text-slate-800 border rounded-lg p-2"
-                                                    placeholder="Nombre"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-500 mb-1">MATERIAL (Inventario Actual)</label>
-                                            <select 
-                                                value={selectedMaterial}
-                                                onChange={e => setSelectedMaterial(e.target.value)}
-                                                className="w-full p-2 border rounded-lg bg-slate-50 text-sm font-medium"
-                                            >
-                                                <option value="">Seleccionar tela...</option>
-                                                {materials.map(m => (
-                                                    <option key={m.id} value={m.id}>
-                                                        {m.nombre} - {m.color} ({m.kilos?.toFixed(1)}kg disp)
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
+                <div className="flex h-screen overflow-hidden">
+                    {/* Sidebar de Órdenes */}
+                    <div className="w-64 bg-slate-800 text-white p-4 overflow-y-auto shrink-0">
+                        <h1 className="text-xl font-bold text-blue-400 mb-4 flex items-center gap-2"><Icon name="layers"/> AGRUPADOR</h1>
+                        <div className="space-y-2">
+                            {orders.map(o => (
+                                <div key={o.id} onClick={() => setSelectedOrder(o)} 
+                                     className={`p-3 rounded cursor-pointer border-l-4 ${selectedOrder?.id === o.id ? 'border-blue-400 bg-slate-700' : 'border-transparent hover:bg-slate-700'}`}>
+                                    <div className="font-bold">{o.codigo}</div>
+                                    <div className="text-xs text-slate-400">{o.cliente}</div>
                                 </div>
+                            ))}
+                        </div>
+                    </div>
 
-                                {/* Previsualización de Imagen */}
-                                {model && (
-                                    <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center">
-                                        <p className="text-xs font-bold text-slate-400 mb-2">VISTA PREVIA MODELO</p>
-                                        <div className="w-32 h-32 rounded-lg overflow-hidden bg-slate-100 border border-slate-200">
-                                            <SmartImage modelName={model} className="w-full h-full object-cover" />
+                    {/* Área Principal */}
+                    <div className="flex-1 flex flex-col bg-slate-100 overflow-hidden">
+                        {selectedOrder ? (
+                            <>
+                                {/* Header y Selección de Paquetes */}
+                                <div className="bg-white p-4 border-b shadow-sm z-10">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <div>
+                                            <h2 className="text-2xl font-bold text-slate-800">{selectedOrder.codigo}</h2>
+                                            <p className="text-sm text-slate-500 font-bold">{selectedOrder.partida}</p>
                                         </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Columna Central: Configuración de Partes */}
-                            <div className="lg:col-span-2 space-y-6">
-                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-full flex flex-col">
-                                    <div className="flex justify-between items-center mb-6">
-                                        <h2 className="font-bold text-slate-700 flex items-center gap-2">
-                                            <Icon name="layers" /> Configuración de Partes
-                                        </h2>
-                                        <button onClick={addPart} className="text-xs bg-blue-50 text-blue-600 font-bold px-3 py-1 rounded-full hover:bg-blue-100 transition">
-                                            + AGREGAR PARTE
+                                        <button onClick={downloadPDF} disabled={selectedPackagesList.length === 0 || isGenerating}
+                                                className={`px-6 py-3 rounded-lg font-bold text-white flex items-center gap-2 shadow-lg transition-all
+                                                    ${selectedPackagesList.length === 0 ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'}`}>
+                                            <Icon name="printer"/> {isGenerating ? 'GENERANDO...' : `IMPRIMIR GRUPO (${selectedPackagesList.length})`}
                                         </button>
                                     </div>
-
-                                    <div className="flex-1 space-y-3 overflow-y-auto pr-2 max-h-[500px]">
-                                        {parts.map((part, index) => (
-                                            <div key={part.id} className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-wrap gap-4 items-end animate-fadeIn">
-                                                <div className="flex-1 min-w-[150px]">
-                                                    <label className="text-[10px] font-bold text-slate-400 uppercase">Nombre Parte</label>
-                                                    <input 
-                                                        type="text" 
-                                                        value={part.name}
-                                                        onChange={e => updatePart(part.id, 'name', e.target.value)}
-                                                        className="w-full font-bold text-slate-700 bg-white border border-slate-200 rounded p-2 text-sm"
-                                                        placeholder="Ej. Manga, Cuerpo"
-                                                    />
-                                                </div>
-                                                
-                                                <div className="w-32">
-                                                    <label className="text-[10px] font-bold text-slate-400 uppercase">Piezas x Lienzo</label>
-                                                    <input 
-                                                        type="number" 
-                                                        value={part.ratio}
-                                                        onChange={e => updatePart(part.id, 'ratio', e.target.value)}
-                                                        className="w-full font-bold text-blue-600 bg-white border border-slate-200 rounded p-2 text-sm text-center"
-                                                        placeholder="1"
-                                                    />
-                                                </div>
-
-                                                <div className="w-24">
-                                                    <label className="text-[10px] font-bold text-slate-400 uppercase">Máquina</label>
-                                                    <input 
-                                                        type="text" 
-                                                        value={part.machine}
-                                                        onChange={e => updatePart(part.id, 'machine', e.target.value)}
-                                                        className="w-full font-black text-slate-800 bg-white border border-slate-200 rounded p-2 text-sm text-center"
-                                                        placeholder="#"
-                                                    />
-                                                </div>
-
-                                                <div className="w-24 bg-slate-200 rounded p-2 text-center opacity-70">
-                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">Lienzos</label>
-                                                    <div className="font-bold text-slate-700 text-sm">
-                                                        {totalQty && part.ratio ? Math.ceil(parseInt(totalQty) / parseFloat(part.ratio)) : '-'}
-                                                    </div>
-                                                </div>
-
-                                                {parts.length > 1 && (
-                                                    <button onClick={() => removePart(part.id)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition">
-                                                        <Icon name="trash-2" size={18} />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <div className="mt-6 pt-6 border-t border-slate-100">
-                                        {showSuccess ? (
-                                            <div className="flex gap-4">
-                                                <button onClick={triggerPrint} className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-green-200 flex justify-center items-center gap-2 hover:bg-green-700 transition">
-                                                    <Icon name="printer" /> IMPRIMIR PAPELETAS
-                                                </button>
-                                                <button onClick={() => setShowSuccess(false)} className="px-6 bg-slate-100 text-slate-500 font-bold rounded-xl hover:bg-slate-200">
-                                                    NUEVO
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <button 
-                                                onClick={handleSave} 
-                                                disabled={loading}
-                                                className={`w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-200 flex justify-center items-center gap-2 text-lg hover:bg-blue-700 transition ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                            >
-                                                {loading ? <span className="animate-spin"><Icon name="loader" /></span> : <Icon name="save" />}
-                                                GENERAR ORDEN
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* --- DISEÑO DE IMPRESIÓN (PAPELETAS) --- */}
-                    {printData && (
-                        <div className="print-only">
-                            {/* 1. HOJA MAESTRA (Resumen Visual) */}
-                            <div className="page-break w-full h-full border-4 border-black p-4 box-border">
-                                <div className="flex justify-between items-start border-b-4 border-black pb-4 mb-4">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-24 h-24 border-2 border-black overflow-hidden">
-                                            <SmartImage modelName={printData.model} className="w-full h-full object-contain filter grayscale contrast-125" />
-                                        </div>
-                                        <div>
-                                            <h1 className="text-6xl font-black">{printData.model}</h1>
-                                            <p className="text-xl font-bold uppercase">{printData.client}</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="text-4xl font-black">{printData.totalQty} <span className="text-lg">PZS</span></div>
-                                        <p className="font-mono text-sm">{new Date().toLocaleDateString()}</p>
-                                        <div className="mt-2 text-sm font-bold border border-black px-2 py-1 inline-block">ID: {printData.id.slice(0,6)}</div>
-                                    </div>
-                                </div>
-
-                                <div className="mb-6">
-                                    <h3 className="text-lg font-black bg-black text-white px-2 py-1 inline-block mb-2 uppercase">Desglose de Producción</h3>
-                                    <table className="w-full border-collapse border border-black text-sm">
-                                        <thead>
-                                            <tr className="bg-gray-200">
-                                                <th className="border border-black p-2 text-left">COMPONENTE</th>
-                                                <th className="border border-black p-2 text-center">MÁQUINA</th>
-                                                <th className="border border-black p-2 text-center">RATIO (Pzs/Lienzo)</th>
-                                                <th className="border border-black p-2 text-center">LIENZOS TOTALES</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {printData.parts.map((part, i) => (
-                                                <tr key={i}>
-                                                    <td className="border border-black p-2 font-bold uppercase">{part.name}</td>
-                                                    <td className="border border-black p-2 text-center font-bold text-xl">{part.machine}</td>
-                                                    <td className="border border-black p-2 text-center">{part.ratio}</td>
-                                                    <td className="border border-black p-2 text-center font-black">{part.bundlesNeeded}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                {/* Generación de Etiquetas Recortables en la misma hoja o siguientes */}
-                                <div className="mt-8">
-                                    <h3 className="text-lg font-black bg-black text-white px-2 py-1 inline-block mb-4 uppercase">Etiquetas de Rastreo (Recortar)</h3>
-                                    
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {printData.parts.flatMap(part => 
-                                            part.bundles.map(bundle => ({ ...bundle, partName: part.name, machine: part.machine, ratio: part.ratio }))
-                                        ).map((ticket, idx) => (
-                                            <TicketCard 
-                                                key={idx} 
-                                                orderId={printData.id} 
-                                                model={printData.model} 
-                                                part={ticket.partName} 
-                                                machine={ticket.machine}
-                                                bundleIndex={ticket.bundleIndex}
-                                                uid={ticket.uid}
-                                                qty={ticket.qtyInBundle}
-                                            />
+                                    <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 bg-slate-50 rounded border">
+                                        {availablePackages.map(p => (
+                                            <label key={p.paqueteNum} 
+                                                   className={`flex items-center gap-2 px-3 py-2 rounded border cursor-pointer select-none transition-colors
+                                                       ${checkedPackages[p.paqueteNum] ? 'bg-blue-100 border-blue-500 text-blue-800 font-bold' : 'bg-white border-slate-300 hover:bg-slate-100'}`}>
+                                                <input type="checkbox" checked={!!checkedPackages[p.paqueteNum]} onChange={() => handleCheck(p.paqueteNum)} className="hidden"/>
+                                                <Icon name={checkedPackages[p.paqueteNum] ? "check-square" : "square"}/>
+                                                Pqt. {p.paqueteNum}
+                                            </label>
                                         ))}
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        };
 
-        // Sub-componente para cada etiqueta individual (QR)
-        const TicketCard = ({ orderId, model, part, machine, bundleIndex, uid, qty }) => {
-            const canvasRef = React.useRef(null);
-
-            React.useEffect(() => {
-                if (canvasRef.current) {
-                    // El código QR contiene: ID_ORDEN | ID_UNICO_BULTO
-                    // Esto permite al escáner saber exactamente qué bulto es.
-                    // Formato: Z-ORDENID-UID
-                    JsBarcode(canvasRef.current, `Z-${orderId}-${uid}`, {
-                        format: "CODE128",
-                        height: 40,
-                        displayValue: false,
-                        margin: 0
-                    });
-                }
-            }, [uid]);
-
-            return (
-                <div className="border-2 border-dashed border-gray-400 p-2 flex gap-2 break-inside-avoid">
-                    <div className="flex-1">
-                        <div className="flex justify-between items-start mb-1">
-                            <span className="font-black text-2xl">{model}</span>
-                            <span className="font-bold text-sm bg-black text-white px-1">{part}</span>
-                        </div>
-                        <div className="text-xs font-mono mb-1">MAQUINA <span className="text-xl font-black">{machine}</span></div>
-                        <div className="text-xs">Lienzo {bundleIndex} | Cont: <b>{qty}</b> pzs</div>
-                    </div>
-                    <div className="flex flex-col items-center justify-center w-32">
-                        <canvas ref={canvasRef} className="w-full"></canvas>
-                        <span className="text-[10px] font-mono">{uid}</span>
+                                {/* Vista Previa */}
+                                <div className="flex-1 overflow-y-auto p-8 bg-slate-200 flex justify-center relative">
+                                    {selectedPackagesList.length > 0 ? (
+                                        <div className="shadow-2xl bg-white scale-75 origin-top" style={{width: '6in'}}>
+                                             {/* Este div es el que se imprime */}
+                                            <div ref={pdfRef}>
+                                                <StackedLabel selectedPackages={selectedPackagesList} order={selectedOrder} imageSources={imageSources} />
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center text-slate-400 h-64">
+                                            <Icon name="package-plus" size={48}/>
+                                            <p className="font-bold mt-2">Selecciona paquetes para agrupar</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        ) : (
+                            <div className="flex-1 flex items-center justify-center text-slate-400 font-bold">Selecciona una orden &larr;</div>
+                        )}
                     </div>
                 </div>
             );
         };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 </html>
