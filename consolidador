@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consolidador de Kits - Cirineo</title>
+    
+    <link rel="icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        body { background-color: #f1f5f9; color: #1e293b; font-family: system-ui, -apple-system, sans-serif; }
+        .card-enter { animation: slideIn 0.3s ease-out forwards; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #e2e8f0; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCngQL1pdqghv2vbjkPycT1Xf0C46f7jYs",
+            authDomain: "cirineo-cec21.firebaseapp.com",
+            projectId: "cirineo-cec21",
+            storageBucket: "cirineo-cec21.firebasestorage.app",
+            messagingSenderId: "620210618284",
+            appId: "1:620210618284:web:482bab9bf74650fff18409"
+        };
+
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const Icon = ({ name, size = 18 }) => {
+            const containerRef = React.useRef(null);
+            React.useEffect(() => { if (containerRef.current && lucide.icons[name]) containerRef.current.innerHTML = lucide.icons[name].toSvg({ width: size, height: size }); }, [name, size]);
+            return <span ref={containerRef} className="inline-flex"></span>;
+        };
+
+        const ScanCard = ({ scan, onApprove, onDelete, processing, isArchived }) => {
+            const containerClasses = isArchived 
+                ? "bg-slate-300 border-l-4 border-slate-400 rounded p-3 mb-3 flex flex-col gap-2 relative overflow-hidden text-slate-500 grayscale opacity-80" 
+                : "bg-slate-800 border-l-4 border-yellow-500 rounded p-3 mb-3 shadow-lg card-enter flex flex-col gap-2 relative overflow-hidden text-white";
+
+            return (
+                <div className={containerClasses}>
+                    {processing === scan.id && <div className="absolute inset-0 bg-black/60 z-10 flex items-center justify-center"><div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div></div>}
+                    <div className="flex justify-between items-start">
+                        <div className="bg-yellow-900/50 text-yellow-200 text-[10px] font-mono px-2 py-0.5 rounded border border-yellow-700/50">{scan.codigo_paquete}</div>
+                        <div className="text-[10px] font-mono flex items-center gap-1"><Icon name="clock" size={10}/> {scan.fecha_scan || '---'}</div>
+                    </div>
+                    <div>
+                        <div className={`font-bold text-lg leading-tight ${isArchived ? "text-slate-600" : "text-white"}`}>{scan.modelo}</div>
+                        <div className="text-xs opacity-70">KIT COMPLETO</div>
+                    </div>
+                    <div className={`flex justify-between items-center p-2 rounded border mt-1 ${isArchived ? "bg-slate-200 border-slate-300" : "bg-slate-900/50 border-slate-700/50"}`}>
+                        <div className="text-xs">
+                            <span className="block text-[9px] uppercase font-bold text-slate-500">Tejedor</span>
+                            <span className="font-bold">{scan.tejedor || 'S/N'}</span>
+                        </div>
+                        <div className="text-right">
+                            <span className="block text-[9px] uppercase font-bold text-slate-500">Paquete</span>
+                            <span className="font-black text-lg">{scan.paquete_indice} <span className="text-xs font-normal">/ {scan.paquete_total}</span></span>
+                        </div>
+                    </div>
+                    {!isArchived && (
+                        <div className="grid grid-cols-2 gap-2 mt-2">
+                            <button onClick={() => onDelete(scan)} className="bg-slate-700 hover:bg-red-900 text-slate-300 py-2 rounded text-xs font-bold flex justify-center gap-1"><Icon name="x" size={14}/> DESCARTAR</button>
+                            <button onClick={() => onApprove(scan)} className="bg-green-600 hover:bg-green-500 text-white py-2 rounded text-xs font-bold shadow-md flex justify-center gap-1"><Icon name="check" size={14}/> CONFIRMAR KIT</button>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const MachineColumn = ({ machineId, pendingScans, archivedScans, onApprove, onDelete, processingId }) => {
+            return (
+                <div className="min-w-[300px] max-w-[300px] flex flex-col h-full bg-slate-200 border border-slate-300 rounded-lg overflow-hidden">
+                    <div className="p-3 border-b border-slate-300 bg-white flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            <div className="bg-slate-800 w-8 h-8 rounded flex items-center justify-center font-black text-white">{machineId}</div>
+                            <span className="font-bold text-slate-700 text-sm">MÁQUINA</span>
+                        </div>
+                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${pendingScans.length > 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-slate-100 text-slate-400'}`}>{pendingScans.length} KITS</span>
+                    </div>
+                    <div className="p-3 overflow-y-auto flex-1 space-y-3">
+                        {pendingScans.length === 0 && archivedScans.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60"><Icon name="check-circle" size={40}/><p className="text-xs font-bold mt-2">LIMPIO</p></div>
+                        ) : (
+                            <>
+                                {pendingScans.map(s => <ScanCard key={s.id} scan={s} onApprove={onApprove} onDelete={onDelete} processing={processingId} isArchived={false} />)}
+                                {archivedScans.length > 0 && <div className="text-center text-xs text-slate-400 font-bold uppercase py-2 border-t border-slate-300">Historial Reciente</div>}
+                                {archivedScans.map(s => <ScanCard key={`arch-${s.id}`} scan={s} onApprove={()=>{}} onDelete={()=>{}} processing={processingId} isArchived={true} />)}
+                            </>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [scannedItems, setScannedItems] = useState([]);
+            const [orders, setOrders] = useState([]);
+            const [approvedIds, setApprovedIds] = useState(new Set());
+            const [processingId, setProcessingId] = useState(null);
+
+            useEffect(() => {
+                const u1 = db.collection('orders').where('status', '!=', 'ARCHIVADO').onSnapshot(s => setOrders(s.docs.map(d => ({...d.data(), id: d.id}))));
+                const u2 = db.collection('registro_produccion').orderBy('fecha', 'desc').onSnapshot(s => setScannedItems(s.docs.map(d => ({...d.data(), id: d.id}))));
+                const u3 = db.collection('registros_aprobados').onSnapshot(s => setApprovedIds(new Set(s.docs.map(d => d.id))));
+                return () => { u1(); u2(); u3(); };
+            }, []);
+
+            // Agrupa por máquina principal (aunque el kit tenga varias, se muestra en la máquina principal de la orden)
+            const machineGroups = useMemo(() => {
+                const groups = {};
+                scannedItems.forEach(scan => {
+                    const order = orders.find(o => String(o.id) === String(scan.orderId));
+                    const isArchived = approvedIds.has(scan.id);
+                    // Usamos la máquina que viene en el registro o en la orden
+                    const mq = order ? (order.maquina || 'S/N') : '???';
+                    
+                    if (!groups[mq]) groups[mq] = { pending: [], archived: [] };
+                    const list = isArchived ? groups[mq].archived : groups[mq].pending;
+                    list.push({ ...scan, orderRef: order });
+                });
+                return Object.keys(groups).sort((a,b)=>parseInt(a)-parseInt(b)).map(k => ({ id: k, ...groups[k] }));
+            }, [scannedItems, orders, approvedIds]);
+
+            const handleApprove = async (scanItem) => {
+                setProcessingId(scanItem.id);
+                try {
+                    const orderRef = db.collection('orders').doc(String(scanItem.orderId));
+                    const orderSnap = await orderRef.get();
+                    if (!orderSnap.exists) throw new Error("Orden no encontrada");
+
+                    const orderData = orderSnap.data();
+                    const pkgIdx = parseInt(scanItem.paquete_indice);
+                    
+                    // --- LÓGICA CRÍTICA DE KITS ---
+                    // 1. Identificar todas las máquinas involucradas en este Kit
+                    const machinesInKit = new Set();
+                    if (orderData.subPiecesData && Array.isArray(orderData.subPiecesData)) {
+                        orderData.subPiecesData.forEach(part => {
+                            if (part.maquina) machinesInKit.add(part.maquina);
+                        });
+                    }
+                    const machineList = Array.from(machinesInKit); // Ej: [6, 31]
+
+                    // 2. Actualizar el paquete marcando TODAS las partes como terminadas
+                    let found = false;
+                    const newProgreso = orderData.progreso.map(p => {
+                        if (p.paqueteNum === pkgIdx) {
+                            found = true;
+                            return { 
+                                ...p, 
+                                finished: true, 
+                                machinesFinished: machineList, // <--- REGISTRO EXPLÍCITO DE MÁQUINAS
+                                approvedAt: new Date().toISOString(),
+                                approvedBy: 'Consolidador'
+                            };
+                        }
+                        return p;
+                    });
+
+                    if (!found) throw new Error("Paquete no encontrado en la orden");
+
+                    await orderRef.update({ progreso: newProgreso });
+                    await db.collection('registros_aprobados').doc(scanItem.id).set({
+                        ...scanItem, 
+                        approved_machines: machineList, // Guardamos también en el histórico
+                        fecha_aprobacion: new Date().toISOString()
+                    });
+
+                } catch (e) { alert(e.message); }
+                setProcessingId(null);
+            };
+
+            const handleDelete = async (item) => {
+                if(!confirm("¿Borrar escaneo?")) return;
+                try { await db.collection('registro_produccion').doc(item.id).delete(); } catch(e) { alert(e.message); }
+            };
+
+            return (
+                <div className="h-screen flex flex-col bg-slate-100 overflow-hidden">
+                    <header className="bg-white border-b p-4 flex justify-between items-center shadow-sm z-10">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-slate-900 p-2 rounded text-white"><Icon name="layers" size={24}/></div>
+                            <div><h1 className="text-xl font-black text-slate-800">CONSOLIDADOR KITS</h1><p className="text-xs text-slate-500 font-bold">VALIDACIÓN DE PAQUETES COMPLETOS</p></div>
+                        </div>
+                        <div className="text-xs font-bold text-slate-500">
+                            PENDIENTES: <span className="bg-red-600 text-white px-2 py-1 rounded ml-1">{scannedItems.length - approvedIds.size}</span>
+                        </div>
+                    </header>
+                    <div className="flex-1 overflow-x-auto p-4 flex gap-4">
+                        {machineGroups.map(g => <MachineColumn key={g.id} machineId={g.id} pendingScans={g.pending} archivedScans={g.archived} onApprove={handleApprove} onDelete={handleDelete} processingId={processingId} />)}
+                        {machineGroups.length === 0 && <div className="w-full flex items-center justify-center text-slate-400 font-bold">NO HAY ESCANEOS PENDIENTES</div>}
+                    </div>
+                </div>
+            );
+        };
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
