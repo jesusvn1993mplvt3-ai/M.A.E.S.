@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Inventario - Hilaturas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <style>
+        /* Fija el encabezado de la tabla para que sea visible al hacer scroll */
+        .inventory-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        /* Fija los encabezados de grupo */
+        .group-header-row {
+             position: sticky;
+             top: 48px; /* Altura del thead */
+             z-index: 9;
+        }
+        /* Estilo para el modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        
+        // --- DATOS DE COLORES SPUN (Extraídos de Untitled.pdf) ---
+        const SPUN_COLORS = [
+            { num: "01", name: "Rosado Pálido", hex: "#E9D2E0" },
+            { num: "02", name: "Rosado Brillante", hex: "#E870A2" },
+            { num: "03", name: "Magenta Suave", hex: "#E33A7C" },
+            { num: "04", name: "Rosa Intenso", hex: "#DE0A52" }, // Se corrigió '#DEOA52' a '#DE0A52'
+            { num: "05", name: "Rojo Rosado", hex: "#D00045" },
+            { num: "06", name: "Rojo Oscuro", hex: "#A8002D" }, 
+            { num: "07", name: "Vino/Borgona", hex: "#8B0D36" }, // Se corrigió '#8BOD36' a '#8B0D36'
+            { num: "09", name: "Fucsia Brillante", hex: "#E90065" },
+            { num: "10", name: "Magenta Intenso", hex: "#C50047" },
+            { num: "14", name: "Morado Oscuro", hex: "#7D0039" },
+            { num: "15", name: "Púrpura/Ciruela", hex: "#5F002C" },
+            { num: "16", name: "Berenjena Oscuro", hex: "#430029" },
+            { num: "19", name: "Azul Marino Oscuro", hex: "#130D29" },
+            { num: "20", name: "Negro/Azul muy oscuro", hex: "#0A090F" },
+            { num: "21", name: "Púrpura", hex: "#4B0D5D" }, 
+            { num: "22", name: "Violeta Oscuro", hex: "#580D74" },
+            { num: "23", name: "Azul Morado", hex: "#6F0C8B" }, 
+            { num: "24", name: "Morado Lavanda", hex: "#920EAA" },
+            { num: "25", name: "Violeta Brillante", hex: "#AD00C1" },
+            { num: "26", name: "Púrpura Claro", hex: "#9E3FB0" },
+            { num: "27", name: "Azul Púrpura", hex: "#724089" },
+            { num: "28", name: "Gris Morado", hex: "#544865" },
+            { num: "29", name: "Azul Pizarra Oscuro", hex: "#3B394A" },
+            { num: "30", name: "Verde Azulado Oscuro", hex: "#343940" },
+            { num: "31", name: "Verde Lima Pálido", hex: "#D3EB9B" },
+            { num: "33", name: "Verde Amarillento", hex: "#A1E455" },
+            { num: "34", name: "Verde Brillante", hex: "#6CD126" },
+            { num: "35", name: "Verde Pasto Oscuro", hex: "#459325" },
+            { num: "36", name: "Verde Olivo", hex: "#979A3F" },
+            { num: "37", name: "Verde Seco/Musgo", hex: "#778A3E" },
+            { num: "38", name: "Verde Bosque Oscuro", hex: "#455C2C" },
+            { num: "39", name: "Caqui Oscuro", hex: "#38492C" },
+            { num: "40", name: "Ladrillo/Rojizo", hex: "#9C3833" },
+            { num: "41", name: "Rojo Caliente", hex: "#B93433" },
+            { num: "42", name: "Naranja", hex: "#CD3534" },
+            { num: "43", name: "Coral Claro", hex: "#DB575B" },
+            { num: "44", name: "Rosa Salmón", hex: "#EB8488" },
+            { num: "45", name: "Rosa Pálido", hex: "#F4ADAD" },
+            { num: "46", name: "Rosa muy Pálido", hex: "#F7E4E4" },
+            { num: "47", name: "Azul Bebé", hex: "#B2DDEB" },
+            { num: "48", name: "Celeste Brillante", hex: "#84C8DD" },
+            { num: "50", name: "Turquesa Intenso", hex: "#1A86AA" },
+            { num: "51", name: "Azul Cielo", hex: "#307797" },
+            { num: "52", name: "Azul Rey Oscuro", hex: "#1F4A70" },
+            { num: "54", name: "Verde Menta", hex: "#58B490" },
+            { num: "55", name: "Verde Suave", hex: "#71D5A6" },
+            { num: "56", name: "Verde Neón", hex: "#85E8B3" },
+            { num: "57", name: "Verde Lima Pálido", hex: "#A7EBC5" },
+            { num: "58", name: "Verde Agua Claro", hex: "#C9F7DB" },
+            { num: "59", name: "Verde Esmeralda", hex: "#36C87C" },
+            { num: "60", name: "Verde Pino", hex: "#26A863" },
+            { num: "64", name: "Verde Botella", hex: "#1D794F" },
+            { num: "65", name: "Verde Profundo", hex: "#1D553A" },
+            { num: "69", name: "Verde Oliva Oscuro", hex: "#2D3934" },
+            { num: "70", name: "Caqui", hex: "#7D8D68" },
+            { num: "71", name: "Beige Arena", hex: "#C8C9A3" },
+            { num: "72", name: "Blanco Roto/Hueso", hex: "#E3E1DF" },
+            { num: "73", name: "Beige Claro", hex: "#D4C9BF" },
+            { num: "74", name: "Gris Pálido", hex: "#B8A99C" },
+            { num: "75", name: "Gris Taupe", hex: "#9C8F84" },
+            { num: "76", name: "Marrón Suave", hex: "#7D6F64" },
+            { num: "77", name: "Marrón Tierra", hex: "#5E534A" },
+            { num: "78", name: "Café Oscuro", hex: "#403A35" },
+            { num: "79", name: "Marrón Grisáceo", hex: "#373838" },
+            { num: "80", name: "Gris Oscuro", hex: "#2C2F30" },
+            { num: "81", name: "Azul Acero Oscuro", hex: "#28303C" },
+            { num: "82", name: "Azul Marino", hex: "#1D2D44" },
+            { num: "83", name: "Azul Noche", hex: "#132034" },
+            { num: "85", name: "Azul Prusia", hex: "#0E1729" },
+            { num: "88", name: "Gris muy Oscuro", hex: "#1D1C1B" },
+            { num: "89", name: "Gris Grafito", hex: "#252423" },
+            { num: "90", name: "Blanco Puro", hex: "#F4F5F4" },
+            { num: "101", name: "Gris Claro", hex: "#919396" },
+            { num: "169", name: "Azul Tinta Oscuro", hex: "#34465B" },
+            { num: "178", name: "Gris Medio", hex: "#605F61" },
+            { num: "182", name: "Negro", hex: "#1D1E1F" }
+        ];
+
+        // --- UTILS PARA MANEJO DE COLORES ---
+        const hexToRgb = (hex) => {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        };
+        
+        // Verifica si el color es oscuro para usar texto claro (blanco)
+        const isDarkColor = (hex) => {
+            const rgb = hexToRgb(hex);
+            if (!rgb) return true;
+            // Cálculo de Luminosidad (ITU-R BT.709)
+            const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
+            // Se considera oscuro si la luminosidad es menor a 0.5
+            return luminance < 0.5; 
+        };
+        // ------------------------------------
+
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyCngQL1pdqghv2vbjkPycT1Xf0C46f7jYs",
+            authDomain: "cirineo-cec21.firebaseapp.com",
+            projectId: "cirineo-cec21",
+            storageBucket: "cirineo-cec21.firebasestorage.app",
+            messagingSenderId: "620210618284",
+            appId: "1:620210618284:web:482bab9bf74650fff18409",
+            measurementId: "G-B7YLM78RVW"
+        };
+
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const Icon = ({ name, size = 18 }) => <i data-lucide={name} style={{ width: size, height: size }}></i>;
+
+        // =================================================================
+        // COMPONENTE: MODAL PALETA DE COLORES SPUN
+        // =================================================================
+        const ColorPaletteModal = ({ onClose }) => {
+            return (
+                <div className="modal-overlay">
+                    <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+                        <h3 className="text-xl font-bold mb-4 text-indigo-700 flex items-center justify-between border-b pb-2 shrink-0">
+                            <div className="flex items-center gap-2"><Icon name="palette"/> PALETA DE COLORES SPUN (Referencia)</div>
+                            <button onClick={onClose} className="text-red-500 font-bold text-sm flex items-center gap-1 hover:bg-red-50 p-1 rounded"><Icon name="x"/> CERRAR</button>
+                        </h3>
+                        
+                        <div className="overflow-y-auto p-2">
+                            <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-3">
+                                {SPUN_COLORS.map(color => {
+                                    const textColor = isDarkColor(color.hex) ? 'text-white' : 'text-slate-900';
+                                    
+                                    return (
+                                        <div 
+                                            key={color.num} 
+                                            className="aspect-square flex items-center justify-center p-1 rounded-lg shadow-md cursor-pointer transition transform hover:scale-105 hover:shadow-xl"
+                                            style={{ backgroundColor: color.hex }}
+                                            onClick={() => alert(`Número: ${color.num}\nColor Aproximado: ${color.name}\nCódigo HEX: ${color.hex}`)}
+                                            title={`Haga clic para ver: ${color.name}`}
+                                        >
+                                            <span className={`text-3xl font-black ${textColor} drop-shadow-lg`}>
+                                                {color.num}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <p className="text-xs text-slate-500 mt-4 text-center">Haga clic en el cuadro para ver el nombre del color. Esta paleta no tiene interacción con la base de datos de inventario.</p>
+                        </div>
+                        
+                    </div>
+                </div>
+            );
+        };
+
+        // =================================================================
+        // COMPONENTE: MODAL DE BITÁCORA (LOG) POR ITEM
+        // =================================================================
+        const ItemLogModal = ({ item, onClose }) => {
+            const [movements, setMovements] = useState([]);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                const fetchMovements = async () => {
+                    if (!item || !item.id) return;
+                    try {
+                        // Buscar movimientos solo para el ID de este material
+                        const snapshot = await db.collection('inventory_movements')
+                            .where('materialId', '==', item.id)
+                            .orderBy('timestamp', 'desc')
+                            .limit(100)
+                            .get();
+                        setMovements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                        setLoading(false);
+                        setTimeout(() => lucide.createIcons(), 100);
+                    } catch (e) {
+                        console.error("Error fetching item movements:", e);
+                        setLoading(false);
+                    }
+                };
+                fetchMovements();
+            }, [item]);
+
+            const formatDate = (timestamp) => {
+                if (!timestamp) return 'N/A';
+                // El timestamp puede venir como número (Date.now()) o como objeto de Firebase
+                let date;
+                if (typeof timestamp === 'number') {
+                    date = new Date(timestamp);
+                } else if (timestamp.toDate) {
+                    date = timestamp.toDate();
+                } else {
+                    return 'N/A';
+                }
+                return date.toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+            };
+
+            const renderDetails = (m) => {
+                switch(m.type) {
+                    case 'ENTRADA':
+                        return <span className="text-green-700 font-semibold">Recepción de stock: {m.note || 'Sin nota'}</span>;
+                    case 'EDICION_DETALLE':
+                        return <span className="text-indigo-700 font-semibold">Detalles editados: Calibre, Color, etc.</span>;
+                    case 'SALIDA_ORDEN':
+                        return (
+                            <div className="flex flex-col text-red-700 font-semibold">
+                                <span>Consumo por Orden: <span className="font-mono">{m.orderId}</span></span>
+                                <span className="text-xs text-slate-500">Modelo: {m.model || 'N/A'} | Partida: {m.partida || 'N/A'}</span>
+                            </div>
+                        );
+                    default:
+                        return <span className="text-slate-500">Movimiento registrado: {m.note || 'N/A'}</span>;
+                }
+            }
+
+            return (
+                <div className="modal-overlay">
+                    <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+                        <h3 className="text-xl font-black mb-4 text-slate-800 flex items-center justify-between border-b pb-2 shrink-0">
+                            <div className="flex items-center gap-2"><Icon name="history"/> Bitácora de {item?.material || 'Material'} ({item?.color || 'N/A'})</div>
+                            <button onClick={onClose} className="text-red-500 font-bold text-sm flex items-center gap-1 hover:bg-red-50 p-1 rounded"><Icon name="x"/> CERRAR</button>
+                        </h3>
+                        
+                        {loading ? (
+                            <div className="text-center py-10 text-slate-500">Cargando bitácora...</div>
+                        ) : (
+                            <div className="overflow-y-auto flex-grow">
+                                <table className="w-full text-xs text-left">
+                                    <thead className="sticky top-0 bg-slate-100 border-b">
+                                        <tr>
+                                            <th className="p-2 w-32">Fecha/Hora</th>
+                                            <th className="p-2 w-20 text-center">Tipo</th>
+                                            <th className="p-2 w-20 text-right">Cantidad (Kg)</th>
+                                            <th className="p-2 w-20 text-center">Stock Final</th>
+                                            <th className="p-2">Detalle del Movimiento</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {movements.map(m => (
+                                            <tr key={m.id} className={`border-b 
+                                                ${m.type === 'ENTRADA' ? 'bg-green-50' : m.type === 'SALIDA_ORDEN' ? 'bg-red-50' : m.type === 'EDICION_DETALLE' ? 'bg-indigo-50' : 'bg-slate-50'}
+                                            `}>
+                                                <td className="p-2 font-mono text-[10px]">{formatDate(m.timestamp)}</td>
+                                                <td className="p-2 text-center font-bold">
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] 
+                                                        ${m.type === 'ENTRADA' ? 'bg-green-600 text-white' : m.type === 'SALIDA_ORDEN' ? 'bg-red-600 text-white' : m.type === 'EDICION_DETALLE' ? 'bg-indigo-600 text-white' : 'bg-slate-600 text-white'}
+                                                    `}>
+                                                        {m.type === 'SALIDA_ORDEN' ? 'SALIDA' : m.type}
+                                                    </span>
+                                                </td>
+                                                <td className={`p-2 text-right font-black ${m.type === 'ENTRADA' ? 'text-green-700' : m.type === 'SALIDA_ORDEN' ? 'text-red-700' : 'text-slate-700'}`}>
+                                                    {m.type === 'SALIDA_ORDEN' ? `-${parseFloat(m.quantityKg).toFixed(2)}` : parseFloat(m.quantityKg).toFixed(2)}
+                                                </td>
+                                                <td className="p-2 text-center text-xs font-mono">{parseFloat(m.currentStock).toFixed(2)}</td>
+                                                <td className="p-2 text-[11px]">{renderDetails(m)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {movements.length === 0 && <div className="text-center py-4 text-slate-400">No hay movimientos registrados para este material.</div>}
+                            </div>
+                        )}
+                        
+                    </div>
+                </div>
+            );
+        };
+
+
+        // =================================================================
+        // COMPONENTE 1: MODAL DE RECEPCIÓN DE STOCK (ENTRADA)
+        // =================================================================
+        const ReceptionModal = ({ items, onClose, onUpdate }) => {
+            const [selectedItem, setSelectedItem] = useState('');
+            const [kilosReceived, setKilosReceived] = useState('');
+            const [note, setNote] = useState('');
+            const [error, setError] = useState(null);
+
+            const materialOptions = items.map(i => ({ value: i.material, id: i.id, stock: i.stock, hex: i.hex, color: i.color }));
+
+            const handleSubmit = async () => {
+                const kilos = parseFloat(kilosReceived);
+                if (!selectedItem || isNaN(kilos) || kilos <= 0) {
+                    setError("Seleccione un material e ingrese una cantidad válida (mayor a 0).");
+                    return;
+                }
+                
+                const itemToUpdate = items.find(i => i.material === selectedItem);
+                if (!itemToUpdate) {
+                    setError("Material no encontrado.");
+                    return;
+                }
+
+                try {
+                    // 1. Calcular el nuevo stock
+                    const newStock = (parseFloat(itemToUpdate.stock) || 0) + kilos;
+
+                    // 2. Actualizar el inventario principal
+                    const updatedInventoryList = items.map(i => 
+                        i.id === itemToUpdate.id 
+                        ? { ...i, stock: newStock.toFixed(2) } // Actualiza el stock
+                        : i
+                    );
+
+                    await db.collection('inventory').doc('main').set({ items: updatedInventoryList });
+                    
+                    // 3. Registrar el movimiento de entrada (LOG)
+                    await db.collection('inventory_movements').add({
+                        materialId: itemToUpdate.id,
+                        materialName: itemToUpdate.material,
+                        color: itemToUpdate.color || '',
+                        hex: itemToUpdate.hex || '',
+                        type: "ENTRADA",
+                        quantityKg: kilos,
+                        currentStock: newStock.toFixed(2),
+                        date: new Date().toISOString().split('T')[0],
+                        timestamp: Date.now(),
+                        note: note || 'Recepción de stock'
+                    });
+
+                    onUpdate(); // Notificar a App que se actualizó
+                    onClose();
+                    alert(`¡Éxito! Se sumaron ${kilos} Kg a ${selectedItem}.`);
+
+                } catch (e) {
+                    console.error("Error al registrar entrada:", e);
+                    setError("Error al guardar en la base de datos.");
+                }
+            };
+
+            return (
+                <div className="modal-overlay">
+                    <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-md">
+                        <h3 className="text-xl font-bold mb-4 text-green-700 flex items-center gap-2 border-b pb-2">
+                            <Icon name="package-plus"/> Recepción de Stock (Entrada)
+                        </h3>
+                        {error && <div className="bg-red-100 text-red-700 p-2 rounded text-xs mb-3 font-bold">{error}</div>}
+                        
+                        <div className="mb-4">
+                            <label className="block text-xs font-bold mb-1">Material</label>
+                            <select 
+                                className="w-full border p-2 rounded font-bold" 
+                                value={selectedItem} 
+                                onChange={e => { setSelectedItem(e.target.value); setError(null); }}
+                            >
+                                <option value="">Seleccione Material...</option>
+                                {materialOptions.map(m => (
+                                    <option key={m.id} value={m.value}>{m.value} - {m.color} (Stock: {m.stock} Kg)</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="mb-4">
+                            <label className="block text-xs font-bold mb-1">Kilos Recibidos (a sumar)</label>
+                            <input 
+                                type="number" 
+                                step="0.01" 
+                                placeholder="Ej: 50.00" 
+                                className="w-full border-2 border-green-300 p-2 rounded font-black text-xl text-green-700" 
+                                value={kilosReceived} 
+                                onChange={e => setKilosReceived(e.target.value)} 
+                            />
+                        </div>
+                        <div className="mb-6">
+                            <label className="block text-xs font-bold mb-1">Nota / Proveedor</label>
+                            <input 
+                                type="text" 
+                                placeholder="Ej: Recibido de Proveedor X" 
+                                className="w-full border p-2 rounded text-sm" 
+                                value={note} 
+                                onChange={e => setNote(e.target.value)} 
+                            />
+                        </div>
+                        
+                        <div className="flex justify-end gap-2">
+                            <button onClick={onClose} className="px-4 py-2 bg-slate-200 rounded font-bold text-sm">Cancelar</button>
+                            <button onClick={handleSubmit} className="px-4 py-2 bg-green-600 text-white rounded font-bold text-sm flex items-center gap-1">
+                                <Icon name="check"/> Confirmar Recepción
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // =================================================================
+        // COMPONENTE 2: MODAL DE REPORTE DE MOVIMIENTOS
+        // =================================================================
+        const ReportModal = ({ onClose }) => {
+            const [movements, setMovements] = useState([]);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                const fetchMovements = async () => {
+                    try {
+                        // Limite aumentado a 300 para un reporte más amplio
+                        const snapshot = await db.collection('inventory_movements').orderBy('timestamp', 'desc').limit(300).get();
+                        setMovements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                        setLoading(false);
+                        setTimeout(() => lucide.createIcons(), 100);
+                    } catch (e) {
+                        console.error("Error fetching movements:", e);
+                        setLoading(false);
+                    }
+                };
+                fetchMovements();
+            }, []);
+            
+            useEffect(() => { lucide.createIcons(); }, [movements]);
+
+            const formatDate = (timestamp) => {
+                 if (!timestamp) return 'N/A';
+                let date;
+                if (typeof timestamp === 'number') {
+                    date = new Date(timestamp);
+                } else if (timestamp.toDate) {
+                    date = timestamp.toDate();
+                } else {
+                    return 'N/A';
+                }
+                return date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+            };
+
+            const getMovementStyle = (type) => {
+                if (type === 'ENTRADA') return { bg: 'bg-green-50', badge: 'bg-green-600 text-white' };
+                if (type === 'SALIDA_ORDEN') return { bg: 'bg-red-50', badge: 'bg-red-600 text-white' };
+                if (type === 'EDICION_DETALLE') return { bg: 'bg-indigo-50', badge: 'bg-indigo-600 text-white' };
+                return { bg: 'bg-slate-50', badge: 'bg-slate-600 text-white' };
+            };
+
+            return (
+                <div className="modal-overlay">
+                    <div className="bg-white p-6 rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+                        <h3 className="text-xl font-bold mb-4 text-slate-800 flex items-center justify-between border-b pb-2 shrink-0">
+                            <div className="flex items-center gap-2"><Icon name="bar-chart-3"/> Informe de Movimientos de Inventario (Últimos 300)</div>
+                            <button onClick={onClose} className="text-red-500 font-bold text-sm flex items-center gap-1 hover:bg-red-50 p-1 rounded"><Icon name="x"/> CERRAR</button>
+                        </h3>
+                        
+                        {loading ? (
+                            <div className="text-center py-10 text-slate-500">Cargando movimientos...</div>
+                        ) : (
+                            <div className="overflow-y-auto flex-grow">
+                                <table className="w-full text-xs text-left">
+                                    <thead className="sticky top-0 bg-slate-100 border-b">
+                                        <tr>
+                                            <th className="p-2 w-20">Fecha</th>
+                                            <th className="p-2 w-16 text-center">Tipo</th>
+                                            <th className="p-2">Material</th>
+                                            <th className="p-2 w-20 text-right">Cantidad (Kg)</th>
+                                            <th className="p-2 w-20 text-center">Stock Final</th>
+                                            <th className="p-2">Detalle / Partida</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {movements.map(m => {
+                                            const { bg, badge } = getMovementStyle(m.type);
+                                            const quantityText = m.type === 'SALIDA_ORDEN' ? `-${parseFloat(m.quantityKg).toFixed(2)}` : parseFloat(m.quantityKg).toFixed(2);
+                                            const quantityColor = m.type === 'SALIDA_ORDEN' ? 'text-red-700' : 'text-green-700';
+
+                                            return (
+                                                <tr key={m.id} className={`border-b ${bg}`}>
+                                                    <td className="p-2 font-mono">{formatDate(m.timestamp)}</td>
+                                                    <td className="p-2 text-center font-bold">
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] ${badge}`}>
+                                                            {m.type === 'SALIDA_ORDEN' ? 'SALIDA' : m.type}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-2 font-bold flex items-center gap-2">
+                                                        <div 
+                                                            className="w-4 h-4 rounded-full shadow-sm border border-slate-200 shrink-0" 
+                                                            style={{ backgroundColor: m.hex || '#eee' }}
+                                                        ></div>
+                                                        {m.materialName} ({m.color})
+                                                    </td>
+                                                    <td className={`p-2 text-right font-black ${quantityColor}`}>{quantityText}</td>
+                                                    <td className="p-2 text-center text-xs font-mono">{parseFloat(m.currentStock).toFixed(2)}</td>
+                                                    <td className="p-2 text-[10px] text-slate-600">
+                                                        {m.type === 'SALIDA_ORDEN' ? `Orden: ${m.orderId || 'N/A'} / Mod: ${m.model || 'N/A'} / Partida: ${m.partida || 'N/A'}` : (m.note || 'N/A')}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                                {movements.length === 0 && <div className="text-center py-4 text-slate-400">No hay movimientos registrados.</div>}
+                            </div>
+                        )}
+                        
+                    </div>
+                </div>
+            );
+        };
+
+
+        // =================================================================
+        // COMPONENTE PRINCIPAL DE INVENTARIO
+        // =================================================================
+        const InventoryApp = () => {
+            const [items, setItems] = useState([]);
+            const [loading, setLoading] = useState(true);
+            
+            // ESTADO PARA GUARDAR EL ITEM ORIGINAL ANTES DE EDITAR (para el log)
+            const [originalItem, setOriginalItem] = useState(null); 
+            
+            const [newItem, setNewItem] = useState({ material: '', color: '', hex: '#000000', calibre: '', estiraje: '', stock: '', proveedor: '', group: '', minStock: '10.00' });
+            const [isEditing, setIsEditing] = useState(null);
+            const [collapsedGroups, setCollapsedGroups] = useState({});
+            
+            // NUEVO: Estado para el modo de vista (grid o table)
+            const [viewMode, setViewMode] = useState('grid');
+            
+            // ESTADOS PARA MODALES
+            const [showReceptionModal, setShowReceptionModal] = useState(false);
+            const [showReportModal, setShowReportModal] = useState(false);
+            const [showPaletteModal, setShowPaletteModal] = useState(false);
+            const [showItemLogModal, setShowItemLogModal] = useState(false);
+            const [selectedItemForLog, setSelectedItemForLog] = useState(null);
+
+
+            // Cargar Inventario
+            const fetchInventory = () => {
+                 db.collection('inventory').doc('main').get().then(doc => {
+                    if (doc.exists) {
+                        setItems(doc.data().items || []);
+                    }
+                    setLoading(false);
+                    setTimeout(() => lucide.createIcons(), 500);
+                });
+            }
+            useEffect(() => {
+                const unsubscribe = db.collection('inventory').doc('main').onSnapshot(doc => {
+                    if (doc.exists) {
+                        setItems(doc.data().items || []);
+                    }
+                    setLoading(false);
+                    setTimeout(() => lucide.createIcons(), 500);
+                });
+                return () => unsubscribe();
+            }, []);
+
+            useEffect(() => lucide.createIcons(), [items]);
+            
+            const toggleGroup = (groupName) => {
+                setCollapsedGroups(prev => ({
+                    ...prev,
+                    [groupName]: !prev[groupName]
+                }));
+            };
+
+            const groupedItems = useMemo(() => {
+                const sortedItems = [...items].sort((a, b) => {
+                    const groupA = (a.group || 'SIN GRUPO').toUpperCase();
+                    const groupB = (b.group || 'SIN GRUPO').toUpperCase();
+                    if (groupA < groupB) return -1;
+                    if (groupA > groupB) return 1;
+                    
+                    if (a.material < b.material) return -1;
+                    if (a.material > b.material) return 1;
+                    return 0;
+                });
+
+                return sortedItems.reduce((acc, item) => {
+                    const groupName = item.group || 'SIN GRUPO';
+                    if (!acc[groupName]) {
+                        acc[groupName] = [];
+                    }
+                    acc[groupName].push(item);
+                    return acc;
+                }, {});
+            }, [items]);
+            
+            // Función auxiliar para registrar movimientos
+            const logMovement = async (item, type, quantity, note = '') => {
+                 await db.collection('inventory_movements').add({
+                    materialId: item.id,
+                    materialName: item.material,
+                    color: item.color || '',
+                    hex: item.hex || '',
+                    type: type,
+                    quantityKg: quantity,
+                    currentStock: item.stock, // El stock ya debe estar actualizado en 'item'
+                    date: new Date().toISOString().split('T')[0],
+                    timestamp: Date.now(),
+                    note: note
+                });
+            }
+
+
+            const handleSave = async () => {
+                if (!newItem.material) return alert("El nombre del material es obligatorio");
+                
+                let updatedList;
+                
+                const stockValue = newItem.stock === '' || newItem.stock === null ? 0 : parseFloat(newItem.stock);
+                const minStockValue = newItem.minStock === '' || newItem.minStock === null ? 10 : parseFloat(newItem.minStock);
+
+
+                const payload = {
+                    ...newItem,
+                    id: isEditing ? newItem.id : Date.now().toString(), // Usar string para el ID
+                    stock: stockValue.toFixed(2), 
+                    minStock: minStockValue.toFixed(2),
+                    hex: newItem.hex || '#000000',
+                    group: newItem.group.toUpperCase() || 'SIN GRUPO',
+                    updatedAt: new Date().toISOString()
+                };
+
+                // Lógica de registro para Edición (antes de actualizar la lista)
+                if (isEditing) {
+                    const changes = Object.keys(originalItem).some(key => originalItem[key] !== payload[key]);
+                    if (changes) {
+                        await logMovement(payload, "EDICION_DETALLE", 0, `Cambios en detalles del material.`);
+                    }
+                    updatedList = items.map(i => i.id === payload.id ? payload : i);
+                } else {
+                    updatedList = [...items, payload];
+                    // Log de ingreso inicial
+                    if (stockValue > 0) {
+                        await logMovement(payload, "ENTRADA", stockValue, `Ingreso inicial al crear la hilatura.`);
+                    } else {
+                        await logMovement(payload, "EDICION_DETALLE", 0, `Hilatura creada sin stock inicial.`);
+                    }
+                }
+
+                await db.collection('inventory').doc('main').set({ items: updatedList });
+                setNewItem({ material: '', color: '', hex: '#000000', calibre: '', estiraje: '', stock: '', proveedor: '', group: '', minStock: '10.00' });
+                setIsEditing(null);
+                setOriginalItem(null);
+            };
+
+            const handleDelete = async (id) => {
+                if (window.confirm("¿Eliminar esta hilatura? ¡Se recomienda solo archivar, esta acción es permanente y puede afectar logs!")) {
+                    const itemToDelete = items.find(i => i.id === id);
+                    const updatedList = items.filter(i => i.id !== id);
+                    await db.collection('inventory').doc('main').set({ items: updatedList });
+                    if(itemToDelete) {
+                         await logMovement({...itemToDelete, stock: '0.00'}, "EDICION_DETALLE", 0, `Hilatura ELIMINADA del sistema.`);
+                    }
+                }
+            };
+
+            const startEdit = (item) => {
+                // Guardar una copia del item original para la función de log
+                setOriginalItem({...item}); 
+                setNewItem(item);
+                setIsEditing(true);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+            
+            const openLog = (item) => {
+                setSelectedItemForLog(item);
+                setShowItemLogModal(true);
+            }
+
+            return (
+                // Contenedor principal responsive: max-w-7xl en pantallas grandes
+                <div className="container mx-auto p-4 md:p-8 lg:max-w-7xl"> 
+                    {showReceptionModal && <ReceptionModal items={items} onClose={() => setShowReceptionModal(false)} onUpdate={fetchInventory} />}
+                    {showReportModal && <ReportModal onClose={() => setShowReportModal(false)} />}
+                    {showPaletteModal && <ColorPaletteModal onClose={() => setShowPaletteModal(false)} />}
+                    {showItemLogModal && <ItemLogModal item={selectedItemForLog} onClose={() => setShowItemLogModal(false)} />}
+
+
+                    <header className="mb-8 border-b pb-4 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+                        {/* 1. Título */}
+                        <div>
+                            <h1 className="text-3xl font-black text-slate-800 flex gap-2 items-center">
+                                <Icon name="package-search" size={32}/> INVENTARIO HILATURAS
+                            </h1>
+                            <p className="text-slate-500">Gestión de almacén de materia prima</p>
+                        </div>
+                        
+                        {/* 2. Botones de Acción y Selector de Vista (Distribuidos en escritorio) */}
+                        <div className="flex flex-col md:flex-row md:items-center md:gap-4 w-full md:w-auto">
+                            
+                            {/* Estado de Conexión (Oculto en móvil, visible en desktop) */}
+                            <div className="hidden md:block text-xs font-bold text-green-600 bg-green-100 px-3 py-1 rounded-full shrink-0">CONECTADO A DB</div>
+
+                            {/* Selector de Vista (Siempre visible) */}
+                            <div className="flex gap-2 justify-center md:justify-start order-1 md:order-none mb-2 md:mb-0">
+                                <button 
+                                    onClick={() => setViewMode('grid')} 
+                                    className={`px-3 py-1 rounded font-bold text-xs flex items-center justify-center gap-1 ${viewMode === 'grid' ? 'bg-blue-600 text-white shadow' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                                    title="Vista en Cuadrícula (Miniatura)"
+                                >
+                                    <Icon name="layout-grid"/> Cuadrícula
+                                </button>
+                                <button 
+                                    onClick={() => setViewMode('table')} 
+                                    className={`px-3 py-1 rounded font-bold text-xs flex items-center justify-center gap-1 ${viewMode === 'table' ? 'bg-blue-600 text-white shadow' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                                    title="Vista en Tabla Detallada"
+                                >
+                                    <Icon name="table"/> Tabla
+                                </button>
+                            </div>
+
+                            {/* Botones de Modales (Flex horizontal y ajustados en escritorio) */}
+                            <div className="flex flex-wrap gap-2 justify-center md:justify-end mt-2 md:mt-0 order-2 md:order-none">
+                                <button 
+                                    onClick={() => setShowPaletteModal(true)} 
+                                    className="bg-indigo-600 text-white px-3 py-1 rounded font-bold text-xs flex items-center justify-center gap-1 hover:bg-indigo-700 shadow"
+                                    title="Ver Paleta de Colores SPUN"
+                                >
+                                    <Icon name="palette"/> SPUN
+                                </button>
+                                <button 
+                                    onClick={() => setShowReceptionModal(true)} 
+                                    className="bg-yellow-600 text-white px-3 py-1 rounded font-bold text-xs flex items-center justify-center gap-1 hover:bg-yellow-700 shadow"
+                                    title="Registrar una entrada de stock"
+                                >
+                                    <Icon name="archive-box"/> ENTRADA
+                                </button>
+                                <button 
+                                    onClick={() => setShowReportModal(true)} 
+                                    className="bg-slate-700 text-white px-3 py-1 rounded font-bold text-xs flex items-center justify-center gap-1 hover:bg-slate-800 shadow"
+                                    title="Ver el informe de movimientos"
+                                >
+                                    <Icon name="file-text"/> INFORME
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* FORMULARIO */}
+                    <div className="bg-white p-6 rounded-lg shadow-lg border border-slate-200 mb-8">
+                        <h2 className="font-bold text-lg mb-4 flex gap-2 items-center text-indigo-700">
+                            <Icon name={isEditing ? "edit" : "plus-circle"}/> 
+                            {isEditing ? "Editar Hilatura" : "Agregar Nueva Hilatura"}
+                        </h2>
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-4">
+                            
+                            {/* CAMPO GRUPO */}
+                            <div className="col-span-2 lg:col-span-1">
+                                <label className="block text-xs font-bold mb-1 text-indigo-700">GRUPO / CATEGORÍA</label>
+                                <input 
+                                    list="groups" 
+                                    placeholder="Ej. NYLON" 
+                                    className="w-full border-2 border-indigo-300 p-2 rounded uppercase font-bold text-indigo-700" 
+                                    value={newItem.group} 
+                                    onChange={e => setNewItem({...newItem, group: e.target.value.toUpperCase()})} 
+                                />
+                                <datalist id="groups">
+                                    <option value="NYLON" />
+                                    <option value="POLIESTER SPUN" />
+                                    <option value="POLIESTER SANTONI" />
+                                    <option value="ALGODÓN" />
+                                    <option value="OTRO" />
+                                </datalist>
+                            </div>
+
+                            <div className="col-span-2 lg:col-span-1">
+                                <label className="block text-xs font-bold mb-1">MATERIAL / NOMBRE <span className="text-red-500">*</span></label>
+                                <input placeholder="Ej. NYLON 40/2" className="w-full border-2 border-slate-300 p-2 rounded uppercase font-bold" value={newItem.material} onChange={e => setNewItem({...newItem, material: e.target.value.toUpperCase()})} />
+                            </div>
+                            
+                            <div className="col-span-2 md:col-span-1 lg:col-span-1">
+                                <label className="block text-xs font-bold mb-1">NOMBRE COLOR</label>
+                                <input placeholder="Ej. ROJO FUEGO" className="w-full border p-2 rounded uppercase mb-2" value={newItem.color} onChange={e => setNewItem({...newItem, color: e.target.value.toUpperCase()})} />
+                            </div>
+                            <div className="col-span-2 md:col-span-1 lg:col-span-1">
+                                <label className="block text-xs font-bold mb-1">COLOR (HEX)</label>
+                                <div className="flex items-center gap-1">
+                                    <input 
+                                        type="color" 
+                                        className="h-10 w-12 p-0 border-0 rounded cursor-pointer shrink-0"
+                                        value={newItem.hex || '#000000'}
+                                        onChange={e => setNewItem({...newItem, hex: e.target.value})} 
+                                    />
+                                    <input 
+                                        type="text" 
+                                        placeholder="#000000" 
+                                        className="w-full border p-2 rounded font-mono text-xs uppercase"
+                                        value={newItem.hex || ''}
+                                        onChange={e => setNewItem({...newItem, hex: e.target.value})} 
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div className="col-span-2 md:col-span-1 lg:col-span-1">
+                                <label className="block text-xs font-bold mb-1">CALIBRE</label>
+                                <input placeholder="Ej. 150/48" className="w-full border p-2 rounded" value={newItem.calibre} onChange={e => setNewItem({...newItem, calibre: e.target.value})} />
+                            </div>
+                            <div className="col-span-2 md:col-span-1 lg:col-span-1">
+                                <label className="block text-xs font-bold mb-1">ESTIRAJE / TÍTULO</label>
+                                <input placeholder="Opcional" className="w-full border p-2 rounded" value={newItem.estiraje} onChange={e => setNewItem({...newItem, estiraje: e.target.value})} />
+                            </div>
+                            
+                            <div className="col-span-2 md:col-span-2 lg:col-span-2">
+                                <label className="block text-xs font-bold mb-1 text-green-700">STOCK INICIAL (KG)</label>
+                                <input type="number" step="0.01" placeholder="0.00 (Opcional)" className="w-full border-2 border-green-200 bg-green-50 p-2 rounded font-black text-xl text-green-800" value={newItem.stock} onChange={e => setNewItem({...newItem, stock: e.target.value})} />
+                            </div>
+                            
+                            <div className="col-span-2 md:col-span-1 lg:col-span-2">
+                                <label className="block text-xs font-bold mb-1 text-red-700">STOCK MÍNIMO (KG)</label>
+                                <input type="number" step="0.01" placeholder="10.00" className="w-full border-2 border-red-200 bg-red-50 p-2 rounded font-bold text-base text-red-800" value={newItem.minStock} onChange={e => setNewItem({...newItem, minStock: e.target.value})} />
+                            </div>
+                            
+                             <div className="col-span-2 md:col-span-1 lg:col-span-2">
+                                <label className="block text-xs font-bold mb-1">PROVEEDOR</label>
+                                <input placeholder="Nombre Proveedor" className="w-full border p-2 rounded uppercase" value={newItem.proveedor} onChange={e => setNewItem({...newItem, proveedor: e.target.value.toUpperCase()})} />
+                            </div>
+
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                            {isEditing && <button onClick={() => { setIsEditing(null); setNewItem({ material: '', color: '', hex: '#000000', calibre: '', estiraje: '', stock: '', proveedor: '', group: '', minStock: '10.00' }); setOriginalItem(null);}} className="bg-slate-500 text-white px-4 py-2 rounded font-bold">CANCELAR</button>}
+                            <button onClick={handleSave} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded font-bold shadow flex gap-2 items-center">
+                                <Icon name="save"/> GUARDAR DATOS
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* LISTA AGRUPADA CON DESPLEGABLES */}
+                    <div className="bg-white rounded-lg shadow overflow-hidden">
+                        
+                        {/* -------------------- VISTA DE TABLA -------------------- */}
+                        {viewMode === 'table' && (
+                            <table className="inventory-table w-full text-left border-collapse">
+                                <thead className="bg-slate-800 text-white text-sm uppercase">
+                                    <tr>
+                                        <th className="p-4">Material / Color</th>
+                                        <th className="p-4">Detalles Técnicos</th>
+                                        <th className="p-4 text-center">Stock (Kg)</th>
+                                        <th className="p-4 w-16 text-center">Bitácora</th>
+                                        <th className="p-4 text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="text-sm">
+                                    {Object.keys(groupedItems).length === 0 && <tr><td colSpan="5" className="p-8 text-center text-slate-400">No hay hilaturas registradas.</td></tr>}
+                                    
+                                    {Object.keys(groupedItems).map(groupName => (
+                                        <React.Fragment key={groupName}>
+                                            {/* ENCABEZADO DE GRUPO (BOTÓN DESPLEGABLE) */}
+                                            <tr className="group-header-row">
+                                                <td colSpan="5" className="p-0 border-t-2 border-b-2 border-slate-300">
+                                                    <button 
+                                                        onClick={() => toggleGroup(groupName)}
+                                                        className="w-full flex justify-between items-center p-3 bg-slate-200 hover:bg-slate-300 font-black text-sm text-indigo-800 transition"
+                                                    >
+                                                        <div className="flex items-center gap-2">
+                                                            <Icon name={collapsedGroups[groupName] ? "chevron-right" : "chevron-down"} size={20}/> 
+                                                            <span>GRUPO: {groupName} ({groupedItems[groupName].length})</span>
+                                                        </div>
+                                                        <span className="text-xs font-normal text-slate-500">Haga click para {collapsedGroups[groupName] ? 'expandir' : 'colapsar'}</span>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            
+                                            {/* ITEMS DENTRO DEL GRUPO (MOSTRAR/OCULTAR) - TABLE ROWS */}
+                                            {!collapsedGroups[groupName] && groupedItems[groupName].map((item) => {
+                                                const stockFloat = parseFloat(item.stock) || 0;
+                                                const minStockFloat = parseFloat(item.minStock) || 10;
+                                                const isLow = stockFloat > 0 && stockFloat < minStockFloat;
+                                                const isZero = stockFloat === 0;
+
+                                                return (
+                                                    <tr key={item.id} className="border-b hover:bg-slate-50 transition">
+                                                        <td className="p-4">
+                                                            <div className="font-bold text-lg text-slate-800">{item.material}</div>
+                                                            <div className="flex flex-col gap-1 mt-2">
+                                                                {/* RECUADRO DE COLOR GRANDE Y PEGADO */}
+                                                                <div 
+                                                                    className="w-full h-8 shadow-sm border border-slate-300 shrink-0" 
+                                                                    style={{ backgroundColor: item.hex || '#eee' }}
+                                                                    title={`Código HEX: ${item.hex}`}
+                                                                ></div>
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="text-xs text-slate-500 font-bold">{item.color}</div>
+                                                                    <div className="text-[10px] text-slate-400 font-mono">{item.hex}</div>
+                                                                </div>
+                                                                <div className="text-[10px] text-slate-400">{item.proveedor}</div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            {item.calibre && <div className="text-xs"><span className="font-bold">Calibre:</span> {item.calibre}</div>}
+                                                            {item.estiraje && <div className="text-xs"><span className="font-bold">Estiraje:</span> {item.estiraje}</div>}
+                                                        </td>
+                                                        <td className="p-4 text-center">
+                                                            <span className={`inline-block px-3 py-1 rounded font-black text-lg 
+                                                                ${isZero ? 'bg-slate-200 text-slate-600' : isLow ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-700'}
+                                                            `}>
+                                                                {isZero ? '0.00' : stockFloat.toFixed(2)} Kg
+                                                            </span>
+                                                            {isZero && <div className="text-[9px] text-slate-500 font-bold mt-1">SIN EXISTENCIA</div>}
+                                                            {isLow && <div className="text-[9px] text-red-500 font-bold mt-1">STOCK BAJO ({minStockFloat.toFixed(2)} Kg)</div>}
+                                                        </td>
+                                                        {/* COLUMNA DE BITÁCORA */}
+                                                        <td className="p-4 text-center">
+                                                            <button 
+                                                                onClick={() => openLog(item)} 
+                                                                className="p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded border border-indigo-200" 
+                                                                title="Ver Bitácora de Movimientos"
+                                                            >
+                                                                <Icon name="history" size={16}/>
+                                                            </button>
+                                                        </td>
+                                                        <td className="p-4 text-right">
+                                                            <div className="flex gap-2 justify-end">
+                                                                <button onClick={() => startEdit(item)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded border border-blue-200" title="Editar detalles"><Icon name="pencil" size={16}/></button>
+                                                                <button onClick={() => handleDelete(item.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded border border-red-200" title="Eliminar"><Icon name="trash-2" size={16}/></button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </React.Fragment>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                        
+                        {/* -------------------- VISTA DE CUADRÍCULA -------------------- */}
+                        {viewMode === 'grid' && (
+                            <div className="w-full text-left">
+                                {Object.keys(groupedItems).length === 0 && <div className="p-8 text-center text-slate-400">No hay hilaturas registradas.</div>}
+
+                                {Object.keys(groupedItems).map(groupName => (
+                                    <div key={groupName}>
+                                        {/* ENCABEZADO DE GRUPO (BOTÓN DESPLEGABLE) */}
+                                        <div className="group-header-row border-t-2 border-b-2 border-slate-300">
+                                            <button 
+                                                onClick={() => toggleGroup(groupName)}
+                                                className="w-full flex justify-between items-center p-3 bg-slate-200 hover:bg-slate-300 font-black text-sm text-indigo-800 transition"
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <Icon name={collapsedGroups[groupName] ? "chevron-right" : "chevron-down"} size={20}/> 
+                                                    <span>GRUPO: {groupName} ({groupedItems[groupName].length})</span>
+                                                </div>
+                                                <span className="text-xs font-normal text-slate-500">Haga click para {collapsedGroups[groupName] ? 'expandir' : 'colapsar'}</span>
+                                            </button>
+                                        </div>
+
+                                        {/* ITEMS DENTRO DEL GRUPO (MOSTRAR/OCULTAR) - GRID CARDS */}
+                                        {!collapsedGroups[groupName] && (
+                                            <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                                {groupedItems[groupName].map((item) => {
+                                                    const stockFloat = parseFloat(item.stock) || 0;
+                                                    const minStockFloat = parseFloat(item.minStock) || 10;
+                                                    const isLow = stockFloat > 0 && stockFloat < minStockFloat;
+                                                    const isZero = stockFloat === 0;
+
+                                                    return (
+                                                        <div key={item.id} className="bg-white border border-slate-200 rounded-lg shadow-md p-3 flex flex-col hover:shadow-lg transition">
+                                                            
+                                                            {/* COLOR THUMBNAIL */}
+                                                            <div 
+                                                                className="h-10 rounded-t-lg shadow-inner border border-slate-300 shrink-0 mb-2 -mt-3 -mx-3" 
+                                                                style={{ backgroundColor: item.hex || '#eee' }}
+                                                                title={`Código HEX: ${item.hex}`}
+                                                            ></div>
+
+                                                            {/* HEADER */}
+                                                            <div className="font-bold text-base text-slate-800 truncate" title={item.material}>{item.material}</div>
+                                                            <div className="text-xs text-slate-500 font-bold mb-2 truncate" title={item.color}>{item.color}</div>
+
+                                                            {/* STOCK */}
+                                                            <div className="flex flex-col items-center justify-center p-2 rounded-lg my-2 border">
+                                                                <span className={`font-black text-xl 
+                                                                    ${isZero ? 'text-slate-600' : isLow ? 'text-red-600' : 'text-green-700'}
+                                                                `}>
+                                                                    {stockFloat.toFixed(2)} Kg
+                                                                </span>
+                                                                {isZero && <div className="text-[9px] text-slate-500 font-bold mt-1">SIN EXISTENCIA</div>}
+                                                                {isLow && <div className="text-[9px] text-red-500 font-bold mt-1">STOCK BAJO ({minStockFloat.toFixed(2)} Kg)</div>}
+                                                            </div>
+
+                                                            {/* DETAILS / ACTIONS */}
+                                                            <div className="text-xs text-slate-400 mt-auto pt-2 border-t">
+                                                                {item.calibre && <div><span className="font-bold">Calibre:</span> {item.calibre}</div>}
+                                                                {item.proveedor && <div className="truncate"><span className="font-bold">Prov:</span> {item.proveedor}</div>}
+                                                            </div>
+
+                                                            <div className="flex gap-2 justify-between mt-3">
+                                                                <button 
+                                                                    onClick={() => openLog(item)} 
+                                                                    className="p-1.5 w-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded border border-indigo-200 text-xs flex items-center justify-center gap-1" 
+                                                                    title="Ver Bitácora de Movimientos"
+                                                                >
+                                                                    <Icon name="history" size={14}/> Bitácora
+                                                                </button>
+                                                                <button onClick={() => startEdit(item)} className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded border border-blue-200" title="Editar detalles"><Icon name="pencil" size={14}/></button>
+                                                                <button onClick={() => handleDelete(item.id)} className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded border border-red-200" title="Eliminar"><Icon name="trash-2" size={14}/></button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<InventoryApp />);
+    </script>
+</body>
+</html>
