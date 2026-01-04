@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agrupador Universal Cirineo</title>
+    <title>Agrupador Universal - Cirineo</title>
+    
+    <link rel="icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -13,12 +16,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
 
     <style>
-        body { background-color: #f1f5f9; font-family: 'Roboto Condensed', sans-serif; }
+        body { background-color: #f1f5f9; font-family: 'Roboto Condensed', sans-serif; overflow: hidden; }
         
-        /* Estilos de impresión exactos */
+        /* Contenedor principal para PDF */
         .stacked-label-container {
             width: 6in;
             display: flex;
@@ -26,14 +30,26 @@
             border: 2px solid black;
             box-sizing: border-box;
             page-break-inside: avoid;
+            position: relative;
         }
-        .mini-label-row { display: flex; height: 1.4in; border-bottom: 2px solid black; box-sizing: border-box;}
+
+        /* Estructura de filas */
+        .mini-label-row { display: flex; height: 1.4in; border-bottom: 2px solid black; box-sizing: border-box; }
         .mini-label-row:last-child { border-bottom: none; }
         
+        /* Celdas de datos */
         .lbl-data-row { display: flex; border-bottom: 1px solid #000; height: 33.33%; }
         .lbl-data-col { padding: 1px 4px; border-right: 1px solid #000; display: flex; flex-direction: column; justify-content: center;}
+        
+        /* Tipografía */
         .lbl-title { font-size: 8px; font-weight: 700; color: #555; text-transform: uppercase; line-height: 1; }
         .lbl-val-big { font-family: 'Oswald'; font-weight: 700; font-size: 24px; line-height: 0.9; color: black;}
+        .lbl-val-huge { font-family: 'Oswald'; font-weight: 700; font-size: 32px; line-height: 0.9; color: black;}
+        
+        /* Sidebar Scroll */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
     </style>
 </head>
 <body>
@@ -41,39 +57,46 @@
 
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
+        
         const firebaseConfig = { apiKey: "AIzaSyCngQL1pdqghv2vbjkPycT1Xf0C46f7jYs", authDomain: "cirineo-cec21.firebaseapp.com", projectId: "cirineo-cec21", storageBucket: "cirineo-cec21.firebasestorage.app", messagingSenderId: "620210618284", appId: "1:620210618284:web:482bab9bf74650fff18409" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        const Icon = ({ name }) => {
+        const Icon = ({ name, size=16 }) => {
             const r = useRef(null);
-            useEffect(() => { if (r.current && lucide.icons[name]) r.current.innerHTML = lucide.icons[name].toSvg({ width: 16, height: 16 }); }, [name]);
-            return <span ref={r} className="inline-block"/>;
+            useEffect(() => { if (r.current && lucide.icons[name]) r.current.innerHTML = lucide.icons[name].toSvg({ width: size, height: size }); }, [name, size]);
+            return <span ref={r} className="inline-flex items-center justify-center"/>;
         };
 
-        // --- COMPONENTE DE IMAGEN INTELIGENTE (EL BUSCADOR) ---
+        // --- MOTOR DE BÚSQUEDA DE IMÁGENES (SABUESO) ---
         const SmartImage = ({ modelo, repos }) => {
             const [currentSrc, setCurrentSrc] = useState(null);
             const [attemptIndex, setAttemptIndex] = useState(0);
             
-            // Generamos la lista de posibles URLs basada en tus reglas
+            // Genera la lista de intentos en orden de prioridad
             const candidateUrls = useMemo(() => {
                 if (!modelo || !repos || repos.length === 0) return [];
                 const candidates = [];
-                const extensions = ['png', 'web', 'jpg', 'jpeg']; // Prioridad del usuario
-                const suffixes = ['', 'FRENTE', 'DELANTERO', 'frente', 'body']; // Intentos fuzzy
                 
+                // Prioridad de extensiones
+                const extensions = ['png', 'web', 'jpg', 'jpeg'];
+                // Prioridad de nombres (Exacto -> Minúscula -> Sufijos comunes)
+                const variations = [
+                    modelo, // M028
+                    modelo.toLowerCase(), // m028
+                    `${modelo}FRENTE`, // M028FRENTE
+                    `${modelo.toLowerCase()}frente`,
+                    `${modelo}DELANTERO`,
+                    `${modelo}ESPALDA`,
+                    `${modelo}MANGA`
+                ];
+
                 repos.forEach(repo => {
                     const baseUrl = repo.url.endsWith('/') ? repo.url : repo.url + '/';
-                    // 1. Prioridad Exacta (Mayúsculas)
-                    extensions.forEach(ext => candidates.push(`${baseUrl}${modelo}.${ext}`));
-                    // 2. Prioridad Minúsculas
-                    extensions.forEach(ext => candidates.push(`${baseUrl}${modelo.toLowerCase()}.${ext}`));
-                    // 3. Prioridad Fuzzy (Sufijos)
-                    suffixes.forEach(suf => {
-                        if(suf === '') return;
-                        extensions.forEach(ext => candidates.push(`${baseUrl}${modelo}${suf}.${ext}`));
-                        extensions.forEach(ext => candidates.push(`${baseUrl}${modelo.toLowerCase()}${suf.toLowerCase()}.${ext}`));
+                    variations.forEach(name => {
+                        extensions.forEach(ext => {
+                            candidates.push(`${baseUrl}${name}.${ext}`);
+                        });
                     });
                 });
                 return candidates;
@@ -91,40 +114,66 @@
                     setAttemptIndex(nextIndex);
                     setCurrentSrc(candidateUrls[nextIndex]);
                 } else {
-                    setCurrentSrc(null); // Se rindió
+                    setCurrentSrc(null); // Se acabaron las opciones
                 }
             };
 
-            if (!currentSrc) return <div className="w-full h-full flex items-center justify-center bg-gray-100 text-xs text-gray-400 font-mono text-center p-1">SIN IMG</div>;
+            if (!currentSrc) return (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-300 border-r-2 border-black">
+                    <Icon name="image-off" size={24}/>
+                    <span className="text-[8px] font-bold mt-1">SIN IMAGEN</span>
+                </div>
+            );
 
-            return <img src={currentSrc} onError={handleError} className="w-full h-full object-contain p-1" />;
+            return (
+                <div className="w-full h-full flex items-center justify-center border-r-2 border-black bg-white overflow-hidden p-1">
+                    <img src={currentSrc} onError={handleError} className="w-full h-full object-contain" />
+                </div>
+            );
         };
 
-        // --- COMPONENTE FILA DE ETIQUETA ---
-        const MiniLabelRow = ({ pkgData, orderData, repos }) => (
+        // --- FILA INDIVIDUAL DE LA ETIQUETA ---
+        const MiniLabelRow = ({ pkgData, groupInfo, repos }) => (
             <div className="mini-label-row"> 
-                <div className="w-1/4 border-r-2 border-black p-1 flex items-center justify-center overflow-hidden">
-                     <SmartImage modelo={orderData.codigo} repos={repos} />
+                {/* 25% Imagen */}
+                <div className="w-1/4 h-full">
+                     <SmartImage modelo={groupInfo.modelo} repos={repos} />
                 </div>
+                {/* 75% Datos */}
                 <div className="w-3/4 flex flex-col">
+                    {/* Fila 1 */}
                     <div className="lbl-data-row">
-                        <div className="w-2/3 lbl-data-col bg-black text-white"><span className="lbl-title text-gray-300">MODELO</span><span className="lbl-val-big text-white">{orderData.codigo}</span></div>
-                        <div className="w-1/3 lbl-data-col text-center"><span className="lbl-title">PAQUETE</span><span className="lbl-val-big">{pkgData.paqueteNum}</span></div>
-                    </div>
-                    <div className="lbl-data-row bg-gray-100">
-                         <div className="w-full lbl-data-col flex items-center justify-center text-center leading-none">
-                            <span className="lbl-val-big" style={{fontSize:'28px'}}>{pkgData.piezaNombre || "PIEZA"}</span>
+                        <div className="w-2/3 lbl-data-col bg-black text-white">
+                            <span className="lbl-title text-gray-400">MODELO</span>
+                            <span className="lbl-val-big text-white">{groupInfo.modelo}</span>
+                        </div>
+                        <div className="w-1/3 lbl-data-col text-center">
+                            <span className="lbl-title">PAQUETE</span>
+                            <span className="lbl-val-big">{pkgData.paqueteNum}</span>
                         </div>
                     </div>
+                    {/* Fila 2 (Pieza Grande) */}
+                    <div className="lbl-data-row bg-gray-100">
+                         <div className="w-full lbl-data-col flex items-center justify-center text-center">
+                            <span className="lbl-val-huge leading-none">{pkgData.piezaNombre?.split(' ')[0] || "PIEZA"}</span>
+                        </div>
+                    </div>
+                    {/* Fila 3 */}
                     <div className="lbl-data-row" style={{borderBottom:'none'}}>
-                        <div className="w-2/3 lbl-data-col"><span className="lbl-title">CLIENTE</span><span className="lbl-val truncate text-xs">{orderData.cliente}</span></div>
-                        <div className="w-1/3 lbl-data-col text-center bg-red-50 text-red-900"><span className="lbl-title text-red-700">PARTIDA</span><span className="lbl-val text-sm">{orderData.partida}</span></div>
+                        <div className="w-2/3 lbl-data-col">
+                            <span className="lbl-title">CLIENTE</span>
+                            <span className="lbl-val-big text-sm truncate">{groupInfo.cliente}</span>
+                        </div>
+                        <div className="w-1/3 lbl-data-col text-center bg-red-50 text-red-900">
+                            <span className="lbl-title text-red-700">PARTIDA</span>
+                            <span className="lbl-val-big text-sm">{groupInfo.partida}</span>
+                        </div>
                     </div>
                 </div>
             </div>
         );
 
-        // --- ETIQUETA MAESTRA APILADA ---
+        // --- ETIQUETA APILADA (VISTA PREVIA) ---
         const StackedLabel = ({ selectedPackages, groupInfo, repos }) => {
             const svgRef = useRef(null);
             
@@ -136,7 +185,7 @@
                 if (svgRef.current && barcodeValue) {
                     try {
                         JsBarcode(svgRef.current, barcodeValue, { 
-                            format: "CODE128", width: 1.7, height: 100, displayValue: false, margin: 10 
+                            format: "CODE128", width: 1.8, height: 120, displayValue: false, margin: 10 
                         });
                     } catch (e) {}
                 }
@@ -146,13 +195,15 @@
                 <div className="stacked-label-container" style={{height: `${selectedPackages.length * 1.4}in`}}>
                     <div className="w-10/12 flex flex-col border-r-2 border-black">
                         {selectedPackages.map((pkg, idx) => (
-                            <MiniLabelRow key={idx} pkgData={pkg} orderData={{...groupInfo, codigo: groupInfo.modelo}} repos={repos} />
+                            <MiniLabelRow key={`${idx}-${pkg.codigoUnico}`} pkgData={pkg} groupInfo={groupInfo} repos={repos} />
                         ))}
                     </div>
+                    {/* Barra Lateral Código Maestro */}
                     <div className="w-2/12 flex items-center justify-center bg-white overflow-hidden relative">
                          <div style={{ transform: 'rotate(90deg)', whiteSpace: 'nowrap', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                             <svg ref={svgRef}></svg>
-                            <span className="text-[10px] font-mono font-bold mt-2">{groupInfo.modelo} - {groupInfo.partida}</span>
+                            <span className="text-[10px] font-mono font-bold mt-2 uppercase tracking-widest">{groupInfo.modelo} - {groupInfo.partida}</span>
+                            <span className="text-[8px] font-mono text-gray-400">Total: {selectedPackages.length} pzs</span>
                         </div>
                     </div>
                 </div>
@@ -165,20 +216,20 @@
             const [checkedPackages, setCheckedPackages] = useState({});
             const [repos, setRepos] = useState([]);
             const [isGenerating, setIsGenerating] = useState(false);
+            const [filterText, setFilterText] = useState("");
             const pdfRef = useRef(null);
 
-            // Cargar Repositorios de Imágenes
             useEffect(() => {
                 db.collection('app_config').doc('imagenes').onSnapshot(d => setRepos(d.data()?.sources || []));
             }, []);
 
-            // Cargar y Agrupar Órdenes
+            // Agrupar órdenes por MODELO + PARTIDA
             useEffect(() => {
                  db.collection('orders').where('status', '!=', 'ARCHIVADO').onSnapshot(s => {
                      const groups = {};
                      s.docs.forEach(doc => {
                          const data = doc.data();
-                         // Clave Única de Agrupación: MODELO + PARTIDA
+                         // Clave mágica para agrupar
                          const key = `${data.codigo}|${data.partida || 'SN'}`;
                          
                          if (!groups[key]) {
@@ -187,7 +238,7 @@
                                  modelo: data.codigo,
                                  partida: data.partida || 'SN',
                                  cliente: data.cliente,
-                                 subOrders: [] // Aquí guardamos las órdenes originales
+                                 subOrders: [] 
                              };
                          }
                          groups[key].subOrders.push({ ...data, id: doc.id });
@@ -196,146 +247,169 @@
                  });
             }, []);
 
-            // Obtener lista plana de paquetes del grupo seleccionado
+            // Obtener lista plana de paquetes del grupo
             const activePackages = useMemo(() => {
                 if (!selectedGroupKey || !groupedOrders[selectedGroupKey]) return [];
-                
                 const group = groupedOrders[selectedGroupKey];
                 let allPkgs = [];
                 
-                // Recorremos todas las sub-órdenes (mangas, frentes, etc.) y unimos sus paquetes
                 group.subOrders.forEach(order => {
                     if (order.progreso) {
                         order.progreso.forEach(p => {
-                            // Añadimos el ID de la orden original por si acaso, aunque el escáner lo buscará solo
-                            allPkgs.push({ ...p, originOrderId: order.id, originPieza: p.piezaNombre });
+                            // Añadimos datos de origen para debug si es necesario
+                            allPkgs.push({ ...p, originOrderId: order.id, fullPiezaName: p.piezaNombre });
                         });
                     }
                 });
-
-                // Eliminar duplicados exactos (mismo numero de paquete) si existieran, ordenarlos
-                const uniqueMap = new Map();
-                allPkgs.forEach(p => uniqueMap.set(p.paqueteNum, p)); // Sobrescribe si hay duplicados, asume el último
-                return Array.from(uniqueMap.values()).sort((a,b) => a.paqueteNum - b.paqueteNum);
+                
+                // Evitar duplicados visuales (si hubiera) y ordenar
+                return allPkgs.sort((a,b) => a.paqueteNum - b.paqueteNum);
             }, [selectedGroupKey, groupedOrders]);
 
-            // Resetear checks al cambiar de grupo
             useEffect(() => { setCheckedPackages({}); }, [selectedGroupKey]);
 
-            const handleCheck = (pkgNum) => {
-                setCheckedPackages(prev => ({...prev, [pkgNum]: !prev[pkgNum]}));
+            const handleCheck = (pkgId) => { // Usamos codigoUnico o paqueteNum + pieza como ID si es posible
+                 // Por simplicidad usaremos paqueteNum + índice para el estado de check en UI
+                 // Pero para la lógica, usamos el objeto paquete completo
+            };
+            
+            // Toggle check usando el uniqueCode del paquete para evitar confusiones
+            const togglePackage = (pkg) => {
+                setCheckedPackages(prev => ({...prev, [pkg.codigoUnico]: !prev[pkg.codigoUnico]}));
             };
 
-            const selectedList = activePackages.filter(p => checkedPackages[p.paqueteNum]);
+            const selectedList = useMemo(() => {
+                return activePackages.filter(p => checkedPackages[p.codigoUnico]);
+            }, [activePackages, checkedPackages]);
+
+            const filteredGroups = useMemo(() => {
+                if(!filterText) return Object.values(groupedOrders);
+                return Object.values(groupedOrders).filter(g => 
+                    g.modelo.toUpperCase().includes(filterText.toUpperCase()) || 
+                    g.cliente.toUpperCase().includes(filterText.toUpperCase())
+                );
+            }, [groupedOrders, filterText]);
 
             const downloadPDF = async () => {
                 if(selectedList.length === 0) return;
                 setIsGenerating(true);
-                await new Promise(r => setTimeout(r, 500));
+                await new Promise(r => setTimeout(r, 500)); // Esperar render
+                
+                const element = pdfRef.current;
                 const opt = {
                     margin: 0,
-                    filename: `PACK_${groupedOrders[selectedGroupKey].modelo}_${selectedList.length}.pdf`,
+                    filename: `GRUPO_${groupedOrders[selectedGroupKey].modelo}_${selectedList.length}PZS.pdf`,
                     image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2, useCORS: true },
+                    html2canvas: { scale: 2, useCORS: true, logging: false },
                     jsPDF: { unit: 'in', format: [6, selectedList.length * 1.4], orientation: 'portrait' }
                 };
-                try { await html2pdf().set(opt).from(pdfRef.current).save(); } catch(e){console.error(e);}
+                
+                try { await html2pdf().set(opt).from(element).save(); } catch(e){ console.error(e); alert("Error PDF"); }
                 setIsGenerating(false);
             };
 
             return (
-                <div className="flex h-screen overflow-hidden">
-                    {/* Sidebar Agrupado */}
-                    <div className="w-72 bg-slate-900 text-white flex flex-col shrink-0 shadow-xl z-20">
-                        <div className="p-4 bg-slate-800 border-b border-slate-700">
-                            <h1 className="text-xl font-bold text-blue-400 flex items-center gap-2 tracking-wider">
-                                <Icon name="layers"/> AGRUPADOR 2.0
+                <div className="flex h-screen overflow-hidden bg-slate-100">
+                    {/* SIDEBAR */}
+                    <div className="w-80 bg-slate-900 text-white flex flex-col shrink-0 shadow-2xl z-20">
+                        <div className="p-5 bg-slate-800 border-b border-slate-700">
+                            <h1 className="text-2xl font-black text-yellow-400 flex items-center gap-2 italic tracking-tighter">
+                                <Icon name="layers" size={24}/> AGRUPADOR <span className="text-xs bg-yellow-400 text-black px-1 rounded not-italic">V2</span>
                             </h1>
-                            <p className="text-xs text-slate-400 mt-1">Multi-Ordenes habilitado</p>
+                            <input type="text" placeholder="Filtrar modelo..." 
+                                onChange={e => setFilterText(e.target.value)}
+                                className="w-full mt-4 bg-slate-700/50 border border-slate-600 rounded p-2 text-sm focus:outline-none focus:border-yellow-400 transition-colors"/>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                            {Object.values(groupedOrders).sort((a,b) => b.modelo.localeCompare(a.modelo)).map(group => (
+                        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                            {filteredGroups.sort((a,b) => b.modelo.localeCompare(a.modelo)).map(group => (
                                 <div key={group.key} onClick={() => setSelectedGroupKey(group.key)} 
-                                     className={`p-3 rounded-lg cursor-pointer border-l-4 transition-all
-                                         ${selectedGroupKey === group.key ? 'border-blue-500 bg-blue-900/30' : 'border-transparent hover:bg-slate-800'}`}>
+                                     className={`p-3 rounded-lg cursor-pointer border-l-4 transition-all group
+                                         ${selectedGroupKey === group.key ? 'border-yellow-400 bg-white/10' : 'border-transparent hover:bg-white/5'}`}>
                                     <div className="flex justify-between items-center">
-                                        <span className="font-bold text-lg">{group.modelo}</span>
-                                        <span className="text-xs bg-slate-700 px-2 py-0.5 rounded text-slate-300">{group.partida}</span>
+                                        <span className="font-bold text-lg group-hover:text-yellow-200">{group.modelo}</span>
+                                        <span className="text-[10px] font-mono bg-black/40 px-2 py-0.5 rounded text-slate-300">{group.partida}</span>
                                     </div>
-                                    <div className="flex justify-between mt-1">
+                                    <div className="flex justify-between mt-1 items-end">
                                         <span className="text-xs text-slate-400 truncate w-32">{group.cliente}</span>
-                                        <span className="text-[10px] text-blue-300">{group.subOrders.length} Partes</span>
+                                        <div className="flex items-center gap-1 text-[10px] text-blue-300 bg-blue-900/30 px-2 rounded">
+                                            <Icon name="copy" size={10}/> {group.subOrders.length} órds.
+                                        </div>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Área Principal */}
-                    <div className="flex-1 flex flex-col bg-slate-100 overflow-hidden relative">
+                    {/* MAIN AREA */}
+                    <div className="flex-1 flex flex-col relative overflow-hidden">
                         {selectedGroupKey ? (
                             <>
                                 <div className="bg-white p-4 border-b shadow-sm z-10 flex flex-col gap-4">
                                     <div className="flex justify-between items-start">
                                         <div>
-                                            <h2 className="text-3xl font-black text-slate-800 flex items-center gap-2">
+                                            <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3">
                                                 {groupedOrders[selectedGroupKey].modelo}
-                                                <span className="text-lg font-normal text-slate-500 bg-slate-100 px-2 rounded">
+                                                <span className="text-sm font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded border border-slate-200">
                                                     {groupedOrders[selectedGroupKey].partida}
                                                 </span>
                                             </h2>
-                                            <p className="text-xs text-slate-400 mt-1">
-                                                Mostrando paquetes de {groupedOrders[selectedGroupKey].subOrders.length} órdenes combinadas
+                                            <p className="text-sm text-slate-400 font-medium mt-1">
+                                                Combinando paquetes de {groupedOrders[selectedGroupKey].subOrders.length} órdenes diferentes.
                                             </p>
                                         </div>
                                         <button onClick={downloadPDF} disabled={selectedList.length === 0 || isGenerating}
                                                 className={`px-6 py-3 rounded-xl font-black text-white flex items-center gap-2 shadow-lg transition-transform active:scale-95
-                                                    ${selectedList.length === 0 ? 'bg-slate-300 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}>
-                                            <Icon name="printer"/> {isGenerating ? '...' : 'IMPRIMIR ETIQUETA'}
+                                                    ${selectedList.length === 0 ? 'bg-slate-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                                            {isGenerating ? <><Icon name="loader-2" className="animate-spin"/> GENERANDO...</> : <><Icon name="printer"/> IMPRIMIR GRUPO ({selectedList.length})</>}
                                         </button>
                                     </div>
                                     
-                                    {/* Selector de Paquetes */}
-                                    <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 bg-slate-50 rounded-lg border border-slate-200 shadow-inner">
+                                    {/* GRID DE PAQUETES */}
+                                    <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-3 bg-slate-50 rounded-xl border border-slate-200 shadow-inner">
                                         {activePackages.map(p => (
-                                            <label key={p.paqueteNum} 
-                                                   className={`flex items-center gap-2 px-3 py-2 rounded border cursor-pointer select-none transition-all text-sm
-                                                       ${checkedPackages[p.paqueteNum] ? 'bg-indigo-600 border-indigo-600 text-white shadow-md transform scale-105' : 'bg-white border-slate-300 hover:border-indigo-400'}`}>
-                                                <input type="checkbox" checked={!!checkedPackages[p.paqueteNum]} onChange={() => handleCheck(p.paqueteNum)} className="hidden"/>
-                                                <span className="font-bold">#{p.paqueteNum}</span>
-                                                <span className="text-[10px] opacity-70 border-l pl-2 ml-1 border-current">{p.piezaNombre?.substr(0,8)}</span>
-                                            </label>
+                                            <div key={p.codigoUnico} onClick={() => togglePackage(p)}
+                                                   className={`flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer select-none transition-all text-sm w-48
+                                                       ${checkedPackages[p.codigoUnico] ? 'bg-blue-600 border-blue-600 text-white shadow-md scale-105' : 'bg-white border-slate-300 hover:border-blue-400 text-slate-600'}`}>
+                                                <div className={`w-5 h-5 rounded flex items-center justify-center border ${checkedPackages[p.codigoUnico] ? 'border-white bg-blue-500' : 'border-slate-300'}`}>
+                                                    {checkedPackages[p.codigoUnico] && <Icon name="check" size={12}/>}
+                                                </div>
+                                                <div className="flex flex-col overflow-hidden">
+                                                    <span className="font-black text-lg leading-none">#{p.paqueteNum}</span>
+                                                    <span className="text-[10px] opacity-80 truncate uppercase">{p.fullPiezaName}</span>
+                                                </div>
+                                            </div>
                                         ))}
                                     </div>
                                 </div>
 
-                                {/* Vista Previa */}
-                                <div className="flex-1 overflow-y-auto p-8 bg-slate-200 flex justify-center">
+                                {/* PREVIEW AREA */}
+                                <div className="flex-1 overflow-y-auto p-8 bg-slate-200/50 flex justify-center">
                                     {selectedList.length > 0 ? (
-                                        <div className="shadow-2xl bg-white scale-90 origin-top" style={{width: '6in', minHeight: '4in'}}>
+                                        <div className="shadow-2xl shadow-slate-400/50 bg-white scale-90 origin-top" style={{width: '6in', minHeight: '4in'}}>
                                             <div ref={pdfRef}>
                                                 <StackedLabel selectedPackages={selectedList} groupInfo={groupedOrders[selectedGroupKey]} repos={repos} />
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center text-slate-400 mt-20 opacity-50">
-                                            <Icon name="package-search" size={64}/>
-                                            <p className="font-bold mt-4">Selecciona paquetes para ver la vista previa</p>
+                                        <div className="flex flex-col items-center justify-center text-slate-300 mt-20 select-none">
+                                            <Icon name="package-search" size={80} strokeWidth={1}/>
+                                            <p className="font-bold mt-4 text-xl">Selecciona paquetes arriba para agrupar</p>
                                         </div>
                                     )}
                                 </div>
                             </>
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center text-slate-300 select-none">
-                                <Icon name="arrow-left-circle" size={80} strokeWidth={1}/>
-                                <p className="font-black text-2xl mt-4">SELECCIONA UN MODELO</p>
+                                <Icon name="layout-list" size={80} strokeWidth={1}/>
+                                <p className="font-black text-2xl mt-4">SELECCIONA UN MODELO DEL MENÚ</p>
                             </div>
                         )}
                     </div>
                 </div>
             );
         };
-        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
