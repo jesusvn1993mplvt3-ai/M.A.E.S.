@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CIRINEO v7.0 - Sistema de KITs</title>
+    
+    <link rel="icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@700&family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { background-color: #f1f5f9; font-family: 'Roboto Condensed', sans-serif; overflow: hidden; }
+        .pdf-fixed-container { width: 6in; height: 4in; background: white; page-break-after: always; display: flex; border: 2.5px solid #000; box-sizing: border-box; overflow: hidden; }
+        
+        /* Imagen a todo lo alto */
+        .col-img-full { width: 30%; height: 100%; border-right: 3px solid #000; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #fff; }
+        .col-img-full img { height: 100%; width: 100%; object-fit: cover; } 
+
+        .col-content { width: 58%; display: flex; flex-direction: column; border-right: 3px solid #000; }
+        .col-barcode { width: 12%; display: flex; align-items: center; justify-content: center; }
+
+        .header-box { display: flex; border-bottom: 3px solid #000; height: 80px; }
+        
+        /* Renglón de pieza sin checklist con auto-ajuste */
+        .part-row { display: flex; border-bottom: 2px solid #000; height: 58px; align-items: center; padding: 0 10px; gap: 8px; }
+        
+        .piece-name-container { flex: 1; overflow: hidden; display: flex; align-items: center; }
+        .piece-name-text { 
+            font-weight: 900; 
+            text-transform: uppercase; 
+            white-space: nowrap; 
+            line-height: 0.8;
+            letter-spacing: -0.05em;
+        }
+
+        .notes-area { flex-grow: 1; background-image: linear-gradient(#cbd5e1 1px, transparent 1px); background-size: 100% 28px; padding: 5px 10px; border-bottom: 2px solid #000; }
+        
+        .lbl-title { font-size: 11px; font-weight: 700; color: #334155; text-transform: uppercase; }
+        .lbl-value { font-family: 'Oswald', sans-serif; font-weight: 700; color: #000; line-height: 0.8; }
+        
+        .footer-info { height: 65px; display: flex; align-items: center; padding: 0 12px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+
+        // Configuración Firebase (Misma que usas en el index)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCngQL1pdqghv2vbjkPycT1Xf0C46f7jYs",
+            authDomain: "cirineo-cec21.firebaseapp.com",
+            projectId: "cirineo-cec21",
+            storageBucket: "cirineo-cec21.firebasestorage.app",
+            messagingSenderId: "620210618284",
+            appId: "1:620210618284:web:482bab9bf74650fff18409"
+        };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const SmartImage = ({ modelo, sources }) => {
+            const [url, setUrl] = useState(null);
+            useEffect(() => {
+                const check = async () => {
+                    if (!modelo || !sources?.length) return;
+                    const exts = ['png', 'webp', 'jpg', 'jpeg'];
+                    // Lógica de búsqueda: Modelo exacto o primeros 4 dígitos
+                    const baseCode = modelo.substring(0, 4).toUpperCase();
+                    for (const s of sources) {
+                        for (const e of exts) {
+                            const testUrl = `${s.url}/${modelo}.${e}`;
+                            const ok = await new Promise(r => { const i=new Image(); i.onload=()=>r(true); i.onerror=()=>r(false); i.src=testUrl; });
+                            if (ok) { setUrl(testUrl); return; }
+                        }
+                    }
+                };
+                check();
+            }, [modelo, sources]);
+            return url ? <img src={url} /> : <div className="text-[10px] font-bold text-slate-300">SIN FOTO</div>;
+        };
+
+        const ProductionLabel = ({ order, labelData, imageSources }) => {
+            const svgRef = useRef(null);
+            const cleanName = (n) => n ? n.split(/[ (]/)[0].toUpperCase() : "PIEZA";
+
+            // LÓGICA DE PIEZAS Y CANTIDADES
+            // Si el código contiene "KIT", extraemos las partes del array progreso
+            const piezas = useMemo(() => {
+                if (!labelData) return [];
+                
+                // Si la orden tiene sub-piezas (es un KIT), listamos cada una
+                if (order.subPiecesData && order.subPiecesData.length > 0) {
+                    return order.subPiecesData.map(sp => ({
+                        nombre: sp.pieza,
+                        // Buscamos la cantidad específica de esta sub-pieza en el registro de progreso
+                        cant: labelData.cantidad, 
+                        maq: labelData.maquina
+                    }));
+                }
+                
+                // Si es pedido simple
+                return [{ 
+                    nombre: order.modelo || order.codigo, 
+                    cant: labelData.cantidad, 
+                    maq: labelData.maquina 
+                }];
+            }, [order, labelData]);
+
+            useEffect(() => {
+                if (svgRef.current && labelData?.code) {
+                    JsBarcode(svgRef.current, labelData.code, { 
+                        format: "CODE128", 
+                        width: 1.6, 
+                        height: 45, 
+                        displayValue: false, 
+                        margin: 0 
+                    });
+                }
+            }, [labelData]);
+
+            return (
+                <div className="pdf-fixed-container">
+                    <div className="col-img-full">
+                        <SmartImage modelo={order.codigo} sources={imageSources} />
+                    </div>
+
+                    <div className="col-content">
+                        <div className="header-box">
+                            <div className="flex-1 p-2 border-r-2 flex flex-col justify-center">
+                                <div className="lbl-title">MODELO</div>
+                                <div className="lbl-value text-5xl">{order.codigo}</div>
+                            </div>
+                            <div className="w-28 p-2 text-center flex flex-col justify-center">
+                                <div className="lbl-title">PAQUETE</div>
+                                <div className="lbl-value text-4xl">{labelData?.packageNum}</div>
+                            </div>
+                        </div>
+
+                        <div className="flex bg-black text-white text-[11px] font-bold p-1 px-3">
+                            <div className="flex-grow">DETALLE DE PRODUCCIÓN</div>
+                            <div className="w-16 text-center">CANT.</div>
+                            <div className="w-16 text-center">MÁQ.</div>
+                        </div>
+
+                        {piezas.slice(0, 4).map((p, i) => (
+                            <div key={i} className="part-row">
+                                <div className="piece-name-container">
+                                    <span className="piece-name-text" 
+                                          style={{ fontSize: p.nombre.length > 8 ? '2.2rem' : '3.2rem' }}>
+                                        {cleanName(p.nombre)}
+                                    </span>
+                                </div>
+                                <div className="w-16 text-center font-bold text-4xl">{p.cant}</div>
+                                <div className="w-16 h-11 flex items-center justify-center bg-black text-white font-black text-2xl rounded">
+                                    {p.maq}
+                                </div>
+                            </div>
+                        ))}
+
+                        <div className="notes-area">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">Observaciones:</span>
+                        </div>
+
+                        <div className="footer-info">
+                            <div className="flex-grow overflow-hidden">
+                                <div className="lbl-title">CLIENTE</div>
+                                <div className="text-3xl font-black text-blue-900 truncate uppercase leading-none">{order.cliente}</div>
+                            </div>
+                            <div className="w-36 text-right">
+                                <div className="lbl-title">PARTIDA</div>
+                                <div className="text-3xl font-black text-red-700 leading-none">{order.partida}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="col-barcode">
+                        <div style={{ transform: 'rotate(90deg)', width: '3.3in', textAlign: 'center' }}>
+                            <svg ref={svgRef}></svg>
+                            <div className="text-xs font-mono mt-1 font-bold">{labelData?.code}</div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [orders, setOrders] = useState([]);
+            const [selectedOrder, setSelectedOrder] = useState(null);
+            const [imageSources, setImageSources] = useState([]);
+            const [isGenerating, setIsGenerating] = useState(false);
+            const pdfRef = useRef(null);
+
+            useEffect(() => {
+                db.collection('app_config').doc('imagenes').onSnapshot(doc => setImageSources(doc.data()?.sources || []));
+                db.collection('orders').where('status','!=','ARCHIVADO').onSnapshot(snap => {
+                    setOrders(snap.docs.map(d => ({...d.data(), id: d.id})).sort((a,b) => b.id - a.id));
+                });
+            }, []);
+
+            const labelRecords = useMemo(() => {
+                if (!selectedOrder?.progreso) return [];
+                const seen = new Set();
+                const records = [];
+                selectedOrder.progreso.forEach(p => {
+                    if (p.codigoUnico && !seen.has(p.codigoUnico)) {
+                        seen.add(p.codigoUnico);
+                        records.push({
+                            code: p.codigoUnico,
+                            packageNum: `${p.paqueteNum || 1}/${p.paquetesDePieza || 1}`,
+                            cantidad: p.cantidadPaquete,
+                            maquina: p.maquina
+                        });
+                    }
+                });
+                return records;
+            }, [selectedOrder]);
+
+            const download = async () => {
+                setIsGenerating(true);
+                await new Promise(r => setTimeout(r, 1200));
+                const opt = { 
+                    margin: 0, 
+                    filename: `PAPELETAS_${selectedOrder.codigo}.pdf`, 
+                    html2canvas: { scale: 2, useCORS: true }, 
+                    jsPDF: { unit: 'in', format: [6, 4], orientation: 'landscape' } 
+                };
+                await html2pdf().set(opt).from(pdfRef.current).save();
+                setIsGenerating(false);
+            };
+
+            return (
+                <div className="flex h-screen bg-slate-100 overflow-hidden">
+                    {/* Sidebar */}
+                    <div className="w-80 bg-slate-900 text-white flex flex-col shrink-0">
+                        <div className="p-6 bg-slate-950 font-black text-yellow-500 text-xl border-b border-white/10 italic">CIRINEO PRODUCCIÓN</div>
+                        <div className="flex-grow overflow-y-auto p-2">
+                            {orders.map(o => (
+                                <div key={o.id} onClick={() => setSelectedOrder(o)} 
+                                     className={`p-4 mb-2 rounded-xl cursor-pointer transition-all border-l-4 ${selectedOrder?.id === o.id ? 'bg-blue-600 border-white shadow-lg' : 'border-transparent hover:bg-slate-800'}`}>
+                                    <div className="font-black text-lg uppercase leading-tight">{o.codigo}</div>
+                                    <div className="text-[11px] opacity-60 truncate uppercase">{o.cliente}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Main Content */}
+                    <div className="flex-grow p-10 overflow-y-auto flex flex-col items-center">
+                        {selectedOrder ? (
+                            <div className="w-full max-w-2xl">
+                                <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                                    <div>
+                                        <h2 className="text-3xl font-black text-slate-800">{selectedOrder.codigo}</h2>
+                                        <p className="text-sm font-bold text-slate-400 uppercase tracking-tighter">Bultos en Base de Datos: {labelRecords.length}</p>
+                                    </div>
+                                    <button onClick={download} disabled={labelRecords.length === 0}
+                                            className="bg-red-600 hover:bg-red-700 disabled:bg-slate-300 text-white px-10 py-4 rounded-full font-black shadow-xl transition-all flex items-center gap-3">
+                                        <Icon name="printer" /> {isGenerating ? "PROCESANDO..." : "IMPRIMIR TODO"}
+                                    </button>
+                                </div>
+                                {labelRecords.length > 0 ? (
+                                    <ProductionLabel order={selectedOrder} labelData={labelRecords[0]} imageSources={imageSources} />
+                                ) : <div className="bg-white p-20 rounded-xl text-center font-bold text-slate-300 border-2 border-dashed">No se han registrado bultos para esta orden todavía.</div>}
+                            </div>
+                        ) : <div className="m-auto text-slate-300 flex flex-col items-center font-black"><Icon name="box" size={120} /><span className="mt-4 text-2xl uppercase tracking-widest">Selecciona una orden</span></div>}
+                    </div>
+
+                    {/* PDF Hidden Render */}
+                    <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+                        <div ref={pdfRef}>
+                            {labelRecords.map((lab, i) => (
+                                <div key={i} className="pdf-fixed-container">
+                                    <ProductionLabel order={selectedOrder} labelData={lab} imageSources={imageSources} />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Icon = ({ name, size = 18 }) => {
+            const r = useRef(null);
+            useEffect(() => { if (r.current && lucide.icons[name]) r.current.innerHTML = lucide.icons[name].toSvg({ width: size, height: size }); }, [name, size]);
+            return <div ref={r} className="inline-block" style={{ width: size, height: size }}></div>;
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
