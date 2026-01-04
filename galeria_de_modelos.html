@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galería de Modelos - Viva Rouss</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Roboto+Mono:wght@500&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { 
+            background-color: #f1f5f9; /* Slate 100 del sistema Cirineo */
+            font-family: 'Inter', sans-serif; 
+        }
+        .mono-code { 
+            font-family: 'Roboto Mono', monospace; 
+            font-variant-numeric: slashed-zero;
+        }
+        .glass-header {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+        }
+        .card-shadow {
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-10">
+
+    <header class="glass-header sticky top-0 z-50 border-b border-slate-200 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 p-2 rounded-lg">
+                    <i data-lucide="shirt" class="text-white w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black text-slate-800 tracking-tight uppercase">Viva Rouss</h1>
+                    <p class="text-[10px] text-slate-500 font-bold tracking-widest uppercase">Galería de Modelos</p>
+                </div>
+            </div>
+
+            <div class="relative flex-1 max-w-md">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i>
+                <input type="text" id="searchBar" 
+                    placeholder="Buscar código o modelo..." 
+                    class="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all mono-code">
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 mt-6">
+        <div id="counter" class="inline-flex items-center gap-2 bg-white px-3 py-1 rounded-full border border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-tighter">
+            Cargando...
+        </div>
+    </div>
+
+    <main id="galleryGrid" class="max-w-7xl mx-auto px-4 mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        </main>
+
+    <div id="imageModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm">
+        <button id="closeModal" class="absolute top-6 right-6 text-white hover:bg-white/10 p-2 rounded-full transition-colors">
+            <i data-lucide="x" class="w-8 h-8"></i>
+        </button>
+        <div class="max-w-4xl w-full flex flex-col items-center">
+            <img id="imgExpanded" class="max-h-[80vh] rounded-2xl shadow-2xl object-contain border border-white/10">
+            <div id="caption" class="mt-6 text-white text-xl font-bold mono-code bg-slate-800 px-6 py-2 rounded-full border border-slate-700"></div>
+        </div>
+    </div>
+
+    <script>
+        const baseURL = "https://raw.githubusercontent.com/sweaters-liliana/MAES26/refs/heads/main/Fotos/";
+        
+        // Lista completa (D, M, O, Q, S)
+        const imageList = [
+            "CDIABN1.jpg", "D001.jpg", "D002.jpg", "D003.jpg", "D003ESPALDA.jpg", "D003T.jpg", "D005.jpg", "D006.jpg", "D007.jpg", "D008.jpg", "D011P.jpg", "D013P.jpg", "D013T.jpg", "D014.jpg", "D014P.jpg", "D015P.jpg", "D015T.jpg", "D017.jpg", "D018.jpg", "D019.jpg", "D020.jpg", "D020B.jpg", "D020T.jpg", "D024.jpg", "D025.jpg", "D027B36M.jpg", "D027B36Y.jpg", "D027B36Z.jpg", "D029.jpg", "D030-TEJIDO.jpg", "D030.jpg", "D032.jpg", "D033.jpg", "D034C.jpg", "D036-ESP.jpg", "D037-ESP.jpg", "D040-01.jpg", "D040.jpg", "D041-ESPALDA.jpg", "D041-FRENTE.jpg", "D047.jpg", "D048.jpg", "D049.jpg", "D051.jpg",
+            "M004.jpg", "M005.jpg", "M006.jpg", "M007.jpg", "M008.jpg", "M009.png", "M010.png", "M011.png", "M012.jpg", "M013.jpg", "M014.jpg", "M015.png", "M017.jpg", "M018.png", "M020.png", "M021.png", "M023.jpg", "M024.png", "M025.jpg", "M025.png", "M026.jpg", "M027.jpg", "M028.png", "M029.jpg",
+            "O776.jpg", "O776.png", "O900.jpg", "O947.jpg", "O948.jpg", "O949.jpg", "O950.jpg", "O952.png", "O953.png", "O956.jpg", "O960.jpg", "O961.PNG", "O961_.png", "O966.png", "O967.png", "O977.jpg", "O978.jpg", "O987.jpg", "O988.jpg", "O989.jpg", "O990.jpg", "O994.jpg", "O994.png", "O999.jpg",
+            "Q001 BLUSA MC ESCAROLA.jpg", "Q002 BODY MC C_R.jpg", "Q002.jpg", "Q003-FRENTE.png", "Q004.png", "Q004T.jpg", "Q006 TOP CON NUDO .jpg", "Q006 TOP CON NUDO ESPALDA.jpg", "Q008-COPILOT01.png", "Q018 FRENTE BIKER.jpeg", "Q018.jpg", "Q020 TIRANTE ADOLECENTE.jpeg", "Q021 FRENTE BLUSA MC CUELLO SPORT.jpeg", "Q021-2.png", "Q021-COPILOT01.png", "Q021-COPILOT02.png", "Q021-COPILOT03.png", "Q021-COPILOT04.png", "Q021-COPILOT05.png", "Q021-COPILOT06.png", "Q021.jpg", "Q021.png", "Q024-2.png", "Q024.png", "Q025.jpg", "Q027.jpg", "Q027.png", "Q031.png",
+            "S001.jpg", "S002.jpg", "S003.jpg", "S004.jpg", "S005.jpg", "S006.jpg", "S007.jpg", "S008.jpg", "S012.png", "S014.JPG", "S015-1.png", "S015.png", "S016.PNG", "S018.PNG", "S019.PNG", "S020.png", "S021 .png", "S023.jpg", "S024 .jpg", "S025.png", "S026B.png", "S027.png", "S028.png", "S029.png", "S033-01.png", "S033-02.png", "S033-03.png", "S034-2.png", "S034-3.png", "S034.jpg", "S034.png", "S035-DISEÑO.jpg", "S035.jpg", "S035.png", "S037B.png", "S038-02.png", "S038-03.png", "S038T.png", "S039T.png"
+        ];
+
+        const container = document.getElementById('galleryGrid');
+        const searchInput = document.getElementById('searchBar');
+        const counter = document.getElementById('counter');
+        const modal = document.getElementById("imageModal");
+        const modalImg = document.getElementById("imgExpanded");
+        const captionText = document.getElementById("caption");
+
+        function removeExtension(f) { return f.replace(/\.[^/.]+$/, ""); }
+
+        function renderGallery(filter = "") {
+            container.innerHTML = "";
+            const filtered = imageList.filter(f => f.toLowerCase().includes(filter.toLowerCase()));
+            
+            filtered.forEach(file => {
+                const name = removeExtension(file);
+                const card = document.createElement('div');
+                card.className = "group bg-white rounded-2xl border border-slate-200 overflow-hidden card-shadow hover:border-blue-400 transition-all cursor-pointer";
+                
+                card.innerHTML = `
+                    <div class="aspect-[3/4] overflow-hidden bg-slate-100">
+                        <img src="${baseURL + encodeURI(file)}" loading="lazy" 
+                            class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                    </div>
+                    <div class="p-3 bg-white border-t border-slate-50 flex items-center justify-between">
+                        <span class="mono-code text-[11px] font-bold text-slate-700 truncate">${name}</span>
+                        <div class="bg-slate-100 p-1 rounded-md text-slate-400 group-hover:text-blue-600 transition-colors">
+                            <i data-lucide="maximize-2" class="w-3 h-3"></i>
+                        </div>
+                    </div>
+                `;
+                
+                card.onclick = () => {
+                    modal.classList.remove('hidden');
+                    modalImg.src = baseURL + encodeURI(file);
+                    captionText.textContent = name;
+                };
+                
+                container.appendChild(card);
+            });
+
+            counter.innerHTML = `<i data-lucide="box" class="w-3 h-3"></i> ${filtered.length} MODELOS ENCONTRADOS`;
+            lucide.createIcons();
+        }
+
+        searchInput.addEventListener('input', (e) => renderGallery(e.target.value));
+        document.getElementById('closeModal').onclick = () => modal.classList.add('hidden');
+        modal.onclick = (e) => { if(e.target === modal) modal.classList.add('hidden'); };
+
+        // Inicializar
+        renderGallery();
+    </script>
+</body>
+</html>
