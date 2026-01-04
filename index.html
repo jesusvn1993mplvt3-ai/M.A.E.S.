@@ -2,380 +2,254 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Generador de Pedidos Standalone</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Textil Cloud - Cirineo v4.0 (Hub Central)</title>
+    
+    <link id="appIcon" rel="icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
+    <meta name="theme-color" content="#1e293b">
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
     <style>
-        /* Estilos específicos para el comportamiento móvil y scroll */
-        body { background-color: #0f172a; color: white; }
-        
-        .smooth-scroll { -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
-        
-        /* Zona de scroll seguro para móviles */
-        .safe-scroll-zone {
-            position: fixed; right: 0; top: 20%; bottom: 20%; width: 40px;
-            background: rgba(255,255,255,0.1);
-            border-top-left-radius: 20px; border-bottom-left-radius: 20px;
-            z-index: 9999; display: flex; align-items: center; justify-content: center;
-            touch-action: none; transition: opacity 0.3s;
-        }
-        .safe-scroll-zone:active { background: rgba(255,255,255,0.2); }
-        .safe-scroll-zone i { color: rgba(255,255,255,0.5); font-size: 24px; }
-
-        /* Animaciones */
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .animate-in { animation: fadeIn 0.3s ease-out; }
+        body { background-color: #f8fafc; color: #1e293b; font-family: system-ui, sans-serif; }
+        .glass-card { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.5); }
+        .status-badge { padding: 2px 8px; border-radius: 99px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+        .kit-label { background: #eab308; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 900; }
+        /* Animación para el Dashboard */
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef } = React;
-        
-        // --- 1. CONFIGURACIÓN DE BASE DE DATOS ---
+        const { useState, useEffect, useMemo } = React;
+
+        // Firebase Init (Mantiene tu config original)
         const firebaseConfig = {
             apiKey: "AIzaSyCngQL1pdqghv2vbjkPycT1Xf0C46f7jYs",
             authDomain: "cirineo-cec21.firebaseapp.com",
             projectId: "cirineo-cec21",
             storageBucket: "cirineo-cec21.firebasestorage.app",
             messagingSenderId: "620210618284",
-            appId: "1:620210618284:web:482bab9bf74650fff18409",
-            measurementId: "G-B7YLM78RVW"
+            appId: "1:620210618284:web:482bab9bf74650fff18409"
         };
-
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // --- 2. UTILIDADES ---
-        const Icon = ({ name, size = 18, className }) => <i data-lucide={name} width={size} height={size} className={className}></i>;
-        
-        const generateSmartID = (partida, pieces, maquina) => {
-            const piecePrefixes = pieces.map(p => p.pieza.substring(0, 2).toUpperCase()).join('/');
-            return `${partida}-${piecePrefixes}-M${maquina}`;
+        const Icon = ({ name, size = 18, className = "" }) => {
+            const ref = React.useRef(null);
+            useEffect(() => {
+                if (ref.current && lucide.icons[name]) {
+                    ref.current.innerHTML = lucide.icons[name].toSvg({ width: size, height: size });
+                }
+            }, [name, size]);
+            return <div ref={ref} className={`inline-block ${className}`} style={{ width: size, height: size }}></div>;
         };
 
-        // --- 3. COMPONENTE EDITOR DE BORRADOR (Necesario para el paso de revisión) ---
-        const DraftEditor = ({ draft, onSave, onCancel }) => {
-            const [localDraft, setLocalDraft] = useState(draft);
-            const [inventory, setInventory] = useState([]);
-            const [suggestions, setSuggestions] = useState({ index: null, items: [] });
-            
-            useEffect(() => {
-                const unsubscribe = db.collection('inventory').doc('main').onSnapshot(doc => { if (doc.exists && doc.data().items) setInventory(doc.data().items); });
-                return () => unsubscribe();
-            }, []);
-
-            const addThread = () => setLocalDraft({ ...localDraft, threading: [...(localDraft.threading || []), { guia: (localDraft.threading?.length || 0) + 1, material: '', porcentaje: '', materialId: null }] });
-            const removeThread = (idx) => setLocalDraft({ ...localDraft, threading: localDraft.threading.filter((_, i) => i !== idx) });
-            const updateThread = (idx, field, val) => { const newThreads = [...localDraft.threading]; newThreads[idx] = { ...newThreads[idx], [field]: val }; setLocalDraft({ ...localDraft, threading: newThreads }); };
-            
-            const handleMaterialInput = (idx, val) => { 
-                updateThread(idx, 'material', val); 
-                if (val.length > 1) { 
-                    const filtered = inventory.filter(i => `${i.material} ${i.color}`.toLowerCase().includes(val.toLowerCase())); 
-                    setSuggestions({ index: idx, items: filtered }); 
-                } else { setSuggestions({ index: null, items: [] }); } 
-            };
-            
-            const selectSuggestion = (idx, item) => { 
-                const newThreads = [...localDraft.threading]; 
-                newThreads[idx] = { ...newThreads[idx], material: `${item.material} - ${item.color}`, materialId: item.id, stockDisponible: item.stock || '0' }; 
-                setLocalDraft({ ...localDraft, threading: newThreads }); 
-                setSuggestions({ index: null, items: [] }); 
-            };
-            
-            const calculateConsumption = (hilo) => { 
-                if (!hilo.materialId || !hilo.porcentaje) return 0; 
-                const totalGramos = localDraft.subPiecesData.reduce((acc, p) => acc + (Number(p.peso || 0) * Number(p.totalPedido || 0)), 0); 
-                return ((totalGramos * (Number(hilo.porcentaje) / 100)) / 1000).toFixed(2); 
-            };
-            
-            const updatePiece = (idx, field, val) => { const newPieces = [...localDraft.subPiecesData]; newPieces[idx] = { ...newPieces[idx], [field]: val }; setLocalDraft({ ...localDraft, subPiecesData: newPieces }); };
-            
-            return (
-                <div className="flex flex-col h-full text-slate-800">
-                    <div className="bg-indigo-600 p-4 text-white flex justify-between items-center shrink-0"><h2 className="font-bold text-lg"><Icon name="edit-3" className="inline mr-2"/> Editando Orden Máquina {localDraft.maquina}</h2></div>
-                    <div className="p-6 overflow-y-auto flex-grow space-y-6">
-                        <div className="grid grid-cols-3 gap-4 bg-slate-50 p-4 rounded border">
-                            <div><label className="block text-xs font-bold text-gray-500">Máquina</label><input type="number" value={localDraft.maquina} onChange={e=>setLocalDraft({...localDraft, maquina: e.target.value})} className="w-full border p-1 rounded font-black text-xl"/></div>
-                            <div><label className="block text-xs font-bold text-gray-500">Cliente</label><input value={localDraft.cliente} disabled className="w-full border p-1 rounded bg-gray-200 text-gray-500"/></div>
-                             <div><label className="block text-xs font-bold text-gray-500">Partida</label><input value={localDraft.partida} disabled className="w-full border p-1 rounded bg-gray-200 text-gray-500"/></div>
-                        </div>
-                        <div>
-                            <div className="flex justify-between items-center mb-2"><h3 className="font-bold text-sm text-slate-700">Enhebrado e Inventario</h3><button onClick={addThread} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold hover:bg-blue-200">+ Hilo</button></div>
-                            <table className="w-full text-xs border">
-                                <thead className="bg-slate-200"><tr><th className="p-1 w-10">Guía</th><th className="p-1">Material</th><th className="p-1 w-16">%</th><th className="p-1 w-24">Consumo</th><th className="p-1 w-8"></th></tr></thead>
-                                <tbody>
-                                    {(localDraft.threading || []).map((h, i) => (
-                                        <tr key={i} className="relative">
-                                            <td><input value={h.guia} onChange={e=>updateThread(i,'guia',e.target.value)} className="w-full text-center border-none bg-transparent"/></td>
-                                            <td className="p-1"><input value={h.material} onChange={e => handleMaterialInput(i, e.target.value)} className="w-full border p-1 rounded outline-none"/>{suggestions.index === i && suggestions.items.length > 0 && (<div className="absolute z-50 bg-white border shadow-lg w-full max-w-md max-h-40 overflow-y-auto left-0 mt-1 rounded">{suggestions.items.map(item => (<div key={item.id} onClick={() => selectSuggestion(i, item)} className="p-2 hover:bg-indigo-50 cursor-pointer border-b flex justify-between items-center"><div><span className="font-bold text-slate-700">{item.material}</span><span className="text-slate-500 ml-1">- {item.color}</span></div><span className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-[10px] font-bold">Stock: {item.stock || 0}kg</span></div>))}</div>)}</td>
-                                            <td><input value={h.porcentaje} onChange={e=>updateThread(i,'porcentaje',e.target.value)} className="w-full text-center border p-1" placeholder="%"/></td>
-                                            <td className="text-center font-bold text-red-600 bg-red-50">{calculateConsumption(h)} Kg</td>
-                                            <td className="text-center"><button onClick={()=>removeThread(i)} className="text-red-500 font-bold">x</button></td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-sm text-slate-700 mb-2">Detalles Técnicos (Piezas)</h3>
-                            {localDraft.subPiecesData.map((p, idx) => (
-                                <div key={idx} className="bg-white border rounded p-3 mb-2 shadow-sm">
-                                    <div className="font-bold text-indigo-700 mb-2 border-b pb-1">{p.pieza}</div>
-                                    <div className="grid grid-cols-4 gap-2">
-                                        <div><label className="text-[10px] font-bold text-gray-400">Talla</label><input value={p.talla} onChange={e=>updatePiece(idx,'talla',e.target.value)} className="w-full border p-1 rounded text-xs font-bold"/></div>
-                                         <div><label className="text-[10px] font-bold text-gray-400">Peso (g)</label><input value={p.peso} onChange={e=>updatePiece(idx,'peso',e.target.value)} className="w-full border p-1 rounded text-xs"/></div>
-                                         <div><label className="text-[10px] font-bold text-gray-400">Tiempo (min)</label><input value={p.tiempo} onChange={e=>updatePiece(idx,'tiempo',e.target.value)} className="w-full border p-1 rounded text-xs"/></div>
-                                        <div><label className="text-[10px] font-bold text-gray-400">Cant.</label><input value={p.totalPedido} disabled className="w-full border p-1 rounded text-xs bg-gray-100 text-center"/></div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="p-4 bg-gray-100 border-t flex justify-end gap-3">
-                        <button onClick={onCancel} className="px-4 py-2 rounded text-slate-600 font-bold hover:bg-slate-200">Cancelar</button>
-                        <button onClick={() => onSave(localDraft)} className="px-6 py-2 rounded bg-green-600 text-white font-bold hover:bg-green-700 shadow flex items-center gap-2"><Icon name="check-circle"/> CONFIRMAR</button>
-                    </div>
-                </div>
-            );
-        };
-
-        // --- 4. MODAL GENERADOR PRINCIPAL ---
-        const OrderGeneratorModal = ({ onClose, onProcess }) => {
-            const [step, setStep] = useState('input');
-            const [drafts, setDrafts] = useState([]);
-            const [currentDraftIndex, setCurrentDraftIndex] = useState(null);
-            const [form, setForm] = useState({ modelo: '', cliente: '', fecha: new Date().toISOString().split('T')[0], partidaCodigo: '', totalPrendas: 0 });
-            const [components, setComponents] = useState([{ descripcion: '', sufijo: '', maquina: '', multiplicador: 1, piezasPorPaquete: 0 }]);
-            
-            // Mobile UI Helpers
-            const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
-            const contentRef = useRef(null);
-
-            const handleInputFocus = (e) => {
-                setIsKeyboardOpen(true);
-                if (e.target.type === 'number' || e.target.type === 'tel' || e.target.inputMode === 'numeric') {
-                    e.target.select();
-                }
-            };
-            const handleInputBlur = () => { setIsKeyboardOpen(false); };
-
-            const handleScrollZoneMove = (e) => {
-                if (contentRef.current) {
-                    const touch = e.touches[0];
-                    const height = window.innerHeight;
-                    const percentage = touch.clientY / height;
-                    const scrollHeight = contentRef.current.scrollHeight;
-                    contentRef.current.scrollTop = percentage * scrollHeight - (height/2);
-                    e.preventDefault(); 
-                }
-            };
-
-            useEffect(() => {
-                if (!form.fecha) return;
-                const fechaObj = new Date(form.fecha + 'T00:00:00');
-                const meses = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
-                const mes = meses[fechaObj.getMonth()];
-                const year = fechaObj.getFullYear().toString().slice(-2);
-                setForm(prev => ({ ...prev, partidaCodigo: `${mes}${year}_01` }));
-            }, [form.fecha]);
-
-            const handleGenerateDrafts = () => {
-                if (!form.partidaCodigo || !form.cliente || !form.modelo) return alert("Faltan datos generales");
-                const ordersByMachine = {};
-                let hasValidComponent = false;
-                components.forEach(comp => {
-                    if(!comp.descripcion || !comp.maquina) return;
-                    hasValidComponent = true;
-                    const maquinaKey = String(comp.maquina);
-                    if (!ordersByMachine[maquinaKey]) {
-                        ordersByMachine[maquinaKey] = {
-                            codigo: form.modelo.toUpperCase(), cliente: form.cliente.toUpperCase(), maquina: maquinaKey, partida: form.partidaCodigo.toUpperCase(),
-                            subPiecesData: [], predefinedPackages: [], createdAt: new Date().toLocaleString('es-MX'),
-                            threading: [{ guia: 1, material: '', porcentaje: '', materialId: null }, { guia: 2, material: '', porcentaje: '', materialId: null }]
-                        };
-                    }
-                    const totalPiezasComp = form.totalPrendas * comp.multiplicador;
-                    ordersByMachine[maquinaKey].subPiecesData.push({ id: Date.now() + Math.random(), pieza: comp.descripcion.toUpperCase(), talla: 'UNI', totalPedido: totalPiezasComp, peso: '', tiempo: '' });
-                    const numPaquetes = comp.piezasPorPaquete > 0 ? Math.ceil(totalPiezasComp / comp.piezasPorPaquete) : 0;
-                    for (let i = 1; i <= numPaquetes; i++) {
-                        const cantidad = (i === numPaquetes && totalPiezasComp % comp.piezasPorPaquete !== 0) ? totalPiezasComp % comp.piezasPorPaquete : comp.piezasPorPaquete;
-                        ordersByMachine[maquinaKey].predefinedPackages.push({
-                            id: Date.now() + Math.random() + i, piezaNombre: comp.descripcion.toUpperCase(), cantidad: cantidad, paqueteNum: i, paquetesDePieza: numPaquetes,
-                            codigoUnico: `${form.partidaCodigo}${comp.sufijo}_${i}_${numPaquetes}`, finished: false, tejedor: '', fecha: '', defectos: '', agujas: ''
-                        });
-                    }
-                });
-                if(!hasValidComponent) return alert("Agrega al menos un componente válido");
-                setDrafts(Object.values(ordersByMachine));
-                setStep('staging');
-            };
-
-            const handleSaveOne = async (finalDraft) => {
-                try {
-                    const invDoc = await db.collection('inventory').doc('main').get();
-                    let currentItems = invDoc.exists && invDoc.data().items ? invDoc.data().items : [];
-                    const batch = db.batch();
-                    const newId = String(Date.now() + Math.random());
-                    const orderRef = db.collection('orders').doc(newId);
-                    const displayId = generateSmartID(finalDraft.partida, finalDraft.subPiecesData, finalDraft.maquina);
-                    
-                    batch.set(orderRef, { ...finalDraft, id: Number(newId), displayId: displayId, progreso: finalDraft.predefinedPackages, status: 'EN PROCESO', totalPedido: finalDraft.subPiecesData.reduce((a,b)=>a+Number(b.totalPedido),0) });
-                    
-                    const totalGramos = finalDraft.subPiecesData.reduce((acc, p) => acc + (Number(p.peso || 0) * Number(p.totalPedido || 0)), 0);
-                    
-                    (finalDraft.threading || []).forEach(hilo => {
-                        if (hilo.materialId) {
-                            const cantADescontar = Number(((totalGramos * (Number(hilo.porcentaje) / 100)) / 1000).toFixed(2));
-                            const itemIndex = currentItems.findIndex(i => i.id === hilo.materialId);
-                            if(itemIndex !== -1) {
-                                currentItems[itemIndex].stock = (parseFloat(currentItems[itemIndex].stock || 0) - cantADescontar).toFixed(2);
-                                const moveRef = db.collection('inventory_movements').doc();
-                                batch.set(moveRef, { materialId: hilo.materialId, type: 'SALIDA_ORDEN', quantityKg: cantADescontar, orderId: displayId, model: finalDraft.codigo, partida: finalDraft.partida, timestamp: firebase.firestore.FieldValue.serverTimestamp(), note: `Consumo automático` });
-                            }
-                        }
-                    });
-                    
-                    batch.set(db.collection('inventory').doc('main'), { items: currentItems });
-                    await batch.commit();
-                    
-                    const remaining = drafts.filter((_, i) => i !== currentDraftIndex);
-                    setDrafts(remaining); setStep('staging'); setCurrentDraftIndex(null);
-                    if (remaining.length === 0) { alert("¡Órdenes creadas con éxito!"); onProcess(); }
-                } catch (e) { console.error("Error save:", e); alert("Error al guardar."); }
-            };
-
-            // Renders para los diferentes estados del modal
-            if (step === 'editing' && currentDraftIndex !== null) return (<div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4"><div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl h-[90vh] overflow-hidden relative"><DraftEditor draft={drafts[currentDraftIndex]} onSave={handleSaveOne} onCancel={() => setStep('staging')} /></div></div>);
-            
-            if (step === 'staging') return (<div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4"><div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl h-[80vh] overflow-hidden flex flex-col text-slate-800"><div className="bg-orange-600 p-4 text-white flex justify-between items-center shrink-0"><div><h1 className="text-xl font-bold flex items-center gap-2"><Icon name="layers"/> Órdenes Preparadas</h1></div><button onClick={() => setStep('input')} className="text-white bg-orange-700 px-3 py-1 rounded text-xs font-bold">Volver</button></div><div className="p-6 overflow-y-auto bg-slate-100 flex-grow grid grid-cols-1 md:grid-cols-2 gap-4">{drafts.length === 0 && <div className="col-span-full flex flex-col items-center justify-center text-gray-400 py-10"><Icon name="check-circle" size={48} className="mb-2"/><button onClick={onClose} className="mt-4 text-blue-600 font-bold hover:underline">Cerrar</button></div>}{drafts.map((draft, idx) => (<div key={idx} className="bg-white rounded shadow border-l-4 border-indigo-500 p-4 flex flex-col justify-between"><div><div className="flex justify-between items-start mb-2"><h3 className="font-black text-xl text-slate-700">MÁQUINA {draft.maquina}</h3><span className="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-1 rounded">BORRADOR</span></div><div className="text-sm text-gray-600 mb-2"><p><strong>Cliente:</strong> {draft.cliente}</p><p><strong>Piezas:</strong> {draft.subPiecesData.map(p=>p.pieza).join(', ')}</p></div></div><button onClick={() => { setCurrentDraftIndex(idx); setStep('editing'); }} className="w-full mt-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded flex items-center justify-center gap-2"><Icon name="edit"/> REVISAR, PESOS E INVENTARIO</button></div>))}</div></div></div>);
+        const Sidebar = ({ viewMode, setViewMode }) => {
+            const menu = [
+                { id: 'active', icon: 'layout-dashboard', label: 'Dashboard' },
+                { id: 'inventory', icon: 'box', label: 'Hilo e Insumos' },
+                { id: 'history', icon: 'archive', label: 'Archivo' }
+            ];
 
             return (
-                <div className="fixed inset-0 bg-black/95 z-[60] flex items-center justify-center p-0 md:p-4">
-                    {!isKeyboardOpen && (
-                        <div className="safe-scroll-zone md:hidden" onTouchMove={handleScrollZoneMove}>
-                            <Icon name="chevrons-up-down" />
+                <div className="w-20 lg:w-64 bg-slate-900 h-screen sticky top-0 flex flex-col text-slate-400">
+                    <div className="p-6 flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-900/50">
+                            <Icon name="Zap" size={24} />
                         </div>
-                    )}
-
-                    <div className="bg-slate-900 rounded-none md:rounded-lg shadow-2xl w-full max-w-5xl h-full md:h-[90vh] flex flex-col border border-slate-700">
-                        <div className="bg-slate-900 p-4 border-b border-slate-700 flex justify-between items-center shrink-0 shadow-md z-10">
-                            <div><h1 className="text-xl font-bold flex items-center gap-2 text-white"><i className="fas fa-magic text-blue-400"></i> Generador</h1></div>
-                            <button onClick={onClose} className="bg-red-600 hover:bg-red-700 text-white font-bold p-2 rounded shadow-lg flex items-center justify-center w-10 h-10 transition">
-                                <Icon name="x" size={24}/>
+                        <span className="hidden lg:block font-black text-xl text-white tracking-tighter italic">CIRINEO</span>
+                    </div>
+                    
+                    <nav className="flex-grow p-4 space-y-2">
+                        {menu.map(item => (
+                            <button key={item.id} onClick={() => setViewMode(item.id)}
+                                className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${viewMode === item.id ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800'}`}>
+                                <Icon name={item.icon} />
+                                <span className="hidden lg:block font-bold text-sm">{item.label}</span>
                             </button>
-                        </div>
-                        
-                        <div ref={contentRef} className="flex-grow overflow-y-auto smooth-scroll bg-slate-950">
-                            <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-4 bg-slate-800 p-4 rounded shadow-sm border border-slate-700">
-                                    <h2 className="text-lg font-black text-blue-400 border-b border-slate-600 pb-2 flex items-center gap-2"><Icon name="file-text"/> 1. Datos Generales</h2>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-400 mb-1">Modelo</label>
-                                            <input value={form.modelo} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => setForm({...form, modelo: e.target.value.toUpperCase()})} className="w-full p-3 bg-slate-900 border border-slate-600 rounded font-bold uppercase text-lg text-white focus:border-blue-500 outline-none placeholder-slate-600" placeholder="EJ: F450"/>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-slate-400 mb-1">Cliente</label>
-                                            <input value={form.cliente} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => setForm({...form, cliente: e.target.value.toUpperCase()})} className="w-full p-3 bg-slate-900 border border-slate-600 rounded font-bold uppercase text-lg text-white focus:border-blue-500 outline-none placeholder-slate-600" placeholder="EJ: ZARA"/>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div><label className="block text-xs font-bold text-slate-400 mb-1">Fecha Entrega</label><input type="date" value={form.fecha} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => setForm({...form, fecha: e.target.value})} className="w-full p-2 bg-slate-900 border border-slate-600 text-white rounded outline-none"/></div>
-                                        <div><label className="block text-xs font-bold text-slate-400 mb-1">Cód. Partida</label><input value={form.partidaCodigo} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => setForm({...form, partidaCodigo: e.target.value.toUpperCase()})} className="w-full p-2 bg-slate-900 border border-slate-600 text-gray-300 rounded font-black outline-none"/></div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-slate-400 mb-1">Cantidad TOTAL Pedido</label>
-                                        <input type="tel" inputMode="numeric" value={form.totalPrendas} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => setForm({...form, totalPrendas: Number(e.target.value)})} className="w-full p-3 border border-slate-600 rounded bg-slate-900 text-3xl font-black text-center text-blue-300 focus:bg-slate-800 focus:border-blue-500 outline-none"/>
-                                        <p className="text-[10px] text-center text-slate-500 mt-1">Toca para editar cantidad total</p>
-                                    </div>
-                                </div>
+                        ))}
+                    </nav>
 
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center bg-slate-800 p-3 rounded shadow-sm border border-slate-700">
-                                        <h2 className="text-lg font-black text-green-400 flex items-center gap-2"><Icon name="scissors"/> 2. Componentes</h2>
-                                        <button onClick={() => setComponents([...components, { descripcion: '', sufijo: '', maquina: '', multiplicador: 1, piezasPorPaquete: 0 }])} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-full font-bold shadow flex gap-1 items-center transform active:scale-95 transition"><Icon name="plus" size={16}/> AGREGAR</button>
-                                    </div>
-                                    
-                                    <div className="space-y-4 md:h-80 md:overflow-y-auto pr-1 pb-10 md:pb-0">
-                                        {components.map((comp, idx) => (
-                                            <div key={idx} className="bg-slate-800 p-4 rounded-xl shadow-md border-l-4 border-indigo-500 relative animate-in fade-in slide-in-from-bottom-4 duration-300">
-                                                <button onClick={() => setComponents(components.filter((_, i) => i !== idx))} className="absolute top-2 right-2 text-red-400 hover:text-red-300 p-2"><Icon name="trash-2" size={18}/></button>
-                                                <div className="mb-3 pr-8"><label className="text-[10px] font-bold text-slate-400 uppercase">Nombre de la Pieza</label><input value={comp.descripcion} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => { const newComps=[...components]; newComps[idx].descripcion=e.target.value.toUpperCase(); setComponents(newComps); }} className="w-full p-2 bg-slate-800 border-b-2 border-slate-600 focus:border-indigo-500 outline-none text-base font-bold uppercase text-white placeholder-slate-600" placeholder="EJ: DELANTERO"/></div>
-                                                <div className="grid grid-cols-2 gap-3 mb-3">
-                                                    <div><label className="text-[10px] font-bold text-slate-400">Sufijo Cód.</label><input value={comp.sufijo} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => { const newComps=[...components]; newComps[idx].sufijo=e.target.value.toUpperCase(); setComponents(newComps); }} className="w-full p-2 bg-slate-900 rounded border border-slate-600 text-xs font-bold uppercase text-center text-white" placeholder="EJ: A"/></div>
-                                                    <div><label className="text-[10px] font-bold text-slate-400">Máquina #</label><input type="tel" inputMode="numeric" value={comp.maquina} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => { const newComps=[...components]; newComps[idx].maquina=e.target.value; setComponents(newComps); }} className="w-full p-2 border border-slate-600 rounded font-black text-xl text-center text-white bg-slate-900"/></div>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-3 bg-slate-900 p-2 rounded border border-slate-700">
-                                                    <div><label className="text-[10px] font-bold text-slate-500">Multiplicador</label><input type="tel" inputMode="numeric" value={comp.multiplicador} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => { const newComps=[...components]; newComps[idx].multiplicador=Number(e.target.value); setComponents(newComps); }} className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-center font-bold text-white"/></div>
-                                                    <div><label className="text-[10px] font-bold text-slate-500">Pzs por Paquete</label><input type="tel" inputMode="numeric" value={comp.piezasPorPaquete} onFocus={handleInputFocus} onBlur={handleInputBlur} onChange={e => { const newComps=[...components]; newComps[idx].piezasPorPaquete=Number(e.target.value); setComponents(newComps); }} className="w-full p-2 border border-slate-600 bg-slate-800 rounded text-center font-bold text-blue-300"/></div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        <div className="h-24 md:hidden"></div>
-                                    </div>
-                                </div>
+                    <div className="p-4 border-t border-slate-800">
+                        <div className="bg-slate-800/50 rounded-2xl p-4 hidden lg:block">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase">Estado del Servidor</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                <span className="text-xs font-bold text-green-500">Cloud Online</span>
                             </div>
                         </div>
-
-                        <div className="bg-slate-900 p-4 shrink-0 flex justify-end shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.5)] z-20 border-t border-slate-700">
-                            <button onClick={handleGenerateDrafts} className="bg-blue-600 hover:bg-blue-500 text-white w-full md:w-auto px-8 py-3 rounded-lg font-bold shadow-lg transform active:scale-95 transition flex items-center justify-center gap-2 text-lg">
-                                <span>SIGUIENTE</span> <Icon name="arrow-right"/>
-                            </button>
-                        </div>
                     </div>
                 </div>
             );
         };
 
-        // --- 5. APLICACIÓN PRINCIPAL (CONTENEDOR) ---
-        const App = () => {
-            const [showGenerator, setShowGenerator] = useState(false);
+        const Dashboard = ({ orders, viewMode }) => {
+            // Filtrado de órdenes
+            const filteredOrders = useMemo(() => {
+                if (viewMode === 'history') return orders.filter(o => o.status === 'ARCHIVADO');
+                return orders.filter(o => o.status !== 'ARCHIVADO');
+            }, [orders, viewMode]);
 
-            useEffect(() => {
-                lucide.createIcons();
-            }, [showGenerator]);
-
-            const handleProcessComplete = () => {
-                setShowGenerator(false);
-                // Aquí podrías recargar una lista de pedidos si fuera necesario
-            };
+            // Agrupación por Partida
+            const groups = useMemo(() => {
+                const map = {};
+                filteredOrders.forEach(o => {
+                    if (!map[o.partida]) map[o.partida] = [];
+                    map[o.partida].push(o);
+                });
+                return map;
+            }, [filteredOrders]);
 
             return (
-                <div className="flex flex-col items-center justify-center h-screen bg-slate-900 text-center p-4">
-                    <h1 className="text-3xl font-black text-white mb-6">Módulo Independiente</h1>
+                <div className="p-6 lg:p-10 space-y-8 fade-in">
+                    <header className="flex justify-between items-end">
+                        <div>
+                            <h2 className="text-4xl font-black text-slate-800 tracking-tighter uppercase">
+                                {viewMode === 'active' ? 'Producción Actual' : 'Archivo de Órdenes'}
+                            </h2>
+                            <p className="text-slate-500 font-medium">Control total de bultos y kits de salida.</p>
+                        </div>
+                        
+                        <div className="flex gap-3">
+                            {/* BOTÓN AL GENERADOR EXTERNO */}
+                            <a href="generador_pedidos.html" className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-xl hover:scale-105 transition-all active:scale-95">
+                                <Icon name="plus" size={20} /> NUEVO PEDIDO
+                            </a>
+                        </div>
+                    </header>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {Object.entries(groups).map(([partida, items]) => (
+                            <div key={partida} className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-200">
+                                <div className="flex justify-between items-center mb-4 px-2">
+                                    <span className="text-xs font-black text-slate-400 tracking-[0.2em] uppercase">{partida}</span>
+                                    <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-3 py-1 rounded-full">{items.length} Órdenes</span>
+                                </div>
+                                <div className="space-y-3">
+                                    {items.map(o => {
+                                        const isKit = o.subPiecesData?.length > 0;
+                                        const bultosCompletados = o.progreso?.filter(p => p.finalizado)?.length || 0;
+                                        const bultosTotales = o.progreso?.length || 0;
+                                        const pct = bultosTotales > 0 ? (bultosCompletados / bultosTotales) * 100 : 0;
+
+                                        return (
+                                            <div key={o.id} className="p-4 bg-slate-50 rounded-3xl border border-slate-100 hover:border-blue-200 transition-colors">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-black text-slate-800 uppercase">{o.codigo}</span>
+                                                            {isKit && <span className="kit-label">KIT</span>}
+                                                        </div>
+                                                        <div className="text-[10px] font-bold text-slate-400 uppercase truncate max-w-[120px]">{o.cliente}</div>
+                                                    </div>
+                                                    <div className="text-right font-black text-blue-600 text-sm">
+                                                        {bultosCompletados}/{bultosTotales} <span className="text-[9px] text-slate-400">BULTOS</span>
+                                                    </div>
+                                                </div>
+                                                <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-blue-500 transition-all duration-500" style={{width: `${pct}%`}}></div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        // Componente de Inventario de Hilo (Respetando tu lógica original)
+        const InventoryView = ({ inventory }) => {
+            return (
+                <div className="p-10 space-y-8 fade-in">
+                    <header>
+                        <h2 className="text-4xl font-black text-slate-800 tracking-tighter">INVENTARIO DE MATERIALES</h2>
+                    </header>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {inventory.map(item => (
+                            <div key={item.id} className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-200 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <Icon name="Dna" size={60} />
+                                </div>
+                                <div className="text-xs font-bold text-slate-400 uppercase mb-1">{item.tipo}</div>
+                                <div className="text-xl font-black text-slate-800 mb-4">{item.nombre}</div>
+                                <div className="flex items-end gap-2">
+                                    <span className="text-3xl font-black text-blue-600">{item.cantidad}</span>
+                                    <span className="text-xs font-bold text-slate-400 mb-1">KG</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [viewMode, setViewMode] = useState('active');
+            const [orders, setOrders] = useState([]);
+            const [inventory, setInventory] = useState([]);
+
+            useEffect(() => {
+                // Sincronización de Órdenes
+                const unsubOrders = db.collection('orders').orderBy('createdAt', 'desc').onSnapshot(snap => {
+                    setOrders(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                });
+                // Sincronización de Inventario
+                const unsubInv = db.collection('inventory').onSnapshot(snap => {
+                    setInventory(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                });
+                return () => { unsubOrders(); unsubInv(); };
+            }, []);
+
+            return (
+                <div className="flex min-h-screen">
+                    <Sidebar viewMode={viewMode} setViewMode={setViewMode} />
                     
-                    <button 
-                        onClick={() => setShowGenerator(true)}
-                        className="bg-green-600 hover:bg-green-500 text-white px-8 py-4 rounded-xl font-bold text-xl shadow-lg transform hover:scale-105 transition flex items-center gap-3"
-                    >
-                        <Icon name="wand-2" size={24} /> ABRIR GENERADOR DE PEDIDOS
-                    </button>
+                    <main className="flex-grow bg-slate-50 overflow-y-auto h-screen">
+                        {viewMode === 'inventory' ? (
+                            <InventoryView inventory={inventory} />
+                        ) : (
+                            <Dashboard orders={orders} viewMode={viewMode} />
+                        )}
 
-                    <p className="mt-4 text-slate-500 text-sm max-w-md">
-                        Esta es una extracción del generador. Al crear un pedido aquí, se guardará en la base de datos "Cirineo" original.
-                    </p>
-
-                    {showGenerator && (
-                        <OrderGeneratorModal 
-                            onClose={() => setShowGenerator(false)} 
-                            onProcess={handleProcessComplete} 
-                        />
-                    )}
+                        {/* BARRA DE ACCESO RÁPIDO INFERIOR (BOTONES ACTUALIZADOS) */}
+                        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex gap-4 px-8 py-4 bg-slate-900/90 backdrop-blur-xl rounded-[2.5rem] shadow-2xl border border-white/10 z-50">
+                            <a href="papeletas.html" className="flex flex-col items-center gap-1 group">
+                                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white group-hover:bg-blue-600 transition-all">
+                                    <Icon name="printer" />
+                                </div>
+                                <span className="text-[9px] font-black text-white uppercase tracking-tighter">Papeletas</span>
+                            </a>
+                            <a href="post-tejido-check.html" className="flex flex-col items-center gap-1 group">
+                                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white group-hover:bg-green-600 transition-all">
+                                    <Icon name="Scan" />
+                                </div>
+                                <span className="text-[9px] font-black text-white uppercase tracking-tighter">Salida</span>
+                            </a>
+                            <div className="w-[1px] bg-white/10 mx-2"></div>
+                            <div className="flex flex-col items-center gap-1 group opacity-50 cursor-not-allowed">
+                                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white">
+                                    <Icon name="ClipboardList" />
+                                </div>
+                                <span className="text-[9px] font-black text-white uppercase tracking-tighter">Reportes</span>
+                            </div>
+                        </div>
+                    </main>
                 </div>
             );
         };
