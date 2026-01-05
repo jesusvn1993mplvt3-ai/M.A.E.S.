@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cirineo Kit V8 - Secure Lock</title>
+    <title>Cirineo V14 - Reimpresión de Partidas</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -15,22 +15,23 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@700&family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@700&family=Roboto+Condensed:wght@900&display=swap" rel="stylesheet">
 
     <style>
         body { background-color: #020617; font-family: 'Roboto Condensed', sans-serif; color: white; }
-        .ficha-tecnica { width: 4in; height: 6in; background: white; color: black; display: flex; flex-direction: column; overflow: hidden; }
-        .txt-oswald { font-family: 'Oswald'; font-weight: 700; }
-        .titulo-modelo { font-size: 52px; line-height: 0.8; letter-spacing: -2px; }
-        .cantidad-gigante { font-size: 38px; line-height: 1; font-weight: 900; }
-        .tabla-kit { width: 100%; border-collapse: collapse; }
-        .tabla-kit th { text-align: left; font-size: 9px; border-bottom: 2px solid #000; padding: 2px; }
-        .tabla-kit td { border-bottom: 1px solid #ddd; padding: 5px 2px; }
-        .custom-scroll::-webkit-scrollbar { width: 4px; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-        
-        /* Estilo para paquetes ya agrupados en esta sesión */
-        .pkg-confirmed { opacity: 0.3; pointer-events: none; border-style: dashed !important; }
+        .papeleta-final { width: 4in; height: 6in; background: white; color: black; display: flex; flex-direction: column; page-break-after: always; border: 2px solid black; }
+        .txt-oswald { font-family: 'Oswald', sans-serif; }
+        .seccion-piezas-horizontal { display: flex; flex-direction: row; gap: 5px; width: 100%; height: 180px; }
+        .bloque-pieza { flex: 1; border: 4px solid black; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 5px; text-align: center; }
+        .cantidad-heavy { font-size: 75px; line-height: 0.7; font-weight: 900; }
+        .nombre-pieza-short { font-size: 18px; font-weight: 900; text-transform: uppercase; margin-top: 5px; overflow: hidden; }
+        .maquina-tag { font-size: 11px; border: 2px solid black; padding: 1px 6px; margin-top: 4px; font-weight: 900; }
+        .cliente-badge { background: black; color: white; padding: 10px 20px; font-size: 28px; font-weight: 900; font-style: italic; }
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; }
+        .pkg-card { cursor: pointer; border: 2px solid #1e293b; transition: 0.2s; position: relative; }
+        .pkg-card.selected { border-color: #3b82f6; background: #0f172a; }
+        .pkg-card.locked { opacity: 0.3; cursor: default; }
     </style>
 </head>
 <body>
@@ -43,37 +44,13 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        const Icon = ({ name, size=16, className="" }) => {
-            const r = useRef(null);
-            useEffect(() => { if (r.current && lucide.icons[name]) r.current.innerHTML = lucide.icons[name].toSvg({ width: size, height: size }); }, [name, size]);
-            return <span ref={r} className={`inline-flex items-center justify-center ${className}`}/>;
-        };
-
-        const SmartImage = ({ modelo, repos }) => {
-            const [src, setSrc] = useState(null);
-            const [idx, setIdx] = useState(0);
-            const urls = useMemo(() => {
-                if (!modelo || !repos.length) return [];
-                const res = [];
-                const variants = [modelo, modelo.toUpperCase(), `${modelo}FRENTE`];
-                repos.forEach(repo => {
-                    const base = repo.url.endsWith('/') ? repo.url : repo.url + '/';
-                    variants.forEach(v => ['png', 'jpg', 'jpeg'].forEach(e => res.push(`${base}${v}.${e}`)));
-                });
-                return res;
-            }, [modelo, repos]);
-            useEffect(() => { setIdx(0); setSrc(urls[0] || null); }, [urls]);
-            return src ? <img src={src} onError={() => {setIdx(i=>i+1); setSrc(urls[idx+1]);}} className="w-full h-full object-contain" /> : <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-300"><Icon name="image-off" size={48}/></div>;
-        };
-
         const App = () => {
             const [orders, setOrders] = useState([]);
             const [selectedKey, setSelectedKey] = useState(null);
-            const [checkedPkgs, setCheckedPkgs] = useState({}); // Los que estás seleccionando
-            const [confirmedPkgs, setConfirmedPkgs] = useState([]); // Los que ya bloqueaste
+            const [checkedIds, setCheckedIds] = useState([]);
+            const [historyKits, setHistoryKits] = useState([]); // Kits ya guardados en DB
             const [repos, setRepos] = useState([]);
-            const [isProcessing, setIsProcessing] = useState(false);
-            const [kitId, setKitId] = useState("");
+            const [isPrinting, setIsPrinting] = useState(false);
             const pdfRef = useRef();
 
             useEffect(() => {
@@ -83,183 +60,169 @@
                 });
             }, []);
 
-            const groups = useMemo(() => {
-                const g = {};
-                orders.forEach(o => {
-                    const key = `${o.codigo}|${o.partida || 'SN'}`;
-                    if(!g[key]) g[key] = { modelo: o.codigo, partida: o.partida || 'SN', cliente: o.cliente, pkgs: [] };
-                    if(o.progreso) o.progreso.forEach(p => {
-                        if(!p.agrupado) g[key].pkgs.push({...p, orderId: o.id});
-                    });
+            // Cargar kits de la base de datos cuando cambia la selección
+            useEffect(() => {
+                if (selectedKey) {
+                    const [m, p] = selectedKey.split('|');
+                    db.collection('kits_produccion')
+                      .where('modelo', '==', m)
+                      .where('partida', '==', p)
+                      .onSnapshot(s => {
+                          const kits = s.docs.map(doc => doc.data());
+                          setHistoryKits(kits);
+                          // Generar códigos de barras para los kits recuperados
+                          setTimeout(() => {
+                              kits.forEach(k => {
+                                  if(document.querySelector(`#bc-${k.kitId}`))
+                                    JsBarcode(`#bc-${k.kitId}`, k.kitId, { height: 35, width: 2, displayValue: true });
+                              });
+                          }, 500);
+                      });
+                }
+            }, [selectedKey]);
+
+            const current = useMemo(() => {
+                if(!selectedKey) return null;
+                const [m, p] = selectedKey.split('|');
+                const pkgs = [];
+                const order = orders.find(o => o.codigo === m && (o.partida || 'SN') === p);
+                orders.filter(o => o.codigo === m && (o.partida || 'SN') === p).forEach(o => {
+                    if(o.progreso) o.progreso.forEach(pqt => pkgs.push({...pqt, orderId: o.id}));
                 });
-                return g;
-            }, [orders]);
+                return { modelo: m, partida: p, cliente: order?.cliente || 'CLIENTE', pkgs };
+            }, [selectedKey, orders]);
 
-            const activePkgs = useMemo(() => selectedKey ? groups[selectedKey]?.pkgs || [] : [], [selectedKey, groups]);
-            
-            // Un paquete está "Listo" si ya fue confirmado O si está checkeado actualmente
-            const allAreConfirmed = useMemo(() => {
-                if(!selectedKey || activePkgs.length === 0) return false;
-                return confirmedPkgs.length === activePkgs.length;
-            }, [confirmedPkgs, activePkgs, selectedKey]);
+            const confirmKit = async () => {
+                const pieces = current.pkgs.filter(p => checkedIds.includes(p.codigoUnico));
+                const kid = `K${Date.now().toString().slice(-6)}`;
+                const newKit = { kitId: kid, modelo: current.modelo, partida: current.partida, cliente: current.cliente, piezas: pieces, fecha: firebase.firestore.FieldValue.serverTimestamp() };
+                
+                const batch = db.batch();
+                batch.set(db.collection('kits_produccion').doc(kid), newKit);
+                
+                pieces.forEach(p => {
+                    const orderRef = db.collection('orders').doc(p.orderId);
+                    const order = orders.find(o => o.id === p.orderId);
+                    const newProg = order.progreso.map(i => i.codigoUnico === p.codigoUnico ? {...i, agrupado: true, kitRef: kid} : i);
+                    batch.update(orderRef, { progreso: newProg });
+                });
 
-            const handleConfirmGroup = () => {
-                const justChecked = activePkgs.filter(p => checkedPkgs[p.codigoUnico]);
-                setConfirmedPkgs(prev => [...prev, ...justChecked]);
-                setCheckedPkgs({}); // Limpiamos selección para la siguiente tanda
+                await batch.commit();
+                setCheckedIds([]);
             };
 
-            const handleFinalPrint = async () => {
-                setIsProcessing(true);
-                try {
-                    const batch = db.batch();
-                    const newKitRef = db.collection('kits_produccion').doc();
-                    setKitId(newKitRef.id);
-
-                    batch.set(newKitRef, {
-                        id: newKitRef.id,
-                        modelo: groups[selectedKey].modelo,
-                        partida: groups[selectedKey].partida,
-                        piezas: confirmedPkgs,
-                        fecha: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-
-                    // Marcar en la orden original
-                    confirmedPkgs.forEach(p => {
-                        const orderRef = db.collection('orders').doc(p.orderId);
-                        const fullOrder = orders.find(o => o.id === p.orderId);
-                        const nuevoProgreso = fullOrder.progreso.map(item => 
-                            item.codigoUnico === p.codigoUnico ? {...item, agrupado: true, kitRef: newKitRef.id} : item
-                        );
-                        batch.update(orderRef, { progreso: nuevoProgreso });
-                    });
-
-                    await batch.commit();
-
-                    JsBarcode("#barcode", newKitRef.id, { format: "CODE128", width: 2, height: 50, displayValue: true });
-                    const opt = { margin: 0, filename: `KIT_${groups[selectedKey].modelo}.pdf`, jsPDF: { unit: 'in', format: [4, 6], orientation: 'portrait' } };
-                    await html2pdf().set(opt).from(pdfRef.current).save();
-
-                    // Reset total
-                    setConfirmedPkgs([]);
-                    setSelectedKey(null);
-                } catch (e) { alert("Error"); }
-                setIsProcessing(false);
+            const downloadPDF = async () => {
+                setIsPrinting(true);
+                const opt = { margin: 0, filename: `REIMPRESION_${selectedKey}.pdf`, html2canvas: { scale: 3, useCORS: true }, jsPDF: { unit: 'in', format: [4, 6] } };
+                await html2pdf().set(opt).from(pdfRef.current).save();
+                setIsPrinting(false);
             };
 
             return (
-                <div className="flex h-screen bg-slate-950">
-                    {/* SIDEBAR */}
-                    <div className="w-80 border-r border-slate-800 flex flex-col bg-slate-900/40">
-                        <div className="p-6 border-b border-slate-800">
-                            <h1 className="text-xl font-black text-yellow-500 italic uppercase">Agrupador v8</h1>
-                        </div>
-                        <div className="flex-1 overflow-y-auto custom-scroll p-4 space-y-2">
-                            {Object.keys(groups).map(k => (
-                                <div key={k} onClick={() => {setSelectedKey(k); setConfirmedPkgs([]); setCheckedPkgs({});}}
-                                    className={`p-4 rounded-xl cursor-pointer transition-all border-l-4 
-                                    ${selectedKey === k ? 'bg-slate-800 border-yellow-500' : 'hover:bg-slate-800/40 border-transparent'}`}>
-                                    <div className="font-bold">{groups[k].modelo}</div>
-                                    <div className="text-[10px] opacity-40 uppercase font-black">Pendientes: {groups[k].pkgs.length}</div>
+                <div className="flex h-screen bg-slate-950 text-white overflow-hidden">
+                    {/* LISTADO DE PARTIDAS (Incluso las terminadas) */}
+                    <div className="w-64 border-r border-slate-800 flex flex-col shrink-0">
+                        <div className="p-4 border-b border-slate-800 text-[10px] font-black opacity-40 tracking-widest uppercase">Historial de Partidas</div>
+                        <div className="flex-1 overflow-y-auto custom-scroll p-2">
+                            {Array.from(new Set(orders.map(o => `${o.codigo}|${o.partida || 'SN'}`))).sort().map(k => (
+                                <div key={k} onClick={() => {setSelectedKey(k); setCheckedIds([]);}}
+                                    className={`p-3 rounded-lg mb-1 cursor-pointer transition-all ${selectedKey === k ? 'bg-blue-600' : 'hover:bg-slate-900'}`}>
+                                    <div className="font-bold text-sm">{k.split('|')[0]}</div>
+                                    <div className="text-[9px] opacity-60 font-black uppercase">Partida: {k.split('|')[1]}</div>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* MAIN */}
-                    <div className="flex-1 flex flex-col overflow-hidden">
-                        {selectedKey ? (
-                            <>
-                                <div className="p-8 border-b border-slate-800 flex justify-between items-center bg-slate-900/20">
+                    {/* MESA DE TRABAJO */}
+                    <div className="flex-1 flex flex-col p-6 overflow-hidden">
+                        {current ? (
+                            <div className="flex flex-col h-full">
+                                <div className="flex justify-between items-center mb-6">
                                     <div>
-                                        <h2 className="text-5xl font-black txt-oswald italic uppercase">{groups[selectedKey].modelo}</h2>
-                                        <p className="text-sm font-bold mt-1">
-                                            {allAreConfirmed ? 
-                                                <span className="text-green-400">✓ PARTIDA COMPLETA - LISTO PARA IMPRIMIR</span> : 
-                                                <span className="text-slate-500 italic">Progreso: {confirmedPkgs.length} de {activePkgs.length} paquetes agrupados</span>
-                                            }
-                                        </p>
+                                        <h1 className="text-5xl font-black italic tracking-tighter">{current.modelo}</h1>
+                                        <span className="bg-slate-800 px-3 py-1 rounded text-[10px] font-black text-blue-400 uppercase tracking-widest">{current.partida}</span>
                                     </div>
-                                    <div className="flex gap-4">
-                                        {/* Botón de Confirmar (Solo si hay algo seleccionado) */}
-                                        {Object.values(checkedPkgs).some(v => v) && (
-                                            <button onClick={handleConfirmGroup} className="bg-blue-600 hover:bg-blue-500 text-white font-black px-6 py-4 rounded-xl flex items-center gap-2 animate-bounce">
-                                                <Icon name="link" /> CONFIRMAR AGRUPACIÓN
-                                            </button>
-                                        )}
-                                        
-                                        {/* Botón de PDF (Solo si TODO está confirmado) */}
-                                        {allAreConfirmed && (
-                                            <button onClick={handleFinalPrint} disabled={isProcessing}
-                                                className="bg-yellow-500 hover:bg-yellow-400 text-black font-black px-10 py-4 rounded-xl flex items-center gap-3 shadow-[0_0_20px_rgba(234,179,8,0.4)]">
-                                                <Icon name="printer" size={24}/> {isProcessing ? 'PROCESANDO...' : 'GENERAR PDF FINAL'}
-                                            </button>
-                                        )}
-                                    </div>
+                                    
+                                    {/* SIEMPRE PERMITE IMPRIMIR SI HAY KITS EN EL HISTORIAL */}
+                                    {historyKits.length > 0 && (
+                                        <button onClick={downloadPDF} disabled={isPrinting} className="bg-green-500 hover:bg-green-400 text-black font-black px-8 py-4 rounded-xl flex items-center gap-3 shadow-lg transition-all active:scale-95">
+                                            <span className="text-xl">🖨️</span> {isPrinting ? 'GENERANDO...' : `IMPRIMIR ${historyKits.length} PAPELETAS`}
+                                        </button>
+                                    )}
                                 </div>
 
-                                <div className="flex-1 p-8 overflow-y-auto grid grid-cols-2 md:grid-cols-4 gap-4 content-start">
-                                    {activePkgs.map(p => {
-                                        const isConfirmed = confirmedPkgs.find(x => x.codigoUnico === p.codigoUnico);
-                                        const isChecked = checkedPkgs[p.codigoUnico];
+                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 overflow-y-auto custom-scroll pb-20">
+                                    {current.pkgs.map(p => {
+                                        const isAlreadyGrouped = p.agrupado;
+                                        const isSelected = checkedIds.includes(p.codigoUnico);
                                         return (
                                             <div key={p.codigoUnico} 
-                                                onClick={() => !isConfirmed && setCheckedPkgs(v => ({...v, [p.codigoUnico]: !v[p.codigoUnico]}))}
-                                                className={`p-5 rounded-2xl border-2 transition-all cursor-pointer h-32 flex flex-col justify-between
-                                                ${isConfirmed ? 'pkg-confirmed border-slate-700 bg-slate-900/50' : 
-                                                  isChecked ? 'bg-white text-black border-blue-500 scale-105' : 'bg-slate-900 border-slate-800'}`}>
-                                                
-                                                <div className="flex justify-between items-start">
-                                                    <span className={`text-2xl font-black txt-oswald ${isConfirmed ? 'text-slate-600' : ''}`}>#{p.paqueteNum}</span>
-                                                    {isConfirmed ? <Icon name="lock" size={18} className="text-green-500"/> : 
-                                                     isChecked ? <Icon name="check-circle" size={18} className="text-blue-500"/> : null}
+                                                onClick={() => !isAlreadyGrouped && setCheckedIds(v => isSelected ? v.filter(x=>x!==p.codigoUnico) : [...v, p.codigoUnico])}
+                                                className={`pkg-card p-4 rounded-xl ${isSelected ? 'selected' : ''} ${isAlreadyGrouped ? 'locked' : ''}`}>
+                                                <div className="flex justify-between">
+                                                    <span className="text-xl font-black txt-oswald">#{p.paqueteNum}</span>
+                                                    {isAlreadyGrouped && <span className="text-green-500 text-[10px] font-black">AGRUPADO</span>}
                                                 </div>
-                                                <div className="flex justify-between items-end">
-                                                    <span className="text-[10px] font-bold uppercase truncate w-24 opacity-60">{p.piezaNombre}</span>
-                                                    <span className={`text-3xl font-black ${isConfirmed ? 'text-slate-600' : 'text-yellow-500'}`}>{p.cantidad}</span>
-                                                </div>
+                                                <div className="mt-4 text-3xl font-black text-blue-500 text-right">{p.cantidad}</div>
+                                                <div className="text-[10px] opacity-30 uppercase font-black truncate">{p.piezaNombre}</div>
                                             </div>
                                         );
                                     })}
                                 </div>
-                            </>
+
+                                {checkedIds.length > 0 && (
+                                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-white p-4 rounded-2xl shadow-2xl flex items-center gap-6 border-4 border-blue-500">
+                                        <div className="text-black font-black uppercase text-sm italic">Agrupando {checkedIds.length} paquetes...</div>
+                                        <button onClick={confirmKit} className="bg-blue-600 text-white font-black px-10 py-3 rounded-xl hover:bg-blue-700 transition-colors">
+                                            CONFIRMAR Y GUARDAR
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center opacity-20"><Icon name="box" size={120}/><h2 className="text-2xl font-black mt-4">SELECCIONA UNA PARTIDA</h2></div>
+                            <div className="flex-1 flex flex-col items-center justify-center opacity-10">
+                                <span className="text-9xl">📋</span>
+                                <h2 className="text-2xl font-black mt-4">SELECCIONA UNA PARTIDA</h2>
+                            </div>
                         )}
                     </div>
 
-                    {/* PDF HIDDEN */}
+                    {/* PDF HIDDEN - REIMPRESIÓN TOTAL */}
                     <div style={{ position: 'absolute', left: '-9999px' }}>
-                        <div ref={pdfRef} className="ficha-tecnica">
-                            <div className="h-[18%] bg-black text-white p-4 flex justify-between items-center border-b-4 border-yellow-500">
-                                <div><span className="text-[10px] text-yellow-400 font-black tracking-widest block">KIT DE ENSAMBLE</span><span className="txt-oswald titulo-modelo uppercase">{selectedKey && groups[selectedKey].modelo}</span></div>
-                                <div className="text-right"><span className="text-[10px] text-gray-400 font-bold block">PARTIDA</span><span className="text-2xl font-bold txt-oswald">{selectedKey && groups[selectedKey].partida}</span></div>
-                            </div>
-                            <div className="h-[62%] flex">
-                                <div className="w-[45%] border-r-2 border-black p-2 flex flex-col bg-white">
-                                    <div className="flex-1 overflow-hidden"><SmartImage modelo={selectedKey && groups[selectedKey].modelo} repos={repos} /></div>
-                                    <div className="mt-2 text-[10px] font-black text-center bg-black text-white py-1 italic uppercase">Validación Completa</div>
-                                </div>
-                                <div className="w-[55%] p-3 flex flex-col bg-white">
-                                    <div className="text-[10px] font-black border-b-2 border-black mb-2 pb-1 italic">RESUMEN DE CONTENIDO</div>
-                                    <table className="tabla-kit">
-                                        <thead><tr><th>CANT.</th><th>PIEZA</th><th className="text-right">#PQT</th></tr></thead>
-                                        <tbody>
-                                            {confirmedPkgs.map((p, i) => (
-                                                <tr key={i}>
-                                                    <td><span className="txt-oswald cantidad-gigante">{p.cantidad}</span></td>
-                                                    <td className="text-[10px] font-bold uppercase">{p.piezaNombre}</td>
-                                                    <td className="text-right font-black">#{p.paqueteNum}</td>
-                                                </tr>
+                        <div ref={pdfRef}>
+                            {historyKits.map((kit, i) => (
+                                <div key={i} className="papeleta-final">
+                                    <div className="p-6 flex justify-between items-start border-b-[6px] border-black">
+                                        <div className="cliente-badge">{kit.cliente}</div>
+                                        <div className="text-right leading-[0.7]">
+                                            <div className="text-[75px] txt-oswald uppercase tracking-tighter">{kit.modelo}</div>
+                                            <div className="text-3xl font-black opacity-80 mt-2 uppercase italic">{kit.partida}</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex-1 flex flex-col p-4 items-center">
+                                        <div className="h-[230px] w-full flex items-center justify-center mb-4">
+                                            <img src={`${repos[0]?.url}${kit.modelo}.png`} crossOrigin="anonymous" className="h-full object-contain" />
+                                        </div>
+
+                                        <div className="seccion-piezas-horizontal">
+                                            {kit.piezas.map((p, idx) => (
+                                                <div key={idx} className="bloque-pieza">
+                                                    <span className="cantidad-heavy">{p.cantidad}</span>
+                                                    <span className="nombre-pieza-short">{p.piezaNombre.split(' ')[0]}</span>
+                                                    <div className="maquina-tag">MAQ: {p.maquina || 'S/N'}</div>
+                                                </div>
                                             ))}
-                                        </tbody>
-                                    </table>
+                                        </div>
+                                    </div>
+
+                                    <div className="h-28 flex flex-col items-center justify-center p-2 border-t-[4px] border-black border-dashed bg-white">
+                                        <svg id={`bc-${kit.kitId}`}></svg>
+                                        <div className="text-xs font-black mt-1 uppercase tracking-widest">ID: {kit.kitId}</div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="h-[20%] border-t-4 border-black flex flex-col items-center justify-center p-2 bg-white">
-                                <svg id="barcode"></svg>
-                                <span className="text-[8px] font-mono text-gray-400 mt-1">KIT_ID: {kitId}</span>
-                            </div>
+                            ))}
                         </div>
                     </div>
                 </div>
