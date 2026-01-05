@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cirineo Kit Maker V11 - Persistencia y Preview</title>
+    <title>Cirineo Kit Maker V11 - Maq DB Mode</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -19,9 +19,33 @@
 
     <style>
         body { background-color: #020617; font-family: 'Roboto Condensed', sans-serif; color: white; }
-        .ficha-base { width: 4in; height: 6in; background: white; color: black; display: flex; flex-direction: column; page-break-after: always; }
+        
+        /* PAPELETA 4x6 PULGADAS */
+        .ficha-base { 
+            width: 4in; 
+            height: 6in; 
+            background: white; 
+            color: black; 
+            display: flex; 
+            flex-direction: column; 
+            page-break-after: always; 
+            overflow: hidden;
+        }
+        
         .txt-oswald { font-family: 'Oswald'; }
-        .qty-label { font-size: 38px; font-weight: 900; line-height: 0.8; }
+        
+        /* CANTIDAD GIGANTE */
+        .qty-label { font-size: 55px; font-weight: 900; line-height: 0.8; letter-spacing: -2px; }
+        
+        /* ESTILOS DE LA TABLA HORIZONTAL */
+        .table-horizontal { width: 100%; border-collapse: collapse; margin-top: 5px; }
+        .table-horizontal td { border-bottom: 2px solid #000; padding: 6px 4px; vertical-align: middle; }
+        .table-horizontal tr:last-child td { border-bottom: none; }
+        
+        /* MAQUINA ESTILO */
+        .maq-label { font-size: 28px; font-weight: 900; font-style: italic; color: #444; line-height: 1; }
+        
+        /* UI ELEMENTOS */
         .pkg-card { transition: all 0.2s; cursor: pointer; border: 2px solid #1e293b; padding: 12px; border-radius: 12px; }
         .pkg-card.selected { border-color: #eab308; background: #1e293b; transform: scale(1.02); }
         .pkg-card.confirmed { opacity: 0.2; pointer-events: none; filter: grayscale(1); }
@@ -39,13 +63,19 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
+        // FUNCIÓN: Extraer solo la primera palabra
+        const getCleanName = (fullName) => {
+            if (!fullName) return '';
+            return fullName.trim().split(' ')[0];
+        };
+
         const Icon = ({ name, size=16, className="" }) => {
             const r = useRef(null);
             useEffect(() => { if (r.current && lucide.icons[name]) r.current.innerHTML = lucide.icons[name].toSvg({ width: size, height: size }); }, [name, size]);
             return <span ref={r} className={`inline-flex items-center justify-center ${className}`}/>;
         };
 
-        const SmartImage = ({ modelo, repos, onLoaded }) => {
+        const SmartImage = ({ modelo, repos }) => {
             const [src, setSrc] = useState(null);
             const [idx, setIdx] = useState(0);
             const urls = useMemo(() => {
@@ -58,15 +88,11 @@
                 });
                 return res;
             }, [modelo, repos]);
-
             useEffect(() => { setIdx(0); setSrc(urls[0] || null); }, [urls]);
-
             return src ? (
-                <img src={src} 
-                     onLoad={onLoaded}
-                     onError={() => { if(idx < urls.length) { setIdx(idx+1); setSrc(urls[idx+1]); } }} 
+                <img src={src} onError={() => { if(idx < urls.length) { setIdx(idx+1); setSrc(urls[idx+1]); } }} 
                      className="w-full h-full object-contain" />
-            ) : <div className="text-[10px] text-gray-300">Sin Imagen</div>;
+            ) : <div className="text-[10px] text-gray-300 flex items-center justify-center h-full">Sin Imagen</div>;
         };
 
         const App = () => {
@@ -89,8 +115,22 @@
                 if(!selectedKey) return null;
                 const [mod, part] = selectedKey.split('|');
                 const pkgs = [];
+                
+                // Recorremos las órdenes y sus paquetes
                 orders.filter(o => o.codigo === mod && (o.partida || 'SN') === part).forEach(o => {
-                    if(o.progreso) o.progreso.forEach(p => pkgs.push({...p, orderId: o.id}));
+                    if(o.progreso) {
+                        o.progreso.forEach(p => {
+                            // IMPORTANTE: Aquí extraemos la máquina.
+                            // Prioridad: 1. Maquina del paquete (si existe) 2. Maquina de la orden
+                            const maquinaFinal = p.maquina || o.maquina || ''; 
+                            
+                            pkgs.push({
+                                ...p, 
+                                orderId: o.id, 
+                                maquina: maquinaFinal // Pasamos la máquina limpia al objeto
+                            });
+                        });
+                    }
                 });
                 return { modelo: mod, partida: part, pkgs: pkgs.sort((a,b)=>a.paqueteNum - b.paqueteNum) };
             }, [selectedKey, orders]);
@@ -100,16 +140,16 @@
                 return currentData.pkgs.filter(p => checkedIds.includes(p.codigoUnico));
             }, [checkedIds, currentData]);
 
-            // Función para agrupar y GUARDAR en DB inmediatamente
             const handleConfirmGroup = async () => {
                 if (selectedPieces.length === 0) return;
-                
                 const tempId = `K${Date.now().toString().slice(-6)}`;
+                
+                // Guardamos los datos con la máquina incluida
                 const newKit = {
                     kitId: tempId,
                     modelo: currentData.modelo,
                     partida: currentData.partida,
-                    piezas: selectedPieces,
+                    piezas: selectedPieces, // Ya trae 'maquina' del useMemo
                     fecha: firebase.firestore.FieldValue.serverTimestamp()
                 };
 
@@ -117,95 +157,54 @@
                     const batch = db.batch();
                     const kitRef = db.collection('kits_produccion').doc(tempId);
                     batch.set(kitRef, newKit);
-
-                    // Marcar paquetes como agrupados en sus órdenes
                     selectedPieces.forEach(p => {
                         const orderRef = db.collection('orders').doc(p.orderId);
                         const order = orders.find(o => o.id === p.orderId);
                         const newProg = order.progreso.map(i => i.codigoUnico === p.codigoUnico ? {...i, agrupado: true, kitRef: tempId} : i);
                         batch.update(orderRef, { progreso: newProg });
                     });
-
                     await batch.commit();
                     setKitQueue([...kitQueue, newKit]);
                     setCheckedIds([]);
-                    
-                    // Generar Barcode para la cola
-                    setTimeout(() => {
-                        JsBarcode(`#bc-${tempId}`, tempId, { format: "CODE128", height: 40, displayValue: true });
-                    }, 500);
-
+                    setTimeout(() => { JsBarcode(`#bc-${tempId}`, tempId, { format: "CODE128", height: 40, displayValue: true }); }, 500);
                 } catch (e) { console.error("Error al agrupar:", e); }
             };
 
-            // --- NUEVA FUNCIÓN: REINICIAR (DESAGRUPAR) TODA LA PARTIDA ---
             const handleResetGroup = async () => {
-                if (!currentData) return;
-                
-                const confirmacion = window.confirm(
-                    `PELIGRO: ¿Estás seguro de REINICIAR la partida ${currentData.partida} del modelo ${currentData.modelo}? \n\nEsto liberará TODOS los paquetes (agrupado = false) y borrará las referencias de kits.`
-                );
-                if (!confirmacion) return;
-
+                if (!currentData || !window.confirm(`¿Reiniciar partida ${currentData.partida}?`)) return;
                 setIsSaving(true);
                 try {
                     const batch = db.batch();
-                    
-                    // Filtrar solo las órdenes que corresponden a lo que estamos viendo
-                    const ordersToReset = orders.filter(o => 
-                        o.codigo === currentData.modelo && 
-                        (o.partida || 'SN') === currentData.partida
-                    );
-
-                    // Preparar updates
-                    ordersToReset.forEach(order => {
+                    orders.filter(o => o.codigo === currentData.modelo && (o.partida || 'SN') === currentData.partida).forEach(order => {
                         const orderRef = db.collection('orders').doc(order.id);
-                        
-                        // Modificar el array de progreso para quitar agrupado y kitRef
-                        const newProg = order.progreso.map(p => ({
-                            ...p, 
-                            agrupado: false, 
-                            kitRef: null
-                        }));
-
+                        const newProg = order.progreso.map(p => ({...p, agrupado: false, kitRef: null}));
                         batch.update(orderRef, { progreso: newProg });
                     });
-
                     await batch.commit();
-                    
-                    setKitQueue([]); // Limpiar la cola visual
-                    setCheckedIds([]); // Limpiar selección
-                    alert("Partida reiniciada correctamente.");
-                    
-                } catch (e) {
-                    console.error("Error al reiniciar:", e);
-                    alert("Hubo un error al intentar reiniciar la partida.");
-                }
+                    setKitQueue([]);
+                    setCheckedIds([]);
+                } catch (e) { console.error(e); }
                 setIsSaving(false);
             };
-            // -------------------------------------------------------------
 
             const downloadPDF = async () => {
                 setIsSaving(true);
                 const opt = { 
-                    margin: 0, 
-                    filename: `PAPELETAS_${selectedKey}.pdf`, 
+                    margin: 0, filename: `KITS_${selectedKey}.pdf`, 
                     image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2, useCORS: true },
+                    html2canvas: { scale: 3, useCORS: true },
                     jsPDF: { unit: 'in', format: [4, 6], orientation: 'portrait' } 
                 };
-                
                 try {
                     await html2pdf().set(opt).from(pdfRef.current).save();
                     setKitQueue([]);
                     setSelectedKey(null);
-                } catch (e) { alert("Error al generar PDF"); }
+                } catch (e) { alert("Error PDF"); }
                 setIsSaving(false);
             };
 
             return (
                 <div className="flex h-screen overflow-hidden bg-slate-950">
-                    {/* LISTA DE PARTIDAS */}
                     <div className="w-72 bg-slate-900 border-r border-slate-800 flex flex-col">
                         <div className="p-6 border-b border-slate-800 font-black text-yellow-500 italic">CIRINEO V11</div>
                         <div className="flex-1 overflow-y-auto custom-scroll p-4 space-y-2">
@@ -219,31 +218,20 @@
                         </div>
                     </div>
 
-                    {/* SELECCIÓN Y PREVIEW */}
                     <div className="flex-1 flex flex-col">
                         {selectedKey ? (
                             <div className="flex h-full">
-                                {/* PAQUETES */}
                                 <div className="flex-1 flex flex-col p-8 overflow-y-auto custom-scroll">
                                     <div className="flex justify-between items-end mb-8">
                                         <div className="flex items-center gap-4">
                                             <h2 className="text-5xl font-black txt-oswald italic uppercase leading-none">{currentData.modelo}</h2>
-                                            
-                                            {/* --- BOTÓN RESET (NUEVO) --- */}
-                                            <button 
-                                                onClick={handleResetGroup} 
-                                                disabled={isSaving}
-                                                title="Reiniciar partida (Desagrupar todos los paquetes)"
-                                                className="h-10 w-10 flex items-center justify-center rounded-full bg-red-900/40 border border-red-500 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-lg"
-                                            >
+                                            <button onClick={handleResetGroup} disabled={isSaving} className="h-10 w-10 flex items-center justify-center rounded-full bg-red-900/40 border border-red-500 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-lg">
                                                 <Icon name="rotate-ccw" size={20} />
                                             </button>
-                                            {/* --------------------------- */}
                                         </div>
-
                                         {kitQueue.length > 0 && (
                                             <button onClick={downloadPDF} disabled={isSaving} className="bg-green-500 text-black font-black px-8 py-4 rounded-xl shadow-xl flex items-center gap-2">
-                                                <Icon name="download" /> {isSaving ? 'PROCESANDO...' : `DESCARGAR ${kitQueue.length} PAPELETAS`}
+                                                <Icon name="download" /> {isSaving ? 'GENERANDO...' : `PDF (${kitQueue.length})`}
                                             </button>
                                         )}
                                     </div>
@@ -259,7 +247,11 @@
                                                         {grouped && <Icon name="lock" className="text-green-500"/>}
                                                     </div>
                                                     <div className="mt-4 flex justify-between items-end">
-                                                        <span className="text-[10px] uppercase font-black opacity-50 truncate w-20">{p.piezaNombre}</span>
+                                                        <div>
+                                                            {/* Mostramos la máquina también en la tarjeta de selección */}
+                                                            <span className="text-xs font-bold block opacity-60">MAQ: {p.maquina || '?'}</span>
+                                                            <span className="text-[14px] uppercase font-black truncate w-24 block">{getCleanName(p.piezaNombre)}</span>
+                                                        </div>
                                                         <span className="text-3xl font-black text-yellow-500">{p.cantidad}</span>
                                                     </div>
                                                 </div>
@@ -268,28 +260,35 @@
                                     </div>
                                 </div>
 
-                                {/* VISTA PREVIA LATERAL */}
-                                <div className="w-[400px] border-l border-slate-800 bg-slate-900/30 p-6 flex flex-col items-center">
-                                    <h3 className="text-xs font-black text-slate-500 uppercase mb-4">Vista Previa Papeleta</h3>
+                                <div className="w-[420px] border-l border-slate-800 bg-slate-900/30 p-6 flex flex-col items-center">
+                                    <h3 className="text-xs font-black text-slate-500 uppercase mb-4">Vista Previa</h3>
                                     {selectedPieces.length > 0 ? (
                                         <div className="w-full flex flex-col items-center gap-4">
-                                            <div className="ficha-base rounded shadow-2xl scale-[0.8] origin-top">
-                                                <div className="h-[18%] bg-black text-white p-3 flex justify-between items-center border-b-4 border-yellow-500">
-                                                    <div className="text-xl txt-oswald uppercase leading-none">{currentData.modelo}</div>
-                                                    <div className="text-right text-sm font-bold txt-oswald">{currentData.partida}</div>
+                                            <div className="ficha-base rounded shadow-2xl scale-[0.75] origin-top">
+                                                <div className="h-[18%] bg-black text-white p-4 flex justify-between items-center border-b-4 border-yellow-500">
+                                                    <div><span className="text-[10px] text-yellow-400 font-black block">ENSAMBLE</span><span className="text-5xl txt-oswald uppercase leading-none">{currentData.modelo}</span></div>
+                                                    <div className="text-right"><span className="text-3xl font-bold txt-oswald">{currentData.partida}</span></div>
                                                 </div>
                                                 <div className="h-[62%] flex">
-                                                    <div className="w-[45%] border-r p-2 flex items-center justify-center">
+                                                    <div className="w-[40%] border-r-2 border-black p-2 flex items-center justify-center">
                                                         <SmartImage modelo={currentData.modelo} repos={repos} />
                                                     </div>
-                                                    <div className="w-[55%] p-2 overflow-hidden">
-                                                        <table className="w-full text-black text-[10px]">
-                                                            <thead><tr className="border-b"><th>CANT.</th><th>PIEZA</th></tr></thead>
+                                                    <div className="w-[60%] p-4">
+                                                        <table className="table-horizontal">
+                                                            <thead>
+                                                                <tr className="text-[9px] font-black text-left">
+                                                                    <th className="w-16">CANT.</th>
+                                                                    <th>DETALLE</th>
+                                                                </tr>
+                                                            </thead>
                                                             <tbody>
                                                                 {selectedPieces.map((p, i) => (
-                                                                    <tr key={i} className="border-b border-gray-100">
-                                                                        <td><span className="txt-oswald qty-label text-2xl">{p.cantidad}</span></td>
-                                                                        <td className="font-bold uppercase leading-none">{p.piezaNombre}</td>
+                                                                    <tr key={i}>
+                                                                        <td><span className="txt-oswald qty-label">{p.cantidad}</span></td>
+                                                                        <td>
+                                                                            <div className="font-bold text-xl uppercase leading-none">{getCleanName(p.piezaNombre)}</div>
+                                                                            <div className="maq-label">Maq {p.maquina || 'SN'}</div>
+                                                                        </td>
                                                                     </tr>
                                                                 ))}
                                                             </tbody>
@@ -298,39 +297,47 @@
                                                 </div>
                                             </div>
                                             <button onClick={handleConfirmGroup} className="w-full bg-yellow-500 text-black font-black py-4 rounded-xl flex items-center justify-center gap-2">
-                                                <Icon name="check" /> CONFIRMAR GRUPO
+                                                <Icon name="check" /> CONFIRMAR
                                             </button>
                                         </div>
-                                    ) : <div className="mt-20 text-slate-600 text-center text-sm font-bold italic">Selecciona paquetes para visualizar...</div>}
+                                    ) : <div className="mt-20 text-slate-600 font-bold italic">Selecciona paquetes...</div>}
                                 </div>
                             </div>
                         ) : <div className="flex-1 flex items-center justify-center opacity-10"><Icon name="printer" size={100}/></div>}
                     </div>
 
-                    {/* PDF CONTAINER (OCULTO - Aquí se generan todas las papeletas finales) */}
                     <div style={{ position: 'absolute', left: '-9999px' }}>
                         <div ref={pdfRef}>
                             {kitQueue.map((kit, idx) => (
                                 <div key={idx} className="ficha-base">
                                     <div className="h-[18%] bg-black text-white p-4 flex justify-between items-center border-b-4 border-yellow-500">
-                                        <div><span className="text-[10px] text-yellow-400 font-black block">ENSAMBLE</span><span className="text-5xl txt-oswald uppercase leading-none">{kit.modelo}</span></div>
-                                        <div className="text-right"><span className="text-3xl font-bold txt-oswald">{kit.partida}</span></div>
+                                        <div><span className="text-[10px] text-yellow-400 font-black block">ENSAMBLE</span><span className="text-6xl txt-oswald uppercase leading-none">{kit.modelo}</span></div>
+                                        <div className="text-right"><span className="text-4xl font-bold txt-oswald">{kit.partida}</span></div>
                                     </div>
                                     <div className="h-[62%] flex">
-                                        <div className="w-[45%] border-r-2 border-black p-2 flex flex-col items-center">
-                                            {/* Forzamos que la imagen esté disponible para el PDF */}
+                                        <div className="w-[42%] border-r-4 border-black p-2 flex flex-col items-center justify-center">
                                             <SmartImage modelo={kit.modelo} repos={repos} />
-                                            <div className="mt-2 text-[10px] bg-black text-white text-center py-1 font-black w-full uppercase">Kit Validado</div>
                                         </div>
-                                        <div className="w-[55%] p-3">
-                                            <table className="w-full">
-                                                <thead><tr className="text-[10px] font-black border-b-2 border-black"><th>CANT.</th><th>PIEZA</th><th className="text-right">#</th></tr></thead>
+                                        <div className="w-[58%] p-4">
+                                            <table className="table-horizontal">
+                                                <thead>
+                                                    <tr className="text-[10px] font-black border-b-2 border-black">
+                                                        <th className="text-left py-1 w-16">CANT.</th>
+                                                        <th className="text-left py-1">PIEZA / MAQ</th>
+                                                    </tr>
+                                                </thead>
                                                 <tbody>
                                                     {kit.piezas.map((p, i) => (
-                                                        <tr key={i} className="border-b border-gray-200">
+                                                        <tr key={i}>
                                                             <td className="py-2"><span className="txt-oswald qty-label">{p.cantidad}</span></td>
-                                                            <td className="text-[11px] font-bold uppercase leading-none">{p.piezaNombre}</td>
-                                                            <td className="text-right font-black">#{p.paqueteNum}</td>
+                                                            <td className="py-2">
+                                                                <div className="text-[18px] font-black uppercase leading-none transform translate-y-1">
+                                                                    {getCleanName(p.piezaNombre)}
+                                                                </div>
+                                                                <div className="text-4xl font-black italic mt-1 block text-slate-800">
+                                                                    Maq {p.maquina || 'SN'}
+                                                                </div>
+                                                            </td>
                                                         </tr>
                                                     ))}
                                                 </tbody>
@@ -339,7 +346,7 @@
                                     </div>
                                     <div className="h-[20%] border-t-4 border-black flex flex-col items-center justify-center p-2 bg-white">
                                         <svg id={`bc-${kit.kitId}`}></svg>
-                                        <span className="text-[8px] font-mono mt-1 uppercase">ID: {kit.kitId}</span>
+                                        <span className="text-[10px] font-black mt-1 uppercase tracking-widest">ID: {kit.kitId}</span>
                                     </div>
                                 </div>
                             ))}
