@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agrupador Universal - Cirineo</title>
+    <title>Cirineo Kit Maker (4x6)</title>
     
     <link rel="icon" href="https://raw.githubusercontent.com/jesusvn1993mplvt3-ai/CIRINEO/refs/heads/main/icon.ico">
 
@@ -20,33 +20,36 @@
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
 
     <style>
-        body { background-color: #f1f5f9; font-family: 'Roboto Condensed', sans-serif; overflow: hidden; }
+        body { background-color: #e2e8f0; font-family: 'Roboto Condensed', sans-serif; overflow: hidden; }
         
-        /* Contenedor principal para PDF */
-        .stacked-label-container {
-            width: 6in;
-            display: flex;
+        /* --- EL LIENZO 4x6 --- */
+        .kit-label-container {
+            width: 4in;
+            height: 6in;
             background: white;
-            border: 2px solid black;
+            border: 1px solid #ccc; /* Borde solo para pantalla */
             box-sizing: border-box;
-            page-break-inside: avoid;
+            display: flex;
+            flex-direction: column;
             position: relative;
+            overflow: hidden;
+            page-break-inside: avoid;
         }
 
-        /* Estructura de filas */
-        .mini-label-row { display: flex; height: 1.4in; border-bottom: 2px solid black; box-sizing: border-box; }
-        .mini-label-row:last-child { border-bottom: none; }
-        
-        /* Celdas de datos */
-        .lbl-data-row { display: flex; border-bottom: 1px solid #000; height: 33.33%; }
-        .lbl-data-col { padding: 1px 4px; border-right: 1px solid #000; display: flex; flex-direction: column; justify-content: center;}
-        
+        /* En el PDF quitamos el borde visual */
+        @media print { .kit-label-container { border: none; } }
+
         /* Tipografía */
-        .lbl-title { font-size: 8px; font-weight: 700; color: #555; text-transform: uppercase; line-height: 1; }
-        .lbl-val-big { font-family: 'Oswald'; font-weight: 700; font-size: 24px; line-height: 0.9; color: black;}
-        .lbl-val-huge { font-family: 'Oswald'; font-weight: 700; font-size: 32px; line-height: 0.9; color: black;}
+        .txt-model { font-family: 'Oswald'; font-weight: 700; line-height: 0.9; }
+        .txt-qty { font-family: 'Oswald'; font-weight: 700; line-height: 1; color: #000; }
         
-        /* Sidebar Scroll */
+        /* Tabla del Kit */
+        .kit-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .kit-table th { text-align: left; font-size: 10px; border-bottom: 2px solid #000; color: #555; padding: 2px; }
+        .kit-table td { border-bottom: 1px solid #ddd; padding: 4px 2px; vertical-align: middle; }
+        .kit-row-even { background-color: #f8fafc; }
+
+        /* Scrollbar del sidebar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
@@ -68,35 +71,27 @@
             return <span ref={r} className="inline-flex items-center justify-center"/>;
         };
 
-        // --- MOTOR DE BÚSQUEDA DE IMÁGENES (SABUESO) ---
+        // --- SABUESO DE IMÁGENES (Buscador Recursivo) ---
         const SmartImage = ({ modelo, repos }) => {
             const [currentSrc, setCurrentSrc] = useState(null);
             const [attemptIndex, setAttemptIndex] = useState(0);
             
-            // Genera la lista de intentos en orden de prioridad
             const candidateUrls = useMemo(() => {
                 if (!modelo || !repos || repos.length === 0) return [];
                 const candidates = [];
-                
-                // Prioridad de extensiones
                 const extensions = ['png', 'web', 'jpg', 'jpeg'];
-                // Prioridad de nombres (Exacto -> Minúscula -> Sufijos comunes)
+                // Prioridad: Exacto -> Minúscula -> Sufijos
                 const variations = [
-                    modelo, // M028
-                    modelo.toLowerCase(), // m028
-                    `${modelo}FRENTE`, // M028FRENTE
-                    `${modelo.toLowerCase()}frente`,
-                    `${modelo}DELANTERO`,
-                    `${modelo}ESPALDA`,
-                    `${modelo}MANGA`
+                    modelo, 
+                    modelo.toLowerCase(), 
+                    `${modelo}FRENTE`, `${modelo.toLowerCase()}frente`,
+                    `${modelo}DELANTERO`, `${modelo}ESPALDA`, `${modelo}MANGA`
                 ];
 
                 repos.forEach(repo => {
                     const baseUrl = repo.url.endsWith('/') ? repo.url : repo.url + '/';
                     variations.forEach(name => {
-                        extensions.forEach(ext => {
-                            candidates.push(`${baseUrl}${name}.${ext}`);
-                        });
+                        extensions.forEach(ext => candidates.push(`${baseUrl}${name}.${ext}`));
                     });
                 });
                 return candidates;
@@ -109,75 +104,20 @@
             }, [candidateUrls]);
 
             const handleError = () => {
-                const nextIndex = attemptIndex + 1;
-                if (nextIndex < candidateUrls.length) {
-                    setAttemptIndex(nextIndex);
-                    setCurrentSrc(candidateUrls[nextIndex]);
-                } else {
-                    setCurrentSrc(null); // Se acabaron las opciones
-                }
+                const next = attemptIndex + 1;
+                if (next < candidateUrls.length) { setAttemptIndex(next); setCurrentSrc(candidateUrls[next]); }
+                else setCurrentSrc(null);
             };
 
-            if (!currentSrc) return (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-300 border-r-2 border-black">
-                    <Icon name="image-off" size={24}/>
-                    <span className="text-[8px] font-bold mt-1">SIN IMAGEN</span>
-                </div>
-            );
-
-            return (
-                <div className="w-full h-full flex items-center justify-center border-r-2 border-black bg-white overflow-hidden p-1">
-                    <img src={currentSrc} onError={handleError} className="w-full h-full object-contain" />
-                </div>
-            );
+            if (!currentSrc) return <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 bg-slate-50"><Icon name="image-off" size={32}/><span className="text-[10px] font-bold mt-1">SIN FOTO</span></div>;
+            return <img src={currentSrc} onError={handleError} className="w-full h-full object-contain" />;
         };
 
-        // --- FILA INDIVIDUAL DE LA ETIQUETA ---
-        const MiniLabelRow = ({ pkgData, groupInfo, repos }) => (
-            <div className="mini-label-row"> 
-                {/* 25% Imagen */}
-                <div className="w-1/4 h-full">
-                     <SmartImage modelo={groupInfo.modelo} repos={repos} />
-                </div>
-                {/* 75% Datos */}
-                <div className="w-3/4 flex flex-col">
-                    {/* Fila 1 */}
-                    <div className="lbl-data-row">
-                        <div className="w-2/3 lbl-data-col bg-black text-white">
-                            <span className="lbl-title text-gray-400">MODELO</span>
-                            <span className="lbl-val-big text-white">{groupInfo.modelo}</span>
-                        </div>
-                        <div className="w-1/3 lbl-data-col text-center">
-                            <span className="lbl-title">PAQUETE</span>
-                            <span className="lbl-val-big">{pkgData.paqueteNum}</span>
-                        </div>
-                    </div>
-                    {/* Fila 2 (Pieza Grande) */}
-                    <div className="lbl-data-row bg-gray-100">
-                         <div className="w-full lbl-data-col flex items-center justify-center text-center">
-                            <span className="lbl-val-huge leading-none">{pkgData.piezaNombre?.split(' ')[0] || "PIEZA"}</span>
-                        </div>
-                    </div>
-                    {/* Fila 3 */}
-                    <div className="lbl-data-row" style={{borderBottom:'none'}}>
-                        <div className="w-2/3 lbl-data-col">
-                            <span className="lbl-title">CLIENTE</span>
-                            <span className="lbl-val-big text-sm truncate">{groupInfo.cliente}</span>
-                        </div>
-                        <div className="w-1/3 lbl-data-col text-center bg-red-50 text-red-900">
-                            <span className="lbl-title text-red-700">PARTIDA</span>
-                            <span className="lbl-val-big text-sm">{groupInfo.partida}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-
-        // --- ETIQUETA APILADA (VISTA PREVIA) ---
-        const StackedLabel = ({ selectedPackages, groupInfo, repos }) => {
+        // --- COMPONENTE: FICHA TÉCNICA 4x6 ---
+        const KitLabel = ({ selectedPackages, groupInfo, repos }) => {
             const svgRef = useRef(null);
             
-            // Generar Código Maestro: GRP|MODELO|PARTIDA|1,2,3
+            // Generar Código Maestro para el Escáner
             const indexes = selectedPackages.map(p => p.paqueteNum).join(',');
             const barcodeValue = `GRP|${groupInfo.modelo}|${groupInfo.partida}|${indexes}`;
 
@@ -185,31 +125,97 @@
                 if (svgRef.current && barcodeValue) {
                     try {
                         JsBarcode(svgRef.current, barcodeValue, { 
-                            format: "CODE128", width: 1.8, height: 120, displayValue: false, margin: 10 
+                            format: "CODE128", width: 2, height: 60, displayValue: false, margin: 5, fontSize: 12
                         });
                     } catch (e) {}
                 }
             }, [barcodeValue]);
 
             return (
-                <div className="stacked-label-container" style={{height: `${selectedPackages.length * 1.4}in`}}>
-                    <div className="w-10/12 flex flex-col border-r-2 border-black">
-                        {selectedPackages.map((pkg, idx) => (
-                            <MiniLabelRow key={`${idx}-${pkg.codigoUnico}`} pkgData={pkg} groupInfo={groupInfo} repos={repos} />
-                        ))}
+                <div className="kit-label-container">
+                    {/* ENCABEZADO: MODELO Y PARTIDA (OCUPA 15%) */}
+                    <div className="h-[15%] bg-black text-white p-2 flex justify-between items-center border-b-4 border-yellow-400">
+                        <div className="flex flex-col">
+                            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">MODELO</span>
+                            <span className="txt-model text-5xl">{groupInfo.modelo}</span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                            <span className="text-[10px] text-gray-400 font-bold">PARTIDA</span>
+                            <span className="font-bold text-xl text-yellow-400">{groupInfo.partida}</span>
+                        </div>
                     </div>
-                    {/* Barra Lateral Código Maestro */}
-                    <div className="w-2/12 flex items-center justify-center bg-white overflow-hidden relative">
-                         <div style={{ transform: 'rotate(90deg)', whiteSpace: 'nowrap', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <svg ref={svgRef}></svg>
-                            <span className="text-[10px] font-mono font-bold mt-2 uppercase tracking-widest">{groupInfo.modelo} - {groupInfo.partida}</span>
-                            <span className="text-[8px] font-mono text-gray-400">Total: {selectedPackages.length} pzs</span>
+
+                    {/* CUERPO CENTRAL (OCUPA 65%) */}
+                    <div className="h-[65%] flex">
+                        {/* COLUMNA IZQUIERDA: IMAGEN (40%) */}
+                        <div className="w-[40%] border-r border-black p-2 flex flex-col justify-center bg-white">
+                            <div className="flex-1 overflow-hidden relative">
+                                <SmartImage modelo={groupInfo.modelo} repos={repos} />
+                            </div>
+                            <div className="mt-2 text-[10px] text-center text-gray-500 font-bold">
+                                {selectedPackages.length} PAQUETES EN KIT
+                            </div>
+                        </div>
+
+                        {/* COLUMNA DERECHA: LISTA DE CONTENIDO (60%) */}
+                        <div className="w-[60%] p-2 flex flex-col bg-white overflow-hidden relative">
+                            <div className="text-xs font-black uppercase border-b border-black mb-1 pb-1 flex justify-between">
+                                <span>CONTENIDO DEL KIT</span>
+                                <span className="text-gray-400">{groupInfo.cliente}</span>
+                            </div>
+                            
+                            {/* TABLA DE CONTENIDO PRIORIZANDO CANTIDAD */}
+                            <div className="flex-1">
+                                <table className="kit-table">
+                                    <thead>
+                                        <tr>
+                                            <th className="w-[25%] text-center">CANT.</th>
+                                            <th className="w-[50%]">PIEZA</th>
+                                            <th className="w-[25%] text-right">#PQT</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {selectedPackages.map((pkg, idx) => (
+                                            <tr key={idx} className={idx % 2 === 0 ? "kit-row-even" : ""}>
+                                                <td className="text-center">
+                                                    {/* LA CANTIDAD ES LA PRIORIDAD VISUAL */}
+                                                    <span className="txt-qty text-3xl">{pkg.cantidad}</span>
+                                                </td>
+                                                <td>
+                                                    <span className="font-bold text-sm leading-tight block uppercase">
+                                                        {pkg.fullPiezaName?.split(' ')[0] || "PIEZA"}
+                                                    </span>
+                                                    {pkg.fullPiezaName?.split(' ').length > 1 && (
+                                                        <span className="text-[9px] text-gray-400 block truncate">
+                                                            {pkg.fullPiezaName?.substring(pkg.fullPiezaName?.indexOf(' '))}
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="text-right">
+                                                    <span className="bg-black text-white px-2 py-0.5 rounded text-xs font-bold">
+                                                        {pkg.paqueteNum}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* PIE DE PAGINA: CÓDIGO DE BARRAS (20%) */}
+                    <div className="h-[20%] border-t-2 border-black flex flex-col items-center justify-center bg-white p-2">
+                        <svg ref={svgRef} className="w-full h-full"></svg>
+                        <div className="text-[8px] font-mono text-center w-full mt-1 truncate">
+                            {barcodeValue}
                         </div>
                     </div>
                 </div>
             );
         };
 
+        // --- APP PRINCIPAL ---
         const App = () => {
             const [groupedOrders, setGroupedOrders] = useState({});
             const [selectedGroupKey, setSelectedGroupKey] = useState(null);
@@ -221,17 +227,13 @@
 
             useEffect(() => {
                 db.collection('app_config').doc('imagenes').onSnapshot(d => setRepos(d.data()?.sources || []));
-            }, []);
-
-            // Agrupar órdenes por MODELO + PARTIDA
-            useEffect(() => {
-                 db.collection('orders').where('status', '!=', 'ARCHIVADO').onSnapshot(s => {
+                
+                db.collection('orders').where('status', '!=', 'ARCHIVADO').onSnapshot(s => {
                      const groups = {};
                      s.docs.forEach(doc => {
                          const data = doc.data();
-                         // Clave mágica para agrupar
+                         // Agrupar por MODELO + PARTIDA
                          const key = `${data.codigo}|${data.partida || 'SN'}`;
-                         
                          if (!groups[key]) {
                              groups[key] = {
                                  key: key,
@@ -247,7 +249,7 @@
                  });
             }, []);
 
-            // Obtener lista plana de paquetes del grupo
+            // Obtener paquetes combinados de todas las sub-órdenes
             const activePackages = useMemo(() => {
                 if (!selectedGroupKey || !groupedOrders[selectedGroupKey]) return [];
                 const group = groupedOrders[selectedGroupKey];
@@ -256,24 +258,21 @@
                 group.subOrders.forEach(order => {
                     if (order.progreso) {
                         order.progreso.forEach(p => {
-                            // Añadimos datos de origen para debug si es necesario
-                            allPkgs.push({ ...p, originOrderId: order.id, fullPiezaName: p.piezaNombre });
+                            // Guardamos todo lo necesario
+                            allPkgs.push({ 
+                                ...p, 
+                                originOrderId: order.id, 
+                                fullPiezaName: p.piezaNombre,
+                                cantidad: p.cantidad || 0 // Aseguramos que exista cantidad
+                            });
                         });
                     }
                 });
-                
-                // Evitar duplicados visuales (si hubiera) y ordenar
                 return allPkgs.sort((a,b) => a.paqueteNum - b.paqueteNum);
             }, [selectedGroupKey, groupedOrders]);
 
             useEffect(() => { setCheckedPackages({}); }, [selectedGroupKey]);
 
-            const handleCheck = (pkgId) => { // Usamos codigoUnico o paqueteNum + pieza como ID si es posible
-                 // Por simplicidad usaremos paqueteNum + índice para el estado de check en UI
-                 // Pero para la lógica, usamos el objeto paquete completo
-            };
-            
-            // Toggle check usando el uniqueCode del paquete para evitar confusiones
             const togglePackage = (pkg) => {
                 setCheckedPackages(prev => ({...prev, [pkg.codigoUnico]: !prev[pkg.codigoUnico]}));
             };
@@ -293,15 +292,16 @@
             const downloadPDF = async () => {
                 if(selectedList.length === 0) return;
                 setIsGenerating(true);
-                await new Promise(r => setTimeout(r, 500)); // Esperar render
+                await new Promise(r => setTimeout(r, 500));
                 
                 const element = pdfRef.current;
                 const opt = {
                     margin: 0,
-                    filename: `GRUPO_${groupedOrders[selectedGroupKey].modelo}_${selectedList.length}PZS.pdf`,
-                    image: { type: 'jpeg', quality: 0.98 },
+                    filename: `KIT_${groupedOrders[selectedGroupKey].modelo}_${selectedList.length}PZS.pdf`,
+                    image: { type: 'jpeg', quality: 1.0 },
                     html2canvas: { scale: 2, useCORS: true, logging: false },
-                    jsPDF: { unit: 'in', format: [6, selectedList.length * 1.4], orientation: 'portrait' }
+                    // AQUÍ ESTÁ LA MAGIA: 4x6 PULGADAS
+                    jsPDF: { unit: 'in', format: [4, 6], orientation: 'portrait' }
                 };
                 
                 try { await html2pdf().set(opt).from(element).save(); } catch(e){ console.error(e); alert("Error PDF"); }
@@ -313,27 +313,25 @@
                     {/* SIDEBAR */}
                     <div className="w-80 bg-slate-900 text-white flex flex-col shrink-0 shadow-2xl z-20">
                         <div className="p-5 bg-slate-800 border-b border-slate-700">
-                            <h1 className="text-2xl font-black text-yellow-400 flex items-center gap-2 italic tracking-tighter">
-                                <Icon name="layers" size={24}/> AGRUPADOR <span className="text-xs bg-yellow-400 text-black px-1 rounded not-italic">V2</span>
+                            <h1 className="text-2xl font-black text-green-400 flex items-center gap-2 italic tracking-tighter">
+                                <Icon name="package" size={24}/> KIT MAKER <span className="text-xs bg-green-500 text-black px-1 rounded not-italic">4x6"</span>
                             </h1>
-                            <input type="text" placeholder="Filtrar modelo..." 
+                            <input type="text" placeholder="Buscar modelo..." 
                                 onChange={e => setFilterText(e.target.value)}
-                                className="w-full mt-4 bg-slate-700/50 border border-slate-600 rounded p-2 text-sm focus:outline-none focus:border-yellow-400 transition-colors"/>
+                                className="w-full mt-4 bg-slate-700/50 border border-slate-600 rounded p-2 text-sm focus:outline-none focus:border-green-400 transition-colors"/>
                         </div>
                         <div className="flex-1 overflow-y-auto p-3 space-y-2">
                             {filteredGroups.sort((a,b) => b.modelo.localeCompare(a.modelo)).map(group => (
                                 <div key={group.key} onClick={() => setSelectedGroupKey(group.key)} 
                                      className={`p-3 rounded-lg cursor-pointer border-l-4 transition-all group
-                                         ${selectedGroupKey === group.key ? 'border-yellow-400 bg-white/10' : 'border-transparent hover:bg-white/5'}`}>
+                                         ${selectedGroupKey === group.key ? 'border-green-400 bg-white/10' : 'border-transparent hover:bg-white/5'}`}>
                                     <div className="flex justify-between items-center">
-                                        <span className="font-bold text-lg group-hover:text-yellow-200">{group.modelo}</span>
+                                        <span className="font-bold text-lg group-hover:text-green-200">{group.modelo}</span>
                                         <span className="text-[10px] font-mono bg-black/40 px-2 py-0.5 rounded text-slate-300">{group.partida}</span>
                                     </div>
                                     <div className="flex justify-between mt-1 items-end">
                                         <span className="text-xs text-slate-400 truncate w-32">{group.cliente}</span>
-                                        <div className="flex items-center gap-1 text-[10px] text-blue-300 bg-blue-900/30 px-2 rounded">
-                                            <Icon name="copy" size={10}/> {group.subOrders.length} órds.
-                                        </div>
+                                        <span className="text-[10px] text-blue-300 bg-blue-900/30 px-2 rounded">{group.subOrders.length} fuentes</span>
                                     </div>
                                 </div>
                             ))}
@@ -344,64 +342,64 @@
                     <div className="flex-1 flex flex-col relative overflow-hidden">
                         {selectedGroupKey ? (
                             <>
+                                {/* HEADER DE ACCIÓN */}
                                 <div className="bg-white p-4 border-b shadow-sm z-10 flex flex-col gap-4">
-                                    <div className="flex justify-between items-start">
+                                    <div className="flex justify-between items-center">
                                         <div>
                                             <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3">
                                                 {groupedOrders[selectedGroupKey].modelo}
-                                                <span className="text-sm font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded border border-slate-200">
-                                                    {groupedOrders[selectedGroupKey].partida}
-                                                </span>
                                             </h2>
-                                            <p className="text-sm text-slate-400 font-medium mt-1">
-                                                Combinando paquetes de {groupedOrders[selectedGroupKey].subOrders.length} órdenes diferentes.
-                                            </p>
+                                            <p className="text-sm text-slate-500 font-bold">Selecciona las partes para armar el KIT</p>
                                         </div>
                                         <button onClick={downloadPDF} disabled={selectedList.length === 0 || isGenerating}
                                                 className={`px-6 py-3 rounded-xl font-black text-white flex items-center gap-2 shadow-lg transition-transform active:scale-95
-                                                    ${selectedList.length === 0 ? 'bg-slate-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                                            {isGenerating ? <><Icon name="loader-2" className="animate-spin"/> GENERANDO...</> : <><Icon name="printer"/> IMPRIMIR GRUPO ({selectedList.length})</>}
+                                                    ${selectedList.length === 0 ? 'bg-slate-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}>
+                                            {isGenerating ? 'GENERANDO...' : <><Icon name="printer"/> IMPRIMIR FICHA 4x6"</>}
                                         </button>
                                     </div>
                                     
-                                    {/* GRID DE PAQUETES */}
-                                    <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-3 bg-slate-50 rounded-xl border border-slate-200 shadow-inner">
+                                    {/* SELECTOR DE PAQUETES */}
+                                    <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-3 bg-slate-50 rounded-xl border border-slate-200 shadow-inner">
                                         {activePackages.map(p => (
                                             <div key={p.codigoUnico} onClick={() => togglePackage(p)}
-                                                   className={`flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer select-none transition-all text-sm w-48
-                                                       ${checkedPackages[p.codigoUnico] ? 'bg-blue-600 border-blue-600 text-white shadow-md scale-105' : 'bg-white border-slate-300 hover:border-blue-400 text-slate-600'}`}>
-                                                <div className={`w-5 h-5 rounded flex items-center justify-center border ${checkedPackages[p.codigoUnico] ? 'border-white bg-blue-500' : 'border-slate-300'}`}>
+                                                   className={`flex items-center gap-3 px-3 py-2 rounded border cursor-pointer select-none transition-all text-sm w-52
+                                                       ${checkedPackages[p.codigoUnico] ? 'bg-green-600 border-green-600 text-white shadow-md' : 'bg-white border-slate-300 hover:border-green-400 text-slate-600'}`}>
+                                                <div className={`w-5 h-5 rounded flex items-center justify-center border ${checkedPackages[p.codigoUnico] ? 'border-white bg-green-500' : 'border-slate-300'}`}>
                                                     {checkedPackages[p.codigoUnico] && <Icon name="check" size={12}/>}
                                                 </div>
-                                                <div className="flex flex-col overflow-hidden">
-                                                    <span className="font-black text-lg leading-none">#{p.paqueteNum}</span>
-                                                    <span className="text-[10px] opacity-80 truncate uppercase">{p.fullPiezaName}</span>
+                                                <div className="flex flex-col overflow-hidden w-full">
+                                                    <div className="flex justify-between items-center w-full">
+                                                        <span className="font-black text-lg leading-none">#{p.paqueteNum}</span>
+                                                        <span className="text-xs font-bold bg-black/20 px-1 rounded">{p.cantidad} pzs</span>
+                                                    </div>
+                                                    <span className="text-[10px] opacity-90 truncate uppercase mt-0.5">{p.fullPiezaName}</span>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
 
-                                {/* PREVIEW AREA */}
-                                <div className="flex-1 overflow-y-auto p-8 bg-slate-200/50 flex justify-center">
+                                {/* AREA DE VISUALIZACIÓN */}
+                                <div className="flex-1 overflow-y-auto p-8 bg-slate-200 flex justify-center items-start">
                                     {selectedList.length > 0 ? (
-                                        <div className="shadow-2xl shadow-slate-400/50 bg-white scale-90 origin-top" style={{width: '6in', minHeight: '4in'}}>
+                                        <div className="shadow-2xl shadow-slate-500/50 bg-white">
+                                            {/* ESTE DIV ES EL QUE SE IMPRIME */}
                                             <div ref={pdfRef}>
-                                                <StackedLabel selectedPackages={selectedList} groupInfo={groupedOrders[selectedGroupKey]} repos={repos} />
+                                                <KitLabel selectedPackages={selectedList} groupInfo={groupedOrders[selectedGroupKey]} repos={repos} />
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center text-slate-300 mt-20 select-none">
-                                            <Icon name="package-search" size={80} strokeWidth={1}/>
-                                            <p className="font-bold mt-4 text-xl">Selecciona paquetes arriba para agrupar</p>
+                                        <div className="flex flex-col items-center justify-center text-slate-400 mt-20 select-none opacity-60">
+                                            <Icon name="layers" size={80} strokeWidth={1}/>
+                                            <p className="font-bold mt-4 text-xl">Arma tu kit arriba</p>
                                         </div>
                                     )}
                                 </div>
                             </>
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center text-slate-300 select-none">
-                                <Icon name="layout-list" size={80} strokeWidth={1}/>
-                                <p className="font-black text-2xl mt-4">SELECCIONA UN MODELO DEL MENÚ</p>
+                                <Icon name="arrow-left-circle" size={80} strokeWidth={1}/>
+                                <p className="font-black text-2xl mt-4">SELECCIONA UN MODELO</p>
                             </div>
                         )}
                     </div>
