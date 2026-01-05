@@ -138,6 +138,53 @@
                 } catch (e) { console.error("Error al agrupar:", e); }
             };
 
+            // --- NUEVA FUNCIÓN: REINICIAR (DESAGRUPAR) TODA LA PARTIDA ---
+            const handleResetGroup = async () => {
+                if (!currentData) return;
+                
+                const confirmacion = window.confirm(
+                    `PELIGRO: ¿Estás seguro de REINICIAR la partida ${currentData.partida} del modelo ${currentData.modelo}? \n\nEsto liberará TODOS los paquetes (agrupado = false) y borrará las referencias de kits.`
+                );
+                if (!confirmacion) return;
+
+                setIsSaving(true);
+                try {
+                    const batch = db.batch();
+                    
+                    // Filtrar solo las órdenes que corresponden a lo que estamos viendo
+                    const ordersToReset = orders.filter(o => 
+                        o.codigo === currentData.modelo && 
+                        (o.partida || 'SN') === currentData.partida
+                    );
+
+                    // Preparar updates
+                    ordersToReset.forEach(order => {
+                        const orderRef = db.collection('orders').doc(order.id);
+                        
+                        // Modificar el array de progreso para quitar agrupado y kitRef
+                        const newProg = order.progreso.map(p => ({
+                            ...p, 
+                            agrupado: false, 
+                            kitRef: null
+                        }));
+
+                        batch.update(orderRef, { progreso: newProg });
+                    });
+
+                    await batch.commit();
+                    
+                    setKitQueue([]); // Limpiar la cola visual
+                    setCheckedIds([]); // Limpiar selección
+                    alert("Partida reiniciada correctamente.");
+                    
+                } catch (e) {
+                    console.error("Error al reiniciar:", e);
+                    alert("Hubo un error al intentar reiniciar la partida.");
+                }
+                setIsSaving(false);
+            };
+            // -------------------------------------------------------------
+
             const downloadPDF = async () => {
                 setIsSaving(true);
                 const opt = { 
@@ -179,7 +226,21 @@
                                 {/* PAQUETES */}
                                 <div className="flex-1 flex flex-col p-8 overflow-y-auto custom-scroll">
                                     <div className="flex justify-between items-end mb-8">
-                                        <h2 className="text-5xl font-black txt-oswald italic uppercase leading-none">{currentData.modelo}</h2>
+                                        <div className="flex items-center gap-4">
+                                            <h2 className="text-5xl font-black txt-oswald italic uppercase leading-none">{currentData.modelo}</h2>
+                                            
+                                            {/* --- BOTÓN RESET (NUEVO) --- */}
+                                            <button 
+                                                onClick={handleResetGroup} 
+                                                disabled={isSaving}
+                                                title="Reiniciar partida (Desagrupar todos los paquetes)"
+                                                className="h-10 w-10 flex items-center justify-center rounded-full bg-red-900/40 border border-red-500 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-lg"
+                                            >
+                                                <Icon name="rotate-ccw" size={20} />
+                                            </button>
+                                            {/* --------------------------- */}
+                                        </div>
+
                                         {kitQueue.length > 0 && (
                                             <button onClick={downloadPDF} disabled={isSaving} className="bg-green-500 text-black font-black px-8 py-4 rounded-xl shadow-xl flex items-center gap-2">
                                                 <Icon name="download" /> {isSaving ? 'PROCESANDO...' : `DESCARGAR ${kitQueue.length} PAPELETAS`}
