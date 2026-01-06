@@ -120,14 +120,11 @@
                 orders.filter(o => o.codigo === mod && (o.partida || 'SN') === part).forEach(o => {
                     if(o.progreso) {
                         o.progreso.forEach(p => {
-                            // IMPORTANTE: Aquí extraemos la máquina.
-                            // Prioridad: 1. Maquina del paquete (si existe) 2. Maquina de la orden
                             const maquinaFinal = p.maquina || o.maquina || ''; 
-                            
                             pkgs.push({
                                 ...p, 
                                 orderId: o.id, 
-                                maquina: maquinaFinal // Pasamos la máquina limpia al objeto
+                                maquina: maquinaFinal 
                             });
                         });
                     }
@@ -140,16 +137,100 @@
                 return currentData.pkgs.filter(p => checkedIds.includes(p.codigoUnico));
             }, [checkedIds, currentData]);
 
+            // --- NUEVA LÓGICA DE AGRUPADO AUTOMÁTICO ---
+            const handleAutoGroup = async () => {
+                // 1. Filtrar pendientes
+                const availablePkgs = currentData.pkgs.filter(p => !p.agrupado);
+                if (availablePkgs.length === 0) return alert("No hay paquetes pendientes.");
+                
+                if (!confirm(`¿Agrupar automáticamente ${availablePkgs.length} paquetes y generar PDF?`)) return;
+
+                setIsSaving(true);
+                const batch = db.batch();
+                const newKitsBatch = [];
+                const timestamp = Date.now();
+
+                // 2. Agrupar por NUMERO DE PAQUETE
+                const groups = {};
+                availablePkgs.forEach(p => {
+                    const num = p.paqueteNum;
+                    if (!groups[num]) groups[num] = [];
+                    groups[num].push(p);
+                });
+
+                // 3. Crear Kits en Batch
+                Object.keys(groups).forEach((numStr, index) => {
+                    const groupItems = groups[numStr];
+                    const kitId = `K${(timestamp + index).toString().slice(-6)}`; 
+                    
+                    const newKit = {
+                        kitId: kitId,
+                        modelo: currentData.modelo,
+                        partida: currentData.partida,
+                        piezas: groupItems,
+                        fecha: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+
+                    // Añadir al batch de Firestore
+                    const kitRef = db.collection('kits_produccion').doc(kitId);
+                    batch.set(kitRef, newKit);
+                    
+                    // Guardar en memoria para el PDF
+                    newKitsBatch.push(newKit);
+                });
+
+                // 4. Actualizar Orders (Agrupando actualizaciones por ID de orden)
+                const ordersToUpdate = {};
+                availablePkgs.forEach(p => {
+                    if(!ordersToUpdate[p.orderId]) {
+                         // Clonar progreso actual de la orden
+                         ordersToUpdate[p.orderId] = [...orders.find(o => o.id === p.orderId).progreso];
+                    }
+                    // Buscar a qué kit se asignó este paquete
+                    const assignedKit = newKitsBatch.find(k => k.piezas.some(pz => pz.codigoUnico === p.codigoUnico));
+                    
+                    // Modificar array localmente
+                    ordersToUpdate[p.orderId] = ordersToUpdate[p.orderId].map(item => 
+                        item.codigoUnico === p.codigoUnico ? { ...item, agrupado: true, kitRef: assignedKit.kitId } : item
+                    );
+                });
+
+                // Añadir updates de ordenes al batch
+                Object.keys(ordersToUpdate).forEach(oid => {
+                    const ref = db.collection('orders').doc(oid);
+                    batch.update(ref, { progreso: ordersToUpdate[oid] });
+                });
+
+                try {
+                    await batch.commit();
+                    
+                    // 5. Renderizar y Descargar
+                    setKitQueue(prev => [...prev, ...newKitsBatch]);
+                    
+                    setTimeout(() => {
+                        newKitsBatch.forEach(k => {
+                            try { JsBarcode(`#bc-${k.kitId}`, k.kitId, { format: "CODE128", height: 40, displayValue: true }); } catch(e){}
+                        });
+                        // Lanzar descarga automática
+                        setTimeout(() => downloadPDF(true), 1200); 
+                    }, 500);
+
+                } catch (e) {
+                    console.error("Error auto-group:", e);
+                    setIsSaving(false);
+                    alert("Error al agrupar automáticamente.");
+                }
+            };
+
             const handleConfirmGroup = async () => {
                 if (selectedPieces.length === 0) return;
                 const tempId = `K${Date.now().toString().slice(-6)}`;
                 
-                // Guardamos los datos con la máquina incluida
                 const newKit = {
                     kitId: tempId,
                     modelo: currentData.modelo,
                     partida: currentData.partida,
-                    piezas: selectedPieces, // Ya trae 'maquina' del useMemo
+                    piezas: selectedPieces, 
                     fecha: firebase.firestore.FieldValue.serverTimestamp()
                 };
 
@@ -157,12 +238,22 @@
                     const batch = db.batch();
                     const kitRef = db.collection('kits_produccion').doc(tempId);
                     batch.set(kitRef, newKit);
-                    selectedPieces.forEach(p => {
-                        const orderRef = db.collection('orders').doc(p.orderId);
-                        const order = orders.find(o => o.id === p.orderId);
-                        const newProg = order.progreso.map(i => i.codigoUnico === p.codigoUnico ? {...i, agrupado: true, kitRef: tempId} : i);
-                        batch.update(orderRef, { progreso: newProg });
+                    
+                    // Agrupar updates por orden para evitar error de Batch
+                    const uniqueOrders = [...new Set(selectedPieces.map(p => p.orderId))];
+                    
+                    uniqueOrders.forEach(oid => {
+                        const orderObj = orders.find(o => o.id === oid);
+                        const newProg = orderObj.progreso.map(i => {
+                             // Si esta pieza está en los seleccionados, la marcamos
+                             if (selectedPieces.some(sp => sp.codigoUnico === i.codigoUnico)) {
+                                 return {...i, agrupado: true, kitRef: tempId};
+                             }
+                             return i;
+                        });
+                        batch.update(db.collection('orders').doc(oid), { progreso: newProg });
                     });
+
                     await batch.commit();
                     setKitQueue([...kitQueue, newKit]);
                     setCheckedIds([]);
@@ -187,8 +278,10 @@
                 setIsSaving(false);
             };
 
-            const downloadPDF = async () => {
+            const downloadPDF = async (auto = false) => {
                 setIsSaving(true);
+                if(auto) await new Promise(r => setTimeout(r, 500)); // Espera extra si es auto
+
                 const opt = { 
                     margin: 0, filename: `KITS_${selectedKey}.pdf`, 
                     image: { type: 'jpeg', quality: 0.98 },
@@ -225,16 +318,25 @@
                                     <div className="flex justify-between items-end mb-8">
                                         <div className="flex items-center gap-4">
                                             <h2 className="text-5xl font-black txt-oswald italic uppercase leading-none">{currentData.modelo}</h2>
-                                            <button onClick={handleResetGroup} disabled={isSaving} className="h-10 w-10 flex items-center justify-center rounded-full bg-red-900/40 border border-red-500 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-lg">
+                                            
+                                            {/* BOTON DE REINICIO */}
+                                            <button onClick={handleResetGroup} disabled={isSaving} className="h-10 w-10 flex items-center justify-center rounded-full bg-red-900/40 border border-red-500 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-lg" title="Reiniciar Partida">
                                                 <Icon name="rotate-ccw" size={20} />
                                             </button>
+
+                                            {/* --- BOTON MÁGICO AUTOMÁTICO --- */}
+                                            <button onClick={handleAutoGroup} disabled={isSaving} className="h-10 px-6 rounded-full bg-purple-900/40 border border-purple-500 text-purple-400 hover:bg-purple-600 hover:text-white transition-all shadow-lg font-bold text-xs uppercase tracking-widest flex items-center gap-2">
+                                                <Icon name="wand-2" size={16} /> Auto-Agrupar
+                                            </button>
                                         </div>
+                                        
                                         {kitQueue.length > 0 && (
-                                            <button onClick={downloadPDF} disabled={isSaving} className="bg-green-500 text-black font-black px-8 py-4 rounded-xl shadow-xl flex items-center gap-2">
+                                            <button onClick={() => downloadPDF(false)} disabled={isSaving} className="bg-green-500 text-black font-black px-8 py-4 rounded-xl shadow-xl flex items-center gap-2">
                                                 <Icon name="download" /> {isSaving ? 'GENERANDO...' : `PDF (${kitQueue.length})`}
                                             </button>
                                         )}
                                     </div>
+                                    
                                     <div className="grid grid-cols-3 gap-3">
                                         {currentData.pkgs.map(p => {
                                             const grouped = kitQueue.some(k => k.piezas.some(x => x.codigoUnico === p.codigoUnico)) || p.agrupado;
@@ -248,7 +350,6 @@
                                                     </div>
                                                     <div className="mt-4 flex justify-between items-end">
                                                         <div>
-                                                            {/* Mostramos la máquina también en la tarjeta de selección */}
                                                             <span className="text-xs font-bold block opacity-60">MAQ: {p.maquina || '?'}</span>
                                                             <span className="text-[14px] uppercase font-black truncate w-24 block">{getCleanName(p.piezaNombre)}</span>
                                                         </div>
