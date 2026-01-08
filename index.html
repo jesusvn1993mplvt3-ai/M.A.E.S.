@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cirineo Kit Maker V12.1 - Final</title>
+    <title>Cirineo Kit Maker V12.2 - Database Sync</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -19,65 +19,20 @@
 
     <style>
         body { background-color: #020617; font-family: 'Roboto Condensed', sans-serif; color: white; }
-        
-        .ficha-base { 
-            width: 4in; 
-            /* Reducimos ligeramente la altura para evitar que el borde genere una hoja extra */
-            height: 5.95in; 
-            background: white; 
-            color: black; 
-            display: flex; 
-            flex-direction: column; 
-            page-break-after: always; 
-            overflow: hidden;
-            position: relative;
-        }
-
-        /* EVITA LA HOJA BLANCA AL FINAL */
-        .ficha-base:last-child {
-            page-break-after: avoid;
-        }
-        
+        .ficha-base { width: 4in; height: 5.95in; background: white; color: black; display: flex; flex-direction: column; page-break-after: always; overflow: hidden; position: relative; }
+        .ficha-base:last-child { page-break-after: avoid; }
         .txt-oswald { font-family: 'Oswald'; }
         .qty-label { font-size: 55px; font-weight: 900; line-height: 0.8; letter-spacing: -2px; }
         .table-horizontal { width: 100%; border-collapse: collapse; margin-top: 5px; }
         .table-horizontal td { border-bottom: 2px solid #000; padding: 6px 4px; vertical-align: middle; }
-        
         .pkg-card { transition: all 0.2s; cursor: pointer; border: 2px solid #1e293b; padding: 10px; border-radius: 10px; background: #0f172a; position: relative; }
         .pkg-card.selected { border-color: #eab308; background: #1e293b; transform: scale(1.02); z-index: 10; }
         .pkg-card.confirmed { opacity: 0.2; pointer-events: none; filter: grayscale(1); }
         .section-blocked { opacity: 0.2; pointer-events: none; filter: grayscale(100%); }
-        
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-
-        .seq-box {
-            background: #000;
-            color: #fbbf24;
-            padding: 4px 10px;
-            font-family: 'Oswald', sans-serif;
-            font-size: 24px;
-            font-weight: 900;
-            border: 2px solid white;
-            display: inline-block;
-            line-height: 1;
-            transform: rotate(-2deg);
-        }
-
-        .group-header {
-            background: linear-gradient(90deg, #1e293b 0%, transparent 100%);
-            border-left: 4px solid #a855f7;
-            padding: 4px 12px;
-            margin: 15px 0 10px 0;
-            font-weight: 900;
-            text-transform: uppercase;
-            font-size: 14px;
-            letter-spacing: 1px;
-            color: #e2e8f0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+        .seq-box { background: #000; color: #fbbf24; padding: 4px 10px; font-family: 'Oswald', sans-serif; font-size: 24px; font-weight: 900; border: 2px solid white; display: inline-block; line-height: 1; transform: rotate(-2deg); }
+        .group-header { background: linear-gradient(90deg, #1e293b 0%, transparent 100%); border-left: 4px solid #a855f7; padding: 4px 12px; margin: 15px 0 10px 0; font-weight: 900; text-transform: uppercase; font-size: 14px; letter-spacing: 1px; color: #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body>
@@ -85,7 +40,6 @@
 
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
-        
         const firebaseConfig = { apiKey: "AIzaSyCngQL1pdqghv2vbjkPycT1Xf0C46f7jYs", authDomain: "cirineo-cec21.firebaseapp.com", projectId: "cirineo-cec21", storageBucket: "cirineo-cec21.firebasestorage.app", messagingSenderId: "620210618284", appId: "1:620210618284:web:482bab9bf74650fff18409" };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
@@ -104,7 +58,7 @@
             const urls = useMemo(() => {
                 if (!modelo || !repos.length) return [];
                 const res = [];
-                const variants = [modelo, modelo.toUpperCase(), `${modelo}FRENTE`];
+                const variants = [modelo, modelo.toUpperCase()];
                 repos.forEach(repo => {
                     const base = repo.url.endsWith('/') ? repo.url : repo.url + '/';
                     variants.forEach(v => ['png', 'jpg', 'jpeg'].forEach(e => res.push(`${base}${v}.${e}`)));
@@ -115,7 +69,7 @@
             return src ? (
                 <img src={src} onError={() => { if(idx < urls.length) { setIdx(idx+1); setSrc(urls[idx+1]); } }} 
                      className="w-full h-full object-contain" />
-            ) : <div className="text-[10px] text-gray-300 flex items-center justify-center h-full">Sin Imagen</div>;
+            ) : <div className="text-[10px] text-gray-300 flex items-center justify-center h-full">S/I</div>;
         };
 
         const App = () => {
@@ -144,26 +98,26 @@
                         const subPieces = o.subPiecesData || [];
                         o.progreso.forEach(p => {
                             const meta = subPieces.find(sp => sp.pieza === p.piezaNombre) || subPieces[0] || {};
-                            const realTalla = meta.talla || 'U'; 
-                            pkgs.push({ ...p, orderId: o.id, maquina: p.maquina || o.maquina || 'SIN MAQ', cliente, talla: realTalla });
+                            pkgs.push({ ...p, orderId: o.id, maquina: p.maquina || o.maquina || 'S/M', cliente, talla: meta.talla || 'U', partida: o.partida });
                         });
                     }
                 });
                 const groupedBySize = pkgs.reduce((acc, p) => {
-                    const t = p.talla;
-                    if (!acc[t]) acc[t] = [];
-                    acc[t].push(p);
+                    if (!acc[p.talla]) acc[p.talla] = [];
+                    acc[p.talla].push(p);
                     return acc;
                 }, {});
                 return { 
-                    modelo: mod, partida: part, pkgs: pkgs,
+                    modelo: mod, partida: part, 
                     sizes: Object.keys(groupedBySize).sort().map(s => ({ name: s, items: groupedBySize[s].sort((a,b) => a.paqueteNum - b.paqueteNum) }))
                 };
             }, [selectedKey, orders]);
 
             const selectedPieces = useMemo(() => {
                 if(!currentData) return [];
-                return currentData.pkgs.filter(p => checkedIds.includes(p.codigoUnico));
+                const all = [];
+                currentData.sizes.forEach(s => all.push(...s.items));
+                return all.filter(p => checkedIds.includes(p.codigoUnico));
             }, [checkedIds, currentData]);
 
             const activeSizeLock = useMemo(() => {
@@ -172,135 +126,103 @@
                 return null;
             }, [kitQueue, selectedPieces]);
 
-            const handleCancel = () => { if(window.confirm("¿Liberar selección?")) { setCheckedIds([]); setKitQueue([]); } };
+            // Función para guardar el Kit en Firebase y generar el Barcode
+            const saveAndQueueKit = async (kitId, items) => {
+                const p = items[0];
+                const newKit = {
+                    kitId,
+                    modelo: currentData.modelo,
+                    partida: currentData.partida,
+                    cliente: p.cliente,
+                    talla: p.talla,
+                    piezas: items.map(i => ({
+                        codigoUnico: i.codigoUnico,
+                        paqueteNum: i.paqueteNum,
+                        cantidad: i.cantidad,
+                        piezaNombre: i.piezaNombre,
+                        maquina: i.maquina,
+                        orderId: i.orderId
+                    })),
+                    fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                await db.collection('kits_produccion').doc(kitId).set(newKit);
+                setKitQueue(prev => [...prev, newKit]);
+                
+                setTimeout(() => {
+                    JsBarcode(`#bc-${kitId}`, kitId, { 
+                        format: "CODE128", height: 70, width: 2.5, displayValue: true, margin: 0 
+                    });
+                }, 500);
+            };
 
             const handleAutoGroup = async () => {
-                let candidates = currentData.pkgs.filter(p => !p.agrupado);
+                let candidates = [];
+                currentData.sizes.forEach(s => candidates.push(...s.items.filter(p => !p.agrupado)));
                 if (activeSizeLock) candidates = candidates.filter(p => p.talla === activeSizeLock);
-                if (candidates.length === 0) return alert("No hay paquetes disponibles.");
-                
-                if (!activeSizeLock) {
-                    const firstTalla = candidates[0].talla;
-                    candidates = candidates.filter(p => p.talla === firstTalla);
-                    if(!confirm(`Se agruparán SOLO paquetes de Talla: ${firstTalla}. ¿Seguir?`)) return;
-                } else {
-                    if (!confirm(`¿Agrupar ${candidates.length} paquetes de Talla ${activeSizeLock}?`)) return;
-                }
+                if (candidates.length === 0) return alert("Nada para agrupar.");
 
                 setIsSaving(true);
                 const batch = db.batch();
-                const newKitsBatch = [];
                 const timestamp = Date.now();
                 const groups = {};
-                candidates.forEach(p => { const num = p.paqueteNum; if (!groups[num]) groups[num] = []; groups[num].push(p); });
+                candidates.forEach(p => { if(!groups[p.paqueteNum]) groups[p.paqueteNum] = []; groups[p.paqueteNum].push(p); });
 
-                Object.keys(groups).forEach((numStr, index) => {
-                    const groupItems = groups[numStr];
-                    const kitId = `K${(timestamp + index).toString().slice(-6)}`; 
-                    const newKit = { kitId, modelo: currentData.modelo, partida: currentData.partida, cliente: groupItems[0].cliente, talla: groupItems[0].talla, piezas: groupItems, fecha: firebase.firestore.FieldValue.serverTimestamp() };
-                    batch.set(db.collection('kits_produccion').doc(kitId), newKit);
-                    newKitsBatch.push(newKit);
-                });
-
-                candidates.forEach(p => {
-                    const orderObj = orders.find(o => o.id === p.orderId);
-                    const assignedKit = newKitsBatch.find(k => k.piezas.some(pz => pz.codigoUnico === p.codigoUnico));
-                    const newProg = orderObj.progreso.map(item => item.codigoUnico === p.codigoUnico ? { ...item, agrupado: true, kitRef: assignedKit.kitId } : item);
-                    batch.update(db.collection('orders').doc(p.orderId), { progreso: newProg });
-                });
-
-                try {
-                    await batch.commit();
-                    setKitQueue(prev => [...prev, ...newKitsBatch]);
-                    setTimeout(() => {
-                        newKitsBatch.forEach(k => {
-                            try { 
-                                // BARCODE CONFIGURADO GRANDE Y SIN TEXTO
-                                JsBarcode(`#bc-${k.kitId}`, k.kitId, { 
-                                    format: "CODE128", 
-                                    height: 70, // Altura aumentada
-                                    width: 2.5, // Barras más anchas
-                                    displayValue: false, // Ocultar texto del código de barras
-                                    margin: 0
-                                }); 
-                            } catch(e){}
-                        });
-                    }, 500);
-                } catch (e) { console.error(e); }
+                for (const [num, items] of Object.entries(groups)) {
+                    const kitId = `K${(timestamp + parseInt(num)).toString().slice(-6)}`;
+                    await saveAndQueueKit(kitId, items);
+                    items.forEach(p => {
+                        const orderRef = db.collection('orders').doc(p.orderId);
+                        const orderObj = orders.find(o => o.id === p.orderId);
+                        const newProg = orderObj.progreso.map(item => 
+                            item.codigoUnico === p.codigoUnico ? { ...item, agrupado: true, kitRef: kitId } : item
+                        );
+                        batch.update(orderRef, { progreso: newProg });
+                    });
+                }
+                await batch.commit();
                 setIsSaving(false);
             };
 
-            const handleConfirmGroup = async () => {
+            const handleConfirmManual = async () => {
                 if (selectedPieces.length === 0) return;
-                const tallaBase = selectedPieces[0].talla;
-                if (selectedPieces.some(p => p.talla !== tallaBase)) return alert("Error: Tallas mezcladas.");
-
-                const tempId = `K${Date.now().toString().slice(-6)}`;
-                const newKit = { kitId: tempId, modelo: currentData.modelo, partida: currentData.partida, cliente: selectedPieces[0].cliente, talla: tallaBase, piezas: selectedPieces, fecha: firebase.firestore.FieldValue.serverTimestamp() };
-
-                try {
-                    const batch = db.batch();
-                    batch.set(db.collection('kits_produccion').doc(tempId), newKit);
-                    const uniqueOrders = [...new Set(selectedPieces.map(p => p.orderId))];
-                    uniqueOrders.forEach(oid => {
-                        const orderObj = orders.find(o => o.id === oid);
-                        const newProg = orderObj.progreso.map(i => selectedPieces.some(sp => sp.codigoUnico === i.codigoUnico) ? {...i, agrupado: true, kitRef: tempId} : i);
-                        batch.update(db.collection('orders').doc(oid), { progreso: newProg });
-                    });
-                    await batch.commit();
-                    setKitQueue(prev => [...prev, newKit]);
-                    setCheckedIds([]);
-                    setTimeout(() => { 
-                        JsBarcode(`#bc-${tempId}`, tempId, { 
-                            format: "CODE128", 
-                            height: 70, 
-                            width: 2.5,
-                            displayValue: false,
-                            margin: 0
-                        }); 
-                    }, 500);
-                } catch (e) { console.error(e); }
-            };
-
-            const handleResetGroup = async () => {
-                if (!currentData || !window.confirm(`¿Reiniciar partida?`)) return;
                 setIsSaving(true);
-                try {
-                    const batch = db.batch();
-                    orders.filter(o => o.codigo === currentData.modelo && (o.partida || 'SN') === currentData.partida).forEach(order => {
-                        const newProg = order.progreso.map(p => ({...p, agrupado: false, kitRef: null}));
-                        batch.update(db.collection('orders').doc(order.id), { progreso: newProg });
-                    });
-                    await batch.commit();
-                    setKitQueue([]);
-                    setCheckedIds([]);
-                } catch (e) { console.error(e); }
+                const kitId = `K${Date.now().toString().slice(-6)}`;
+                await saveAndQueueKit(kitId, selectedPieces);
+                const batch = db.batch();
+                const uniqueOrders = [...new Set(selectedPieces.map(p => p.orderId))];
+                uniqueOrders.forEach(oid => {
+                    const orderObj = orders.find(o => o.id === oid);
+                    const newProg = orderObj.progreso.map(i => 
+                        selectedPieces.some(sp => sp.codigoUnico === i.codigoUnico) ? {...i, agrupado: true, kitRef: kitId} : i
+                    );
+                    batch.update(db.collection('orders').doc(oid), { progreso: newProg });
+                });
+                await batch.commit();
+                setCheckedIds([]);
                 setIsSaving(false);
             };
 
             const downloadPDF = async () => {
                 if (kitQueue.length === 0) return;
                 setIsSaving(true);
-                await new Promise(r => setTimeout(r, 800)); 
                 const opt = { 
-                    margin: 0, 
-                    filename: `KITS_${selectedKey}.pdf`, 
+                    margin: 0, filename: `KITS_${selectedKey}.pdf`, 
                     image: { type: 'jpeg', quality: 0.98 },
                     html2canvas: { scale: 3, useCORS: true },
                     jsPDF: { unit: 'in', format: [4, 6], orientation: 'portrait' } 
                 };
-                try {
-                    await html2pdf().set(opt).from(pdfRef.current).save();
-                    setKitQueue([]);
-                    setSelectedKey(null);
-                } catch (e) { alert("Error PDF"); }
+                await html2pdf().set(opt).from(pdfRef.current).save();
+                setKitQueue([]);
+                setSelectedKey(null);
                 setIsSaving(false);
             };
 
             return (
-                <div className="flex h-screen overflow-hidden bg-slate-950">
+                <div className="flex h-screen bg-slate-950">
+                    {/* Sidebar */}
                     <div className="w-72 bg-slate-900 border-r border-slate-800 flex flex-col">
-                        <div className="p-6 border-b border-slate-800 font-black text-yellow-500 italic">CIRINEO V12.1</div>
+                        <div className="p-6 border-b border-slate-800 font-black text-yellow-500 italic">CIRINEO KITTER</div>
                         <div className="flex-1 overflow-y-auto custom-scroll p-4 space-y-2">
                             {Array.from(new Set(orders.map(o => `${o.codigo}|${o.partida || 'SN'}`))).sort().map(k => (
                                 <div key={k} onClick={() => {setSelectedKey(k); setKitQueue([]); setCheckedIds([]);}}
@@ -312,173 +234,98 @@
                         </div>
                     </div>
 
-                    <div className="flex-1 flex flex-col">
+                    {/* Main Content */}
+                    <div className="flex-1 flex flex-col relative">
                         {selectedKey ? (
                             <div className="flex h-full">
-                                <div className="flex-1 flex flex-col p-8 overflow-y-auto custom-scroll">
-                                    <div className="flex justify-between items-end mb-4">
-                                        <div className="flex items-center gap-4">
-                                            <h2 className="text-5xl font-black txt-oswald italic uppercase leading-none">{currentData.modelo}</h2>
-                                            <button onClick={handleResetGroup} disabled={isSaving} className="h-10 w-10 flex items-center justify-center rounded-full bg-red-900/40 border border-red-500 text-red-500 hover:bg-red-600 hover:text-white transition-all"><Icon name="rotate-ccw" size={20} /></button>
-                                            <button onClick={handleAutoGroup} disabled={isSaving} className="h-10 px-6 rounded-full bg-purple-900/40 border border-purple-500 text-purple-400 hover:bg-purple-600 hover:text-white transition-all font-bold text-xs uppercase flex items-center gap-2"><Icon name="wand-2" size={16} /> Auto-Agrupar</button>
+                                <div className="flex-1 p-8 overflow-y-auto custom-scroll">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h2 className="text-5xl font-black txt-oswald italic uppercase">{currentData.modelo}</h2>
+                                        <div className="flex gap-2">
+                                            <button onClick={handleAutoGroup} disabled={isSaving} className="px-6 py-3 rounded-xl bg-purple-600 font-bold text-xs uppercase flex items-center gap-2"><Icon name="wand-2" /> Auto-Agrupar</button>
+                                            {kitQueue.length > 0 && (
+                                                <button onClick={downloadPDF} className="bg-green-500 text-black font-black px-6 py-3 rounded-xl animate-pulse">GENERAR PDF ({kitQueue.length})</button>
+                                            )}
                                         </div>
-                                        {kitQueue.length > 0 && (
-                                            <button onClick={() => downloadPDF()} disabled={isSaving} className="bg-green-500 text-black font-black px-8 py-4 rounded-xl shadow-xl flex items-center gap-2 hover:scale-105 transition-transform animate-pulse">
-                                                <Icon name="download" /> {isSaving ? 'GENERANDO...' : `GENERAR PDF (${kitQueue.length})`}
-                                            </button>
-                                        )}
                                     </div>
                                     
-                                    {currentData.sizes.map(s => {
-                                        const isLocked = activeSizeLock && activeSizeLock !== s.name;
-                                        return (
-                                            <div key={s.name} className={`mb-6 transition-all ${isLocked ? 'section-blocked' : ''}`}>
-                                                <div className="group-header">
-                                                    <span>Talla: {s.name}</span>
-                                                    {isLocked && <span className="text-[10px] bg-red-900 text-red-200 px-2 py-0.5 rounded border border-red-700">BLOQUEADO</span>}
-                                                </div>
-                                                <div className="grid grid-cols-4 gap-3">
-                                                    {s.items.map(p => {
-                                                        const grouped = kitQueue.some(k => k.piezas.some(x => x.codigoUnico === p.codigoUnico)) || p.agrupado;
-                                                        const selected = checkedIds.includes(p.codigoUnico);
-                                                        return (
-                                                            <div key={p.codigoUnico} 
-                                                                 onClick={() => { if(grouped || isLocked) return; setCheckedIds(prev => selected ? prev.filter(x=>x!==p.codigoUnico) : [...prev, p.codigoUnico]) }}
-                                                                 className={`pkg-card ${selected ? 'selected' : ''} ${grouped ? 'confirmed' : ''}`}>
-                                                                <div className="flex justify-between font-black">
-                                                                    <span className="text-xl txt-oswald">#{p.paqueteNum}</span>
-                                                                    {grouped && <Icon name="lock" className="text-green-500" size={12}/>}
-                                                                </div>
-                                                                <div className="mt-2 flex justify-between items-end">
-                                                                    <div className="flex flex-col">
-                                                                        <span className="text-[12px] uppercase font-black truncate w-24 opacity-80">{getCleanName(p.piezaNombre)}</span>
-                                                                        <span className="text-[10px] text-purple-400 font-bold">Maq {p.maquina}</span>
-                                                                    </div>
-                                                                    <span className="text-2xl font-black text-yellow-500">{p.cantidad}</span>
-                                                                </div>
+                                    {currentData.sizes.map(s => (
+                                        <div key={s.name} className={`mb-8 ${activeSizeLock && activeSizeLock !== s.name ? 'section-blocked' : ''}`}>
+                                            <div className="group-header"><span>Talla: {s.name}</span></div>
+                                            <div className="grid grid-cols-4 gap-3">
+                                                {s.items.map(p => {
+                                                    const grouped = p.agrupado || kitQueue.some(k => k.piezas.some(x => x.codigoUnico === p.codigoUnico));
+                                                    const selected = checkedIds.includes(p.codigoUnico);
+                                                    return (
+                                                        <div key={p.codigoUnico} 
+                                                             onClick={() => { if(!grouped) setCheckedIds(prev => selected ? prev.filter(x=>x!==p.codigoUnico) : [...prev, p.codigoUnico]) }}
+                                                             className={`pkg-card ${selected ? 'selected' : ''} ${grouped ? 'confirmed' : ''}`}>
+                                                            <div className="flex justify-between"><span className="text-xl txt-oswald">#{p.paqueteNum}</span>{grouped && <Icon name="lock" className="text-green-500" />}</div>
+                                                            <div className="mt-2 flex justify-between items-end">
+                                                                <div><div className="text-[10px] uppercase font-bold text-slate-400">{getCleanName(p.piezaNombre)}</div><div className="text-[10px] text-purple-400">Maq {p.maquina}</div></div>
+                                                                <span className="text-2xl font-black text-yellow-500">{p.cantidad}</span>
                                                             </div>
-                                                        );
-                                                    })}
-                                                </div>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
-                                        )
-                                    })}
+                                        </div>
+                                    ))}
                                 </div>
 
-                                <div className="w-[420px] border-l border-slate-800 bg-slate-900/30 p-6 flex flex-col items-center">
-                                    {(activeSizeLock && kitQueue.length === 0) || checkedIds.length > 0 ? (
-                                        <button onClick={handleCancel} className="mb-4 w-full bg-red-900/30 border border-red-500 text-red-400 font-bold py-2 rounded flex items-center justify-center gap-2 text-xs hover:bg-red-900/60 transition-colors">
-                                            <Icon name="x-circle" size={14}/> CANCELAR / LIBERAR TALLA
-                                        </button>
-                                    ) : null}
-
+                                {/* Preview Panel */}
+                                <div className="w-96 border-l border-slate-800 bg-slate-900/50 p-6 flex flex-col items-center">
                                     {selectedPieces.length > 0 ? (
-                                        <div className="w-full flex flex-col items-center gap-4">
-                                            <div className="ficha-base rounded shadow-2xl scale-[0.75] origin-top">
+                                        <>
+                                            <div className="ficha-base rounded shadow-2xl scale-[0.8] origin-top mb-4">
                                                 <div className="h-[20%] bg-black text-white p-4 flex justify-between items-center border-b-4 border-yellow-500">
-                                                    <div>
-                                                        <span className="text-5xl txt-oswald uppercase leading-none">{currentData.modelo}</span>
-                                                        <span className="text-xs font-bold text-gray-300 block mt-1">{selectedPieces[0].cliente}</span>
-                                                    </div>
-                                                    <span className="text-3xl font-bold txt-oswald">{currentData.partida}</span>
+                                                    <div><span className="text-4xl txt-oswald uppercase">{currentData.modelo}</span><span className="text-[10px] block text-gray-400">{selectedPieces[0].cliente}</span></div>
+                                                    <span className="text-2xl font-bold">{currentData.partida}</span>
                                                 </div>
                                                 <div className="h-[60%] flex">
                                                     <div className="w-[40%] border-r-2 border-black p-2"><SmartImage modelo={currentData.modelo} repos={repos} /></div>
-                                                    <div className="w-[60%] p-4">
+                                                    <div className="w-[60%] p-2 overflow-y-auto">
                                                         <table className="table-horizontal text-[10px]">
-                                                            <tbody>
-                                                                {selectedPieces.map((p, i) => (
-                                                                    <tr key={i}>
-                                                                        <td className="w-12"><span className="txt-oswald text-4xl font-black">{p.cantidad}</span></td>
-                                                                        <td>
-                                                                            <div className="font-bold uppercase text-xs">{getCleanName(p.piezaNombre)}</div>
-                                                                            <div className="font-black italic opacity-60">Maq {p.maquina}</div>
-                                                                        </td>
-                                                                    </tr>
-                                                                ))}
-                                                            </tbody>
+                                                            <tbody>{selectedPieces.map((p, i) => (<tr key={i}><td className="w-8 font-black text-lg">{p.cantidad}</td><td className="uppercase">{getCleanName(p.piezaNombre)}</td></tr>))}</tbody>
                                                         </table>
                                                     </div>
                                                 </div>
-                                                <div className="h-[20%] border-t-2 border-black flex flex-col items-center justify-center bg-gray-100 p-2">
-                                                     <div className="flex-1 flex items-center justify-center w-full bg-slate-200 border border-slate-300 text-slate-400 text-xs font-bold">
-                                                        [CÓDIGO DE BARRAS GRANDE]
-                                                     </div>
-                                                     <div className="mt-1">
-                                                        <span className="text-lg font-bold text-slate-800 uppercase">TALLA: {selectedPieces[0].talla}</span>
-                                                     </div>
+                                                <div className="h-[20%] border-t-2 border-black flex flex-col items-center justify-center bg-gray-50">
+                                                    <div className="text-xs font-bold text-slate-400">BARCODE GENERADO AL CONFIRMAR</div>
+                                                    <div className="text-lg font-black mt-1">TALLA: {selectedPieces[0].talla}</div>
                                                 </div>
                                             </div>
-                                            <button onClick={handleConfirmGroup} className="w-full bg-yellow-500 text-black font-black py-4 rounded-xl flex items-center justify-center gap-2 shadow-xl hover:bg-yellow-400">
-                                                <Icon name="check" /> CONFIRMAR
-                                            </button>
-                                        </div>
-                                    ) : <div className="mt-20 text-slate-600 font-bold italic text-center">Selecciona paquetes para formar un Kit...</div>}
+                                            <button onClick={handleConfirmManual} className="w-full bg-yellow-500 text-black font-black py-4 rounded-xl">CONFIRMAR KIT</button>
+                                            <button onClick={() => setCheckedIds([])} className="mt-4 text-red-400 text-xs font-bold uppercase">Limpiar selección</button>
+                                        </>
+                                    ) : <div className="mt-20 text-slate-600 font-bold text-center italic">Selecciona paquetes...</div>}
                                 </div>
                             </div>
-                        ) : <div className="flex-1 flex items-center justify-center opacity-10"><Icon name="printer" size={100}/></div>}
+                        ) : <div className="flex-1 flex items-center justify-center opacity-10"><Icon name="box" size={120}/></div>}
                     </div>
 
-                    <div style={{ position: 'absolute', left: '-9999px' }}>
-                        <div ref={pdfRef}>
-                            {kitQueue.map((kit, idx) => (
-                                <div key={idx} className="ficha-base">
-                                    <div className="h-[20%] bg-black text-white p-4 flex justify-between items-center border-b-4 border-yellow-500">
-                                        <div className="flex flex-col justify-center">
-                                            <span className="text-[10px] text-yellow-400 font-black block">ENSAMBLE</span>
-                                            <span className="text-6xl txt-oswald uppercase leading-none">{kit.modelo}</span>
-                                            <span className="text-sm font-bold text-white mt-1 bg-slate-800 px-2 py-0.5 rounded inline-block max-w-[200px] truncate">{kit.cliente}</span>
-                                        </div>
-                                        <div className="text-right flex flex-col items-end">
-                                            <span className="text-4xl font-bold txt-oswald leading-none">{kit.partida}</span>
-                                            <div className="mt-2">
-                                                <span className="text-[10px] uppercase font-black mr-2 text-yellow-500 tracking-widest">PAQUETE</span>
-                                                <div className="seq-box">{idx + 1} - {kitQueue.length}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="h-[60%] flex">
-                                        <div className="w-[42%] border-r-4 border-black p-2 flex flex-col items-center justify-center"><SmartImage modelo={kit.modelo} repos={repos} /></div>
-                                        <div className="w-[58%] p-4">
-                                            <table className="table-horizontal">
-                                                <thead>
-                                                    <tr className="text-[10px] font-black border-b-2 border-black">
-                                                        <th className="text-left py-1 w-16">CANT.</th>
-                                                        <th className="text-left py-1">PIEZA / MAQ</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {kit.piezas.map((p, i) => (
-                                                        <tr key={i}>
-                                                            <td className="py-2"><span className="txt-oswald qty-label">{p.cantidad}</span></td>
-                                                            <td className="py-2">
-                                                                <div className="text-[18px] font-black uppercase leading-none transform translate-y-1">{getCleanName(p.piezaNombre)}</div>
-                                                                <div className="text-4xl font-black italic mt-1 block text-slate-800">Maq {p.maquina}</div>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                    {/* FOOTER CORREGIDO */}
-                                    <div className="h-[20%] border-t-4 border-black flex flex-col items-center justify-center bg-white p-2">
-                                        {/* TALLA REDUCIDA */}
-                                        <span className="text-lg font-bold uppercase mb-1">TALLA: {kit.talla}</span>
-                                        
-                                        {/* BARCODE GIGANTE (SIN TEXTO) */}
-                                        <div className="flex-1 w-full flex items-center justify-center overflow-hidden">
-                                            <svg id={`bc-${kit.kitId}`} className="max-h-full"></svg>
-                                        </div>
-                                    </div>
+                    {/* PDF Generation Layer */}
+                    <div style={{ position: 'absolute', left: '-9999px' }}><div ref={pdfRef}>
+                        {kitQueue.map((kit, idx) => (
+                            <div key={idx} className="ficha-base">
+                                <div className="h-[20%] bg-black text-white p-4 flex justify-between items-center border-b-4 border-yellow-500">
+                                    <div className="flex flex-col"><span className="text-6xl txt-oswald uppercase leading-none">{kit.modelo}</span><span className="text-sm font-bold truncate max-w-[200px]">{kit.cliente}</span></div>
+                                    <div className="text-right flex flex-col items-end"><span className="text-4xl font-bold txt-oswald">{kit.partida}</span><div className="seq-box mt-2">{idx + 1}/{kitQueue.length}</div></div>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
+                                <div className="h-[60%] flex">
+                                    <div className="w-[40%] border-r-4 border-black p-2"><SmartImage modelo={kit.modelo} repos={repos} /></div>
+                                    <div className="w-[60%] p-4"><table className="table-horizontal"><tbody>{kit.piezas.map((p, i) => (<tr key={i}><td className="py-2"><span className="txt-oswald qty-label">{p.cantidad}</span></td><td className="py-2"><div className="text-lg font-black uppercase">{getCleanName(p.piezaNombre)}</div><div className="text-3xl font-black italic text-slate-700">Maq {p.maquina}</div></td></tr>))}</tbody></table></div>
+                                </div>
+                                <div className="h-[20%] border-t-4 border-black flex flex-col items-center justify-center p-2 bg-white">
+                                    <span className="text-lg font-bold uppercase">TALLA: {kit.talla}</span>
+                                    <div className="flex-1 w-full flex items-center justify-center overflow-hidden"><svg id={`bc-${kit.kitId}`}></svg></div>
+                                </div>
+                            </div>
+                        ))}
+                    </div></div>
                 </div>
             );
         };
-
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
