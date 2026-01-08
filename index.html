@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cirineo Kit Maker V12.2 - Database Sync</title>
+    <title>Cirineo Kit Maker V12.1 - Final</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -126,80 +126,58 @@
                 return null;
             }, [kitQueue, selectedPieces]);
 
-            // Función para guardar el Kit en Firebase y generar el Barcode
-            const saveAndQueueKit = async (kitId, items) => {
-                const p = items[0];
-                const newKit = {
-                    kitId,
-                    modelo: currentData.modelo,
-                    partida: currentData.partida,
-                    cliente: p.cliente,
-                    talla: p.talla,
-                    piezas: items.map(i => ({
-                        codigoUnico: i.codigoUnico,
-                        paqueteNum: i.paqueteNum,
-                        cantidad: i.cantidad,
-                        piezaNombre: i.piezaNombre,
-                        maquina: i.maquina,
-                        orderId: i.orderId
-                    })),
-                    fechaCreacion: firebase.firestore.FieldValue.serverTimestamp()
-                };
-                
-                await db.collection('kits_produccion').doc(kitId).set(newKit);
-                setKitQueue(prev => [...prev, newKit]);
-                
-                setTimeout(() => {
-                    JsBarcode(`#bc-${kitId}`, kitId, { 
-                        format: "CODE128", height: 70, width: 2.5, displayValue: true, margin: 0 
-                    });
-                }, 500);
-            };
-
-            const handleAutoGroup = async () => {
-                let candidates = [];
-                currentData.sizes.forEach(s => candidates.push(...s.items.filter(p => !p.agrupado)));
-                if (activeSizeLock) candidates = candidates.filter(p => p.talla === activeSizeLock);
-                if (candidates.length === 0) return alert("Nada para agrupar.");
-
-                setIsSaving(true);
-                const batch = db.batch();
-                const timestamp = Date.now();
-                const groups = {};
-                candidates.forEach(p => { if(!groups[p.paqueteNum]) groups[p.paqueteNum] = []; groups[p.paqueteNum].push(p); });
-
-                for (const [num, items] of Object.entries(groups)) {
-                    const kitId = `K${(timestamp + parseInt(num)).toString().slice(-6)}`;
-                    await saveAndQueueKit(kitId, items);
-                    items.forEach(p => {
-                        const orderRef = db.collection('orders').doc(p.orderId);
-                        const orderObj = orders.find(o => o.id === p.orderId);
-                        const newProg = orderObj.progreso.map(item => 
-                            item.codigoUnico === p.codigoUnico ? { ...item, agrupado: true, kitRef: kitId } : item
-                        );
-                        batch.update(orderRef, { progreso: newProg });
-                    });
-                }
-                await batch.commit();
-                setIsSaving(false);
-            };
-
             const handleConfirmManual = async () => {
                 if (selectedPieces.length === 0) return;
                 setIsSaving(true);
-                const kitId = `K${Date.now().toString().slice(-6)}`;
-                await saveAndQueueKit(kitId, selectedPieces);
-                const batch = db.batch();
-                const uniqueOrders = [...new Set(selectedPieces.map(p => p.orderId))];
-                uniqueOrders.forEach(oid => {
-                    const orderObj = orders.find(o => o.id === oid);
-                    const newProg = orderObj.progreso.map(i => 
-                        selectedPieces.some(sp => sp.codigoUnico === i.codigoUnico) ? {...i, agrupado: true, kitRef: kitId} : i
-                    );
-                    batch.update(db.collection('orders').doc(oid), { progreso: newProg });
-                });
-                await batch.commit();
-                setCheckedIds([]);
+                const kitId = `K${Date.now().toString().slice(-8)}`;
+                
+                try {
+                    // GUARDAR DATOS DEL KIT PARA EL ESCÁNER
+                    await db.collection('kits_datos').doc(kitId).set({
+                        kitId,
+                        modelo: currentData.modelo,
+                        partida: currentData.partida,
+                        talla: selectedPieces[0].talla,
+                        cliente: selectedPieces[0].cliente,
+                        piezas: selectedPieces.map(p => ({
+                            codigoUnico: p.codigoUnico,
+                            paqueteNum: p.paqueteNum,
+                            cantidad: p.cantidad,
+                            piezaNombre: p.piezaNombre,
+                            orderId: p.orderId,
+                            maquinaOriginal: p.maquina
+                        }))
+                    });
+
+                    // MARCAR COMO AGRUPADO EN ORDERS
+                    const batch = db.batch();
+                    const uniqueOrders = [...new Set(selectedPieces.map(p => p.orderId))];
+                    uniqueOrders.forEach(oid => {
+                        const orderObj = orders.find(o => o.id === oid);
+                        const newProg = orderObj.progreso.map(i => 
+                            selectedPieces.some(sp => sp.codigoUnico === i.codigoUnico) ? {...i, agrupado: true, kitRef: kitId} : i
+                        );
+                        batch.update(db.collection('orders').doc(oid), { progreso: newProg });
+                    });
+                    await batch.commit();
+
+                    setKitQueue(prev => [...prev, {
+                        kitId,
+                        modelo: currentData.modelo,
+                        partida: currentData.partida,
+                        cliente: selectedPieces[0].cliente,
+                        talla: selectedPieces[0].talla,
+                        items: [...selectedPieces]
+                    }]);
+
+                    setTimeout(() => {
+                        JsBarcode(`#bc-${kitId}`, kitId, {
+                            format: "CODE128", displayValue: true, fontSize: 14, height: 50, margin: 0
+                        });
+                    }, 100);
+
+                    setCheckedIds([]);
+                } catch (e) { alert("Error al guardar: " + e.message); }
                 setIsSaving(false);
             };
 
@@ -207,7 +185,7 @@
                 if (kitQueue.length === 0) return;
                 setIsSaving(true);
                 const opt = { 
-                    margin: 0, filename: `KITS_${selectedKey}.pdf`, 
+                    margin: 0, filename: `KITS_${currentData.modelo}.pdf`, 
                     image: { type: 'jpeg', quality: 0.98 },
                     html2canvas: { scale: 3, useCORS: true },
                     jsPDF: { unit: 'in', format: [4, 6], orientation: 'portrait' } 
@@ -222,7 +200,7 @@
                 <div className="flex h-screen bg-slate-950">
                     {/* Sidebar */}
                     <div className="w-72 bg-slate-900 border-r border-slate-800 flex flex-col">
-                        <div className="p-6 border-b border-slate-800 font-black text-yellow-500 italic">CIRINEO KITTER</div>
+                        <div className="p-6 border-b border-slate-800 font-black text-yellow-500 italic">CIRINEO KIT MAKER</div>
                         <div className="flex-1 overflow-y-auto custom-scroll p-4 space-y-2">
                             {Array.from(new Set(orders.map(o => `${o.codigo}|${o.partida || 'SN'}`))).sort().map(k => (
                                 <div key={k} onClick={() => {setSelectedKey(k); setKitQueue([]); setCheckedIds([]);}}
@@ -234,18 +212,15 @@
                         </div>
                     </div>
 
-                    {/* Main Content */}
-                    <div className="flex-1 flex flex-col relative">
+                    {/* Main */}
+                    <div className="flex-1 flex flex-col">
                         {selectedKey ? (
                             <div className="flex h-full">
                                 <div className="flex-1 p-8 overflow-y-auto custom-scroll">
                                     <div className="flex justify-between items-center mb-6">
                                         <h2 className="text-5xl font-black txt-oswald italic uppercase">{currentData.modelo}</h2>
                                         <div className="flex gap-2">
-                                            <button onClick={handleAutoGroup} disabled={isSaving} className="px-6 py-3 rounded-xl bg-purple-600 font-bold text-xs uppercase flex items-center gap-2"><Icon name="wand-2" /> Auto-Agrupar</button>
-                                            {kitQueue.length > 0 && (
-                                                <button onClick={downloadPDF} className="bg-green-500 text-black font-black px-6 py-3 rounded-xl animate-pulse">GENERAR PDF ({kitQueue.length})</button>
-                                            )}
+                                            {kitQueue.length > 0 && <button onClick={downloadPDF} className="bg-green-500 text-black font-black px-6 py-3 rounded-xl animate-pulse">GENERAR PDF ({kitQueue.length})</button>}
                                         </div>
                                     </div>
                                     
@@ -254,7 +229,7 @@
                                             <div className="group-header"><span>Talla: {s.name}</span></div>
                                             <div className="grid grid-cols-4 gap-3">
                                                 {s.items.map(p => {
-                                                    const grouped = p.agrupado || kitQueue.some(k => k.piezas.some(x => x.codigoUnico === p.codigoUnico));
+                                                    const grouped = p.agrupado || kitQueue.some(k => k.items.some(x => x.codigoUnico === p.codigoUnico));
                                                     const selected = checkedIds.includes(p.codigoUnico);
                                                     return (
                                                         <div key={p.codigoUnico} 
@@ -273,7 +248,6 @@
                                     ))}
                                 </div>
 
-                                {/* Preview Panel */}
                                 <div className="w-96 border-l border-slate-800 bg-slate-900/50 p-6 flex flex-col items-center">
                                     {selectedPieces.length > 0 ? (
                                         <>
@@ -291,41 +265,59 @@
                                                     </div>
                                                 </div>
                                                 <div className="h-[20%] border-t-2 border-black flex flex-col items-center justify-center bg-gray-50">
-                                                    <div className="text-xs font-bold text-slate-400">BARCODE GENERADO AL CONFIRMAR</div>
-                                                    <div className="text-lg font-black mt-1">TALLA: {selectedPieces[0].talla}</div>
+                                                    <div className="text-xs font-bold text-slate-400 italic">VISTA PREVIA</div>
+                                                    <div className="text-lg font-black mt-1 uppercase">TALLA: {selectedPieces[0].talla}</div>
                                                 </div>
                                             </div>
-                                            <button onClick={handleConfirmManual} className="w-full bg-yellow-500 text-black font-black py-4 rounded-xl">CONFIRMAR KIT</button>
-                                            <button onClick={() => setCheckedIds([])} className="mt-4 text-red-400 text-xs font-bold uppercase">Limpiar selección</button>
+                                            <button onClick={handleConfirmManual} disabled={isSaving} className="w-full bg-yellow-500 text-black font-black py-4 rounded-xl uppercase tracking-wider shadow-lg shadow-yellow-500/20">CONFIRMAR KIT</button>
                                         </>
-                                    ) : <div className="mt-20 text-slate-600 font-bold text-center italic">Selecciona paquetes...</div>}
+                                    ) : <div className="mt-20 text-slate-600 font-bold text-center italic">Selecciona papeletas para agrupar...</div>}
                                 </div>
                             </div>
                         ) : <div className="flex-1 flex items-center justify-center opacity-10"><Icon name="box" size={120}/></div>}
                     </div>
 
-                    {/* PDF Generation Layer */}
-                    <div style={{ position: 'absolute', left: '-9999px' }}><div ref={pdfRef}>
-                        {kitQueue.map((kit, idx) => (
-                            <div key={idx} className="ficha-base">
-                                <div className="h-[20%] bg-black text-white p-4 flex justify-between items-center border-b-4 border-yellow-500">
-                                    <div className="flex flex-col"><span className="text-6xl txt-oswald uppercase leading-none">{kit.modelo}</span><span className="text-sm font-bold truncate max-w-[200px]">{kit.cliente}</span></div>
-                                    <div className="text-right flex flex-col items-end"><span className="text-4xl font-bold txt-oswald">{kit.partida}</span><div className="seq-box mt-2">{idx + 1}/{kitQueue.length}</div></div>
+                    {/* PDF CAPA */}
+                    <div style={{ position: 'absolute', left: '-9999px' }}>
+                        <div ref={pdfRef}>
+                            {kitQueue.map((kit, idx) => (
+                                <div key={idx} className="ficha-base">
+                                    <div className="h-[20%] bg-black text-white p-4 flex justify-between items-center border-b-4 border-yellow-500">
+                                        <div className="flex flex-col"><span className="text-6xl txt-oswald uppercase leading-none">{kit.modelo}</span><span className="text-sm font-bold truncate max-w-[200px]">{kit.cliente}</span></div>
+                                        <div className="text-right flex flex-col items-end"><span className="text-4xl font-bold txt-oswald">{kit.partida}</span><div className="seq-box mt-2">{idx + 1}/{kitQueue.length}</div></div>
+                                    </div>
+                                    <div className="h-[60%] flex">
+                                        <div className="w-[40%] border-r-4 border-black p-2"><SmartImage modelo={kit.modelo} repos={repos} /></div>
+                                        <div className="w-[60%] p-4">
+                                            <table className="table-horizontal">
+                                                <tbody>
+                                                    {kit.items.map((p, i) => (
+                                                        <tr key={i}>
+                                                            <td className="py-2"><span className="txt-oswald qty-label">{p.cantidad}</span></td>
+                                                            <td className="py-2">
+                                                                <div className="text-lg font-black uppercase">{getCleanName(p.piezaNombre)}</div>
+                                                                <div className="text-3xl font-black italic text-slate-700">Maq {p.maquina}</div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div className="h-[20%] border-t-4 border-black flex flex-col items-center justify-center bg-white p-2">
+                                        <span className="text-lg font-bold uppercase mb-1">TALLA: {kit.talla}</span>
+                                        <div className="flex-1 w-full flex items-center justify-center overflow-hidden">
+                                            <svg id={`bc-${kit.kitId}`} className="max-h-full"></svg>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="h-[60%] flex">
-                                    <div className="w-[40%] border-r-4 border-black p-2"><SmartImage modelo={kit.modelo} repos={repos} /></div>
-                                    <div className="w-[60%] p-4"><table className="table-horizontal"><tbody>{kit.piezas.map((p, i) => (<tr key={i}><td className="py-2"><span className="txt-oswald qty-label">{p.cantidad}</span></td><td className="py-2"><div className="text-lg font-black uppercase">{getCleanName(p.piezaNombre)}</div><div className="text-3xl font-black italic text-slate-700">Maq {p.maquina}</div></td></tr>))}</tbody></table></div>
-                                </div>
-                                <div className="h-[20%] border-t-4 border-black flex flex-col items-center justify-center p-2 bg-white">
-                                    <span className="text-lg font-bold uppercase">TALLA: {kit.talla}</span>
-                                    <div className="flex-1 w-full flex items-center justify-center overflow-hidden"><svg id={`bc-${kit.kitId}`}></svg></div>
-                                </div>
-                            </div>
-                        ))}
-                    </div></div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             );
         };
+
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
