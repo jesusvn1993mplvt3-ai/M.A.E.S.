@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cirineo Kit Maker V12.1 - Final</title>
+    <title>Cirineo Kit Maker V12.1 - Final + Ungroup</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -28,11 +28,22 @@
         .pkg-card { transition: all 0.2s; cursor: pointer; border: 2px solid #1e293b; padding: 10px; border-radius: 10px; background: #0f172a; position: relative; }
         .pkg-card.selected { border-color: #eab308; background: #1e293b; transform: scale(1.02); z-index: 10; }
         .pkg-card.confirmed { opacity: 0.2; pointer-events: none; filter: grayscale(1); }
+        
+        /* Estilos para modo desagrupar */
+        .pkg-card.ungroup-target { border-color: #ef4444; background: #450a0a; opacity: 1 !important; pointer-events: auto !important; filter: none !important; animation: pulse-red 2s infinite; }
+        .pkg-card.ungroup-target:hover { transform: scale(1.05); border-color: #fca5a5; }
+        
         .section-blocked { opacity: 0.2; pointer-events: none; filter: grayscale(100%); }
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
         .seq-box { background: #000; color: #fbbf24; padding: 4px 10px; font-family: 'Oswald', sans-serif; font-size: 24px; font-weight: 900; border: 2px solid white; display: inline-block; line-height: 1; transform: rotate(-2deg); }
         .group-header { background: linear-gradient(90deg, #1e293b 0%, transparent 100%); border-left: 4px solid #a855f7; padding: 4px 12px; margin: 15px 0 10px 0; font-weight: 900; text-transform: uppercase; font-size: 14px; letter-spacing: 1px; color: #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
     </style>
 </head>
 <body>
@@ -79,6 +90,11 @@
             const [kitQueue, setKitQueue] = useState([]);
             const [repos, setRepos] = useState([]);
             const [isSaving, setIsSaving] = useState(false);
+            
+            // Estado para Desagrupar
+            const [isUngroupMode, setIsUngroupMode] = useState(false);
+            const [pendingUngroups, setPendingUngroups] = useState([]); // Array de kitIds a borrar
+
             const pdfRef = useRef();
 
             useEffect(() => {
@@ -120,11 +136,91 @@
                 return all.filter(p => checkedIds.includes(p.codigoUnico));
             }, [checkedIds, currentData]);
 
+            // Bloqueo de talla solo si no estamos desagrupando
             const activeSizeLock = useMemo(() => {
+                if (isUngroupMode) return null;
                 if (kitQueue.length > 0) return kitQueue[0].talla;
                 if (selectedPieces.length > 0) return selectedPieces[0].talla;
                 return null;
-            }, [kitQueue, selectedPieces]);
+            }, [kitQueue, selectedPieces, isUngroupMode]);
+
+            // Función para alternar modo desagrupar
+            const toggleUngroupMode = () => {
+                if (isUngroupMode) {
+                    // Cancelar
+                    setIsUngroupMode(false);
+                    setPendingUngroups([]);
+                } else {
+                    // Activar
+                    setCheckedIds([]); // Limpiar selecciones de agrupación
+                    setIsUngroupMode(true);
+                }
+            };
+
+            const handleCardClick = (p, grouped, selected) => {
+                if (isUngroupMode) {
+                    // Lógica de desagrupado
+                    if (p.kitRef) {
+                        const isPending = pendingUngroups.includes(p.kitRef);
+                        if (isPending) {
+                            // Si ya estaba marcado para borrar, lo desmarcamos (vuelve a ser agrupado)
+                            setPendingUngroups(prev => prev.filter(k => k !== p.kitRef));
+                        } else {
+                            // Marcar para borrar (se desagrupa visualmente)
+                            setPendingUngroups(prev => [...prev, p.kitRef]);
+                        }
+                    }
+                } else {
+                    // Lógica normal de agrupación
+                    if(!grouped) {
+                        setCheckedIds(prev => selected ? prev.filter(x=>x!==p.codigoUnico) : [...prev, p.codigoUnico]);
+                    }
+                }
+            };
+
+            const confirmUngroup = async () => {
+                if (pendingUngroups.length === 0) {
+                    setIsUngroupMode(false);
+                    return;
+                }
+                setIsSaving(true);
+                try {
+                    const batch = db.batch();
+
+                    // 1. Borrar de kits_datos
+                    pendingUngroups.forEach(kitId => {
+                        batch.delete(db.collection('kits_datos').doc(kitId));
+                    });
+
+                    // 2. Actualizar Orders (quitar agrupado y kitRef)
+                    // Buscamos todas las ordenes afectadas
+                    const affectedOrders = new Set();
+                    orders.forEach(o => {
+                        if (o.progreso && o.progreso.some(p => pendingUngroups.includes(p.kitRef))) {
+                            affectedOrders.add(o.id);
+                        }
+                    });
+
+                    affectedOrders.forEach(oid => {
+                        const orderObj = orders.find(o => o.id === oid);
+                        const newProg = orderObj.progreso.map(i => {
+                            if (i.kitRef && pendingUngroups.includes(i.kitRef)) {
+                                const { agrupado, kitRef, ...rest } = i; // Quitamos propiedades
+                                return rest; 
+                            }
+                            return i;
+                        });
+                        batch.update(db.collection('orders').doc(oid), { progreso: newProg });
+                    });
+
+                    await batch.commit();
+                    setPendingUngroups([]);
+                    setIsUngroupMode(false);
+                } catch (e) {
+                    alert("Error al desagrupar: " + e.message);
+                }
+                setIsSaving(false);
+            };
 
             const handleConfirmManual = async () => {
                 if (selectedPieces.length === 0) return;
@@ -132,7 +228,6 @@
                 const kitId = `K${Date.now().toString().slice(-8)}`;
                 
                 try {
-                    // GUARDAR DATOS DEL KIT PARA EL ESCÁNER
                     await db.collection('kits_datos').doc(kitId).set({
                         kitId,
                         modelo: currentData.modelo,
@@ -149,7 +244,6 @@
                         }))
                     });
 
-                    // MARCAR COMO AGRUPADO EN ORDERS
                     const batch = db.batch();
                     const uniqueOrders = [...new Set(selectedPieces.map(p => p.orderId))];
                     uniqueOrders.forEach(oid => {
@@ -198,12 +292,12 @@
 
             return (
                 <div className="flex h-screen bg-slate-950">
-                    {/* Sidebar */}
+                    {/* Sidebar Izquierda */}
                     <div className="w-72 bg-slate-900 border-r border-slate-800 flex flex-col">
                         <div className="p-6 border-b border-slate-800 font-black text-yellow-500 italic">CIRINEO KIT MAKER</div>
                         <div className="flex-1 overflow-y-auto custom-scroll p-4 space-y-2">
                             {Array.from(new Set(orders.map(o => `${o.codigo}|${o.partida || 'SN'}`))).sort().map(k => (
-                                <div key={k} onClick={() => {setSelectedKey(k); setKitQueue([]); setCheckedIds([]);}}
+                                <div key={k} onClick={() => {if(!isSaving) {setSelectedKey(k); setKitQueue([]); setCheckedIds([]); setIsUngroupMode(false); setPendingUngroups([]);}}}
                                     className={`p-4 rounded-xl cursor-pointer border-l-4 transition-all ${selectedKey === k ? 'bg-blue-600 border-white' : 'hover:bg-slate-800 border-transparent'}`}>
                                     <div className="font-bold">{k.split('|')[0]}</div>
                                     <div className="text-[10px] opacity-60 uppercase font-black">Partida: {k.split('|')[1]}</div>
@@ -216,26 +310,65 @@
                     <div className="flex-1 flex flex-col">
                         {selectedKey ? (
                             <div className="flex h-full">
-                                <div className="flex-1 p-8 overflow-y-auto custom-scroll">
+                                <div className="flex-1 p-8 overflow-y-auto custom-scroll relative">
                                     <div className="flex justify-between items-center mb-6">
                                         <h2 className="text-5xl font-black txt-oswald italic uppercase">{currentData.modelo}</h2>
                                         <div className="flex gap-2">
-                                            {kitQueue.length > 0 && <button onClick={downloadPDF} className="bg-green-500 text-black font-black px-6 py-3 rounded-xl animate-pulse">GENERAR PDF ({kitQueue.length})</button>}
+                                            {/* Botón Modo Desagrupar */}
+                                            {!isUngroupMode && (
+                                                <button onClick={toggleUngroupMode} className="bg-slate-800 hover:bg-red-900/40 border border-slate-600 hover:border-red-500 text-slate-300 hover:text-red-400 font-bold px-4 py-3 rounded-xl flex items-center gap-2 transition-all">
+                                                    <Icon name="unlock" size={18}/> DESAGRUPAR
+                                                </button>
+                                            )}
+                                            
+                                            {kitQueue.length > 0 && !isUngroupMode && <button onClick={downloadPDF} className="bg-green-500 text-black font-black px-6 py-3 rounded-xl animate-pulse">GENERAR PDF ({kitQueue.length})</button>}
                                         </div>
                                     </div>
+
+                                    {isUngroupMode && (
+                                        <div className="bg-red-900/20 border border-red-500/50 p-4 mb-6 rounded-lg flex items-center gap-3 text-red-200">
+                                            <Icon name="alert-triangle" className="text-red-500"/>
+                                            <span className="font-bold">MODO DESAGRUPAR ACTIVO: Selecciona los kits (candados rojos) para romper el grupo.</span>
+                                        </div>
+                                    )}
                                     
                                     {currentData.sizes.map(s => (
                                         <div key={s.name} className={`mb-8 ${activeSizeLock && activeSizeLock !== s.name ? 'section-blocked' : ''}`}>
                                             <div className="group-header"><span>Talla: {s.name}</span></div>
                                             <div className="grid grid-cols-4 gap-3">
                                                 {s.items.map(p => {
-                                                    const grouped = p.agrupado || kitQueue.some(k => k.items.some(x => x.codigoUnico === p.codigoUnico));
-                                                    const selected = checkedIds.includes(p.codigoUnico);
+                                                    // Estado base
+                                                    const isGroupedBase = p.agrupado || kitQueue.some(k => k.items.some(x => x.codigoUnico === p.codigoUnico));
+                                                    // Si está en pendingUngroups, fingimos que NO está agrupado (para preview visual)
+                                                    const willBeUngrouped = pendingUngroups.includes(p.kitRef);
+                                                    
+                                                    // Estado visual final
+                                                    const displayGrouped = isGroupedBase && !willBeUngrouped;
+                                                    const displaySelected = checkedIds.includes(p.codigoUnico);
+                                                    
+                                                    // Clases especiales
+                                                    let cardClass = 'pkg-card ';
+                                                    if (displaySelected) cardClass += 'selected ';
+                                                    
+                                                    if (isUngroupMode) {
+                                                        if (displayGrouped) {
+                                                            // Es un candidato para desagrupar
+                                                            cardClass += 'ungroup-target '; 
+                                                        }
+                                                        // Si willBeUngrouped es true, se ve como tarjeta normal (disponible)
+                                                    } else {
+                                                        if (displayGrouped) cardClass += 'confirmed ';
+                                                    }
+
                                                     return (
                                                         <div key={p.codigoUnico} 
-                                                             onClick={() => { if(!grouped) setCheckedIds(prev => selected ? prev.filter(x=>x!==p.codigoUnico) : [...prev, p.codigoUnico]) }}
-                                                             className={`pkg-card ${selected ? 'selected' : ''} ${grouped ? 'confirmed' : ''}`}>
-                                                            <div className="flex justify-between"><span className="text-xl txt-oswald">#{p.paqueteNum}</span>{grouped && <Icon name="lock" className="text-green-500" />}</div>
+                                                             onClick={() => handleCardClick(p, isGroupedBase, displaySelected)}
+                                                             className={cardClass}>
+                                                            <div className="flex justify-between">
+                                                                <span className="text-xl txt-oswald">#{p.paqueteNum}</span>
+                                                                {displayGrouped && !isUngroupMode && <Icon name="lock" className="text-green-500" />}
+                                                                {displayGrouped && isUngroupMode && <Icon name="x-circle" className="text-red-300 animate-pulse" />}
+                                                            </div>
                                                             <div className="mt-2 flex justify-between items-end">
                                                                 <div><div className="text-[10px] uppercase font-bold text-slate-400">{getCleanName(p.piezaNombre)}</div><div className="text-[10px] text-purple-400">Maq {p.maquina}</div></div>
                                                                 <span className="text-2xl font-black text-yellow-500">{p.cantidad}</span>
@@ -248,30 +381,54 @@
                                     ))}
                                 </div>
 
+                                {/* Sidebar Derecha */}
                                 <div className="w-96 border-l border-slate-800 bg-slate-900/50 p-6 flex flex-col items-center">
-                                    {selectedPieces.length > 0 ? (
-                                        <>
-                                            <div className="ficha-base rounded shadow-2xl scale-[0.8] origin-top mb-4">
-                                                <div className="h-[20%] bg-black text-white p-4 flex justify-between items-center border-b-4 border-yellow-500">
-                                                    <div><span className="text-4xl txt-oswald uppercase">{currentData.modelo}</span><span className="text-[10px] block text-gray-400">{selectedPieces[0].cliente}</span></div>
-                                                    <span className="text-2xl font-bold">{currentData.partida}</span>
-                                                </div>
-                                                <div className="h-[60%] flex">
-                                                    <div className="w-[40%] border-r-2 border-black p-2"><SmartImage modelo={currentData.modelo} repos={repos} /></div>
-                                                    <div className="w-[60%] p-2 overflow-y-auto">
-                                                        <table className="table-horizontal text-[10px]">
-                                                            <tbody>{selectedPieces.map((p, i) => (<tr key={i}><td className="w-8 font-black text-lg">{p.cantidad}</td><td className="uppercase">{getCleanName(p.piezaNombre)}</td></tr>))}</tbody>
-                                                        </table>
+                                    
+                                    {isUngroupMode ? (
+                                        // PANEL MODO DESAGRUPAR
+                                        <div className="flex flex-col h-full w-full justify-center gap-4">
+                                            <div className="text-center mb-6">
+                                                <div className="inline-block p-4 rounded-full bg-red-500/10 mb-2"><Icon name="trash-2" size={40} className="text-red-500"/></div>
+                                                <h3 className="text-2xl font-black text-white uppercase">Zona de Ruptura</h3>
+                                                <p className="text-slate-400 text-sm mt-2">
+                                                    Kits marcados: <span className="text-white font-bold text-lg">{new Set(pendingUngroups).size}</span>
+                                                </p>
+                                            </div>
+
+                                            <button onClick={confirmUngroup} disabled={isSaving} className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl uppercase tracking-wider shadow-lg shadow-red-900/20 flex items-center justify-center gap-2">
+                                                {isSaving ? 'PROCESANDO...' : 'CONFIRMAR CAMBIOS'}
+                                            </button>
+                                            
+                                            <button onClick={toggleUngroupMode} className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl uppercase">
+                                                CANCELAR
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        // PANEL NORMAL
+                                        selectedPieces.length > 0 ? (
+                                            <>
+                                                <div className="ficha-base rounded shadow-2xl scale-[0.8] origin-top mb-4">
+                                                    <div className="h-[20%] bg-black text-white p-4 flex justify-between items-center border-b-4 border-yellow-500">
+                                                        <div><span className="text-4xl txt-oswald uppercase">{currentData.modelo}</span><span className="text-[10px] block text-gray-400">{selectedPieces[0].cliente}</span></div>
+                                                        <span className="text-2xl font-bold">{currentData.partida}</span>
+                                                    </div>
+                                                    <div className="h-[60%] flex">
+                                                        <div className="w-[40%] border-r-2 border-black p-2"><SmartImage modelo={currentData.modelo} repos={repos} /></div>
+                                                        <div className="w-[60%] p-2 overflow-y-auto">
+                                                            <table className="table-horizontal text-[10px]">
+                                                                <tbody>{selectedPieces.map((p, i) => (<tr key={i}><td className="w-8 font-black text-lg">{p.cantidad}</td><td className="uppercase">{getCleanName(p.piezaNombre)}</td></tr>))}</tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                    <div className="h-[20%] border-t-2 border-black flex flex-col items-center justify-center bg-gray-50">
+                                                        <div className="text-xs font-bold text-slate-400 italic">VISTA PREVIA</div>
+                                                        <div className="text-lg font-black mt-1 uppercase">TALLA: {selectedPieces[0].talla}</div>
                                                     </div>
                                                 </div>
-                                                <div className="h-[20%] border-t-2 border-black flex flex-col items-center justify-center bg-gray-50">
-                                                    <div className="text-xs font-bold text-slate-400 italic">VISTA PREVIA</div>
-                                                    <div className="text-lg font-black mt-1 uppercase">TALLA: {selectedPieces[0].talla}</div>
-                                                </div>
-                                            </div>
-                                            <button onClick={handleConfirmManual} disabled={isSaving} className="w-full bg-yellow-500 text-black font-black py-4 rounded-xl uppercase tracking-wider shadow-lg shadow-yellow-500/20">CONFIRMAR KIT</button>
-                                        </>
-                                    ) : <div className="mt-20 text-slate-600 font-bold text-center italic">Selecciona papeletas para agrupar...</div>}
+                                                <button onClick={handleConfirmManual} disabled={isSaving} className="w-full bg-yellow-500 text-black font-black py-4 rounded-xl uppercase tracking-wider shadow-lg shadow-yellow-500/20">CONFIRMAR KIT</button>
+                                            </>
+                                        ) : <div className="mt-20 text-slate-600 font-bold text-center italic">Selecciona papeletas para agrupar...</div>
+                                    )}
                                 </div>
                             </div>
                         ) : <div className="flex-1 flex items-center justify-center opacity-10"><Icon name="box" size={120}/></div>}
