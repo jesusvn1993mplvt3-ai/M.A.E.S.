@@ -1,14 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
-  Save, SaveAll, FilePlus, FolderOpen, Factory, Ticket, Layers, 
-  Info, Loader2, FileDown, Activity, Minus, Square, X, Boxes, Hammer,
+  Save, FilePlus, Factory, Ticket, 
+  Info, Loader2, Activity, Boxes, Hammer,
   Printer, Hash, Scissors
 } from 'lucide-react';
 
 // Librerías de utilidades reales
 import JsBarcode from 'jsbarcode';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
 
 // Firebase
 import { initializeApp } from 'firebase/app';
@@ -28,7 +26,6 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
 const db = getFirestore(app);
 
 // ============================================================================
