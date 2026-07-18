@@ -36,11 +36,11 @@ const RibbonButton = ({ icon: Icon, label, onClick, disabled = false, colorClass
     onClick={onClick} 
     disabled={disabled}
     className={`flex flex-col items-center justify-start py-1.5 px-3 rounded border border-transparent min-w-[68px] text-center transition-all
-      \${disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-200 hover:border-slate-300 active:bg-slate-300 cursor-pointer'} 
+      ${disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-200 hover:border-slate-300 active:bg-slate-300 cursor-pointer'} 
       text-slate-700 bg-transparent`}
   >
-    <Icon size={26} strokeWidth={1.5} className={`\${colorClass} mb-1`} />
-    <span className="text-[11px] leading-tight font-medium tracking-tight">\${label}</span>
+    <Icon size={26} strokeWidth={1.5} className={`${colorClass} mb-1`} />
+    <span className="text-[11px] leading-tight font-medium tracking-tight">${label}</span>
   </button>
 );
 
@@ -83,7 +83,7 @@ const ModuleNuevaOrden = ({ onSaveRequest }: any) => {
               ? (prendasTotal % porPaquete) 
               : porPaquete;
             
-            const shortCode = `\${partida}-\${maquina}-\${String(i).padStart(3, '0')}`;
+            const shortCode = `${partida}-${maquina}-${String(i).padStart(3, '0')}`;
             
             paquetes.push({
               paqueteNum: i,
@@ -106,7 +106,7 @@ const ModuleNuevaOrden = ({ onSaveRequest }: any) => {
           await addDoc(colRef, newOrder);
           
           setFormData({ cliente: '', partida: '', articulo: '', color: '', talla: 'UNITALLA', maquina: '', totalPrendas: '', prendasPorPaquete: '' });
-          alert(`¡Orden guardada! Se generaron \${numPaquetes} paquetes.`);
+          alert(`¡Orden guardada! Se generaron ${numPaquetes} paquetes.`);
         } catch(e) { 
           console.error("Error al guardar:", e); 
           alert("Error al guardar la orden.");
@@ -218,11 +218,11 @@ const ModulePapeletas = ({ orders }: any) => {
                   setSelectedPaquete(null);
                 }} 
                 className={`w-full text-left p-3 text-sm transition-all flex justify-between items-center
-                  \${selectedOrder?.id === o.id ? 'bg-blue-50 text-blue-900 border-b border-blue-200' : 'hover:bg-slate-50 text-slate-700'}`}
+                  ${selectedOrder?.id === o.id ? 'bg-blue-50 text-blue-900 border-b border-blue-200' : 'hover:bg-slate-50 text-slate-700'}`}
               >
                 <div>
-                  <div className="font-bold text-sm tracking-tight">\${o.partida}</div>
-                  <div className="text-[10px] opacity-70 uppercase font-bold">\${o.maquina} • \${o.totalPaquetes} Paquetes</div>
+                  <div className="font-bold text-sm tracking-tight">${o.partida}</div>
+                  <div className="text-[10px] opacity-70 uppercase font-bold">${o.maquina} • ${o.totalPaquetes} Paquetes</div>
                 </div>
                 <Hash size={16} className={selectedOrder?.id === o.id ? 'text-blue-500' : 'text-slate-400'} />
               </button>
@@ -234,9 +234,9 @@ const ModulePapeletas = ({ orders }: any) => {
                       key={pq.paqueteNum}
                       onClick={() => setSelectedPaquete({ ...pq, parentOrder: o })}
                       className={`py-2 text-xs font-bold rounded border transition-all text-center
-                        \${selectedPaquete?.shortCode === pq.shortCode ? 'bg-slate-800 text-white border-slate-800 shadow-inner' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'}`}
+                        ${selectedPaquete?.shortCode === pq.shortCode ? 'bg-slate-800 text-white border-slate-800 shadow-inner' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'}`}
                     >
-                      P-\${pq.paqueteNum}
+                      P-${pq.paqueteNum}
                     </button>
                   ))}
                 </div>
@@ -500,11 +500,11 @@ export default function App() {
   return (
     <div className="flex flex-col h-screen w-full bg-slate-100 text-slate-900 font-sans overflow-hidden">
       
-      <style>{\`
+      <style>{`
         @media print {
           body, html, #root { height: auto !important; overflow: visible !important; }
         }
-      \`}</style>
+      `}</style>
 
       {/* Titlebar */}
       <div className="bg-[#1e3a8a] text-white flex items-center justify-between px-4 py-2 text-xs select-none z-50 print:hidden">
@@ -524,7 +524,7 @@ export default function App() {
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-6 py-1.5 text-xs rounded-t-lg border-t-2 border-x border-x-transparent transition-all
-                \${activeTab === tab 
+                ${activeTab === tab 
                   ? 'bg-white border-t-[#2563eb] border-x-slate-200 text-[#1e3a8a] font-bold relative top-[1px]' 
                   : 'text-slate-600 border-t-transparent hover:bg-slate-200 border-b-slate-300 font-medium'
                 }`}
