@@ -309,7 +309,7 @@ const ModulePapeletas = ({ orders }: any) => {
             <div className="mt-4 flex flex-col items-center justify-center border-t-2 border-dashed border-gray-300 pt-4">
               <div className="h-12 w-full flex items-end justify-center space-x-[1px] opacity-90 px-4 overflow-hidden">
                 {[...Array(60)].map((_, i) => (
-                  <div key={i} className="bg-black" style={{ width: \`\${Math.random() * 3 + 1}px\`, height: \`\${Math.random() > 0.8 ? '80%' : '100%'}\` }}></div>
+                  <div key={i} className="bg-black" style={{ width: `${Math.random() * 3 + 1}px`, height: `${Math.random() > 0.8 ? '80%' : '100%'}` }}></div>
                 ))}
               </div>
               <div className="mt-1 text-lg font-mono font-bold tracking-widest">
