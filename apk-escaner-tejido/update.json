@@ -1,0 +1,10 @@
+{
+  "packageName": "com.aistudio.escanerproduccion.qxmzp",
+  "versionCode": 10,
+  "versionName": "1.9",
+  "apkUrl": "https://github.com/jesusvn1993mplvt3-ai/M.A.E.S./releases/download/escaner-tejido-v1.9/EscanerTejido_Actualizaciones_GitHub_v1.9.apk",
+  "sha256": "72d765ae2b38ab145d06e7813c86f96f872c51cadb283b85c7ca973dac398277",
+  "mandatory": false,
+  "notes": "Comprobación de actualizaciones desde GitHub, descarga verificada por SHA-256 e instalación oficial de Android. Se conserva el servicio de notificaciones y el descuento de hilo en inventario.",
+  "publishedAt": "2026-08-18"
+}
