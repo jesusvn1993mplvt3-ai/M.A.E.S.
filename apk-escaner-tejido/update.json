@@ -1,10 +1,10 @@
 {
   "packageName": "com.aistudio.escanerproduccion.qxmzp",
-  "versionCode": 10,
-  "versionName": "1.9",
-  "apkUrl": "https://github.com/jesusvn1993mplvt3-ai/M.A.E.S./releases/download/escaner-tejido-v1.9/EscanerTejido_Actualizaciones_GitHub_v1.9.apk",
-  "sha256": "72d765ae2b38ab145d06e7813c86f96f872c51cadb283b85c7ca973dac398277",
+  "versionCode": 12,
+  "versionName": "2.1",
+  "apkUrl": "https://github.com/jesusvn1993mplvt3-ai/M.A.E.S./releases/download/escaner-tejido-v2.1/EscanerTejido_KIT_v2.1.apk",
+  "sha256": "c2bdff7c083a8fc5bcadc4f0e10f220e8cb3f943a378045b4ccf5548ac990265",
   "mandatory": false,
-  "notes": "Comprobación de actualizaciones desde GitHub, descarga verificada por SHA-256 e instalación oficial de Android. Se conserva el servicio de notificaciones y el descuento de hilo en inventario.",
-  "publishedAt": "2026-08-18"
+  "notes": "Modo producción para KITS: muestra complementos, máquina, CÓD. PROG. y ficha técnica; confirma todos los componentes pendientes con sus registros de producción, consumo de hilo, inventario y bitácora. Incluye compatibilidad PDF417 y desplazamiento corregido en móvil.",
+  "publishedAt": "2026-08-21"
 }
